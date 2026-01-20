@@ -2,110 +2,157 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- 1. CONFIGURACIÓN DE PÁGINA (LOGO E IDENTIDAD) ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
     page_title="Legado Maestro",
     page_icon="logo_legado.png",
     layout="centered"
 )
 
-# --- 2. LÓGICA ANTI-ERROR 500 (WAKE-UP) ---
-if "app_ready" not in st.session_state:
-    with st.spinner("Conectando con el Taller Laboral 'Elena Rosa Aranguibel'..."):
-        time.sleep(3) # Tiempo de espera para estabilizar la conexión del APK
-    st.session_state.app_ready = True
+# --- 2. MODO "APP NATIVA" (Ocultar marcas de Streamlit) ---
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            .viewerBadge_container__1QSob {display: none !important;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# --- 3. CONFIGURACIÓN DE SEGURIDAD (API KEY) ---
+# --- 3. LOGO DESDE GITHUB (Carga rápida) ---
+LOGO_URL = "https://raw.githubusercontent.com/luisatencio1903-boop/legado-maestro/main/logo_legado.png"
+
+# --- 4. ARRANQUE SEGURO ---
+if "ready" not in st.session_state:
+    st.session_state.ready = True
+
+# --- 5. CONEXIÓN CON IA (GEMINI) ---
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"].strip())
         model = genai.GenerativeModel('gemini-2.5-flash')
     else:
-        st.error("⚠️ Error: Configure 'GOOGLE_API_KEY' en los Secrets de Streamlit.")
+        st.error("⚠️ Falta API Key.")
         st.stop()
 except Exception as e:
     st.error(f"⚠️ Error de conexión: {e}")
     st.stop()
 
-# --- 4. BARRA LATERAL: IDENTIDAD PROFESIONAL ---
+# --- 6. BARRA LATERAL (IDENTIDAD) ---
 with st.sidebar:
-    try:
-        st.image("logo_legado.png", width=150)
-    except:
-        st.warning("⚠️ Cargando escudo institucional...")
-            
+    st.image(LOGO_URL, width=150)
     st.title("Legado Maestro")
     st.markdown("---")
     st.caption("👨‍🏫 **Luis Atencio**")
     st.caption("Bachiller Docente")
-    st.caption("Taller Laboral 'Elena Rosa Aranguibel'")
-    st.write("---")
-    st.info("💡 Herramienta de apoyo pedagógico para Educación Especial en el Zulia.")
+    st.caption("Taller Laboral 'Elena Rosa Aranguibel' (T.E.L E.R.A.C)")
 
-# --- 5. CUERPO DE LA APP ---
+# --- 7. CUERPO DE LA APP ---
 st.title("🍎 Asistente Educativo - Zulia")
 
+# Menú Principal
 opcion = st.selectbox(
-    "¿Qué vamos a trabajar hoy, colega?",
-    ["📝 Planificador Semanal Profesional", "💡 Ideas para Actividades", "❓ Consultas Técnicas"]
+    "Seleccione herramienta:",
+    [
+        "📝 Planificación Profesional", 
+        "🌟 Mensaje Motivacional", 
+        "💡 Ideas de Actividades", 
+        "❓ Consultas Técnicas"
+    ]
 )
 
-if opcion == "📝 Planificador Semanal Profesional":
-    st.subheader("Planificación Técnica Estructurada")
-    rango = st.text_input("Lapso de la semana:", placeholder="Ej: del 19 al 23 de enero de 2026")
-    aula = st.text_input("Aula / Grupo:", value="Mantenimiento y Servicios Generales")
-    st.info("Escriba sus notas diarias. El profesor Luis Atencio les dará el formato técnico oficial.")
-    notas = st.text_area("Cronograma de actividades:", height=200)
+# --- OPCIÓN 1: PLANIFICADOR ---
+if opcion == "📝 Planificación Profesional":
+    st.subheader("Planificación Técnica")
+    rango = st.text_input("Lapso:", placeholder="Ej: 19 al 23 de enero 2026")
+    aula = st.text_input("Aula:", value="Mantenimiento y Servicios Generales")
+    notas = st.text_area("Notas diarias:", height=200)
 
     if st.button("🚀 Generar Planificación"):
         if rango and notas:
-            with st.spinner('Procesando datos bajo estándares pedagógicos...'):
+            with st.spinner('Procesando datos pedagógicos...'):
                 try:
                     prompt = f"""
-                    Actúa como Luis Atencio, Bachiller Docente del Taller Laboral 'Elena Rosa Aranguibel'.
-                    Organiza estas notas en una planificación formal, técnica y concisa para Educación Especial.
+                    Actúa como Luis Atencio, Bachiller Docente. 
+                    Estructura estas notas en una planificación técnica para Educación Especial.
+                    Lapso: {rango} | Aula: {aula} | Notas: {notas}
                     
-                    DATOS: LAPSO: {rango} | AULA: {aula} | DOCENTE: Luis Atencio.
-                    NOTAS: {notas}
-
-                    ESTRUCTURA OBLIGATORIA POR DÍA:
+                    ESTRUCTURA OBLIGATORIA:
                     1. Día y Fecha.
-                    2. Título (Técnico y breve).
-                    3. Competencia (Redacción profesional).
-                    4. Exploración (Concisa, sin religión ni coloquialismos).
-                    5. Desarrollo (Pasos prácticos en viñetas).
-                    6. REFLEXIÓN (Evaluación y rutina de aseo resumida).
-                    7. Mantenimiento (Orden y limpieza).
-
-                    REGLA DE ORO: Tono profesional y laico. 
-                    AL FINAL DE CADA DÍA DEBE APARECER: Luis Atencio, Bachiller Docente.
+                    2. Título (Técnico).
+                    3. Competencia.
+                    4. Exploración (Concisa).
+                    5. Desarrollo (Viñetas).
+                    6. REFLEXIÓN (Evaluación y aseo).
+                    7. Mantenimiento.
+                    
+                    FIRMA OBLIGATORIA AL FINAL: Luis Atencio, Bachiller Docente.
                     """
                     res = model.generate_content(prompt)
-                    st.success("¡Planificación generada con éxito!")
+                    st.success("¡Planificación Generada!")
                     st.markdown(res.text)
                 except Exception as e:
-                    st.error(f"Error técnico de la IA: {e}")
+                    st.error(f"Error: {e}")
 
-# --- OTRAS FUNCIONES ---
-elif opcion == "💡 Ideas para Actividades":
-    tema = st.text_input("Habilidad a fortalecer:")
+# --- OPCIÓN 2: MENSAJE MOTIVACIONAL (NUEVO ❤️) ---
+elif opcion == "🌟 Mensaje Motivacional":
+    st.subheader("Ánimo, Colega Venezolano 🇻🇪")
+    st.info("Un espacio para recargar energías frente a las dificultades.")
+    
+    if st.button("❤️ Generar Mensaje de Hoy"):
+        with st.spinner('Redactando mensaje de aliento...'):
+            try:
+                # Prompt diseñado para dar empatía en el contexto Venezuela
+                prompt = """
+                Genera un mensaje motivacional corto, emotivo y muy humano dirigido a un docente de educación especial en Venezuela.
+                
+                CLAVES DEL MENSAJE:
+                - Reconoce que la situación económica y social es dura y a veces agotadora.
+                - Valora que, a pesar de tener poco, hacen mucho por los participantes.
+                - Dales esperanza: "todo mejorará", "saldremos adelante".
+                - Usa un tono de compañero a compañero, de lucha y resistencia.
+                
+                CIERRE OBLIGATORIO: 
+                "Ánimos. 
+                Att: Profesor Luis Atencio"
+                """
+                res = model.generate_content(prompt)
+                
+                # Mostramos el mensaje en un cuadro bonito
+                st.markdown(f"""
+                <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
+                    <h4 style="color: #31333F;">🌟 Para ti, compañero de lucha:</h4>
+                    <p style="font-size: 1.1em;">{res.text}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            except Exception as e:
+                st.error("Error al conectar con la inspiración.")
+
+# --- OPCIÓN 3: IDEAS ---
+elif opcion == "💡 Ideas de Actividades":
+    tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
-        res = model.generate_content(f"Sugiere 3 actividades técnicas breves para {tema}. Tono profesional.")
+        res = model.generate_content(f"Sugiere 3 actividades técnicas breves para {tema} en educación especial (Taller Laboral).")
         st.markdown(res.text)
 
+# --- OPCIÓN 4: CONSULTAS ---
 elif opcion == "❓ Consultas Técnicas":
-    duda = st.text_area("Duda pedagógica:")
+    duda = st.text_area("Consulta:")
     if st.button("🔍 Responder"):
-        res = model.generate_content(f"Respuesta técnica sobre educación especial para taller laboral: {duda}")
+        res = model.generate_content(f"Respuesta técnica breve sobre educación especial: {duda}")
         st.markdown(res.text)
 
-# --- 6. FIRMA Y MARCA PROFESIONAL AL PIE (FOOTER) ---
+# --- 8. PIE DE PÁGINA (ACTUALIZADO PARA EL T.E.L E.R.A.C) ---
 st.markdown("---")
 st.markdown(
-    """
+    f"""
     <div style='text-align: center;'>
-        <p style='margin-bottom: 0;'>Desarrollado con ❤️ por <b>Luis Atencio</b></p>
-        <p style='font-size: 0.85em; color: gray;'>Bachiller Docente - Zulia, 2026</p>
+        <img src='{LOGO_URL}' width='50'><br>
+        <p style='margin-bottom: 5px;'>Desarrollado con ❤️ por <b>Luis Atencio</b></p>
+        <p style='font-size: 0.85em; color: #555;'>para sus amigos y participantes del <b>T.E.L E.R.A.C</b></p>
+        <p style='font-size: 0.75em; color: silver;'>Zulia, Venezuela | 2026</p>
     </div>
     """, 
     unsafe_allow_html=True
