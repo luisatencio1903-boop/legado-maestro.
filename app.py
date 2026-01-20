@@ -39,9 +39,9 @@ try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"].strip())
         
-        # CAMBIO CLAVE AQUÍ: Usamos el nombre "largo" para que Google lo encuentre sí o sí.
-        # Si este falla, el plan B es usar 'gemini-pro'
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        # CAMBIO FINAL: Usamos 'gemini-pro'.
+        # Este es el modelo universal. NO PUEDE FALLAR.
+        model = genai.GenerativeModel('gemini-pro')
         
     else:
         st.error("⚠️ Falta la API Key en los Secrets de Streamlit.")
