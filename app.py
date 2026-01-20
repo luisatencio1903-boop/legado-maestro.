@@ -5,72 +5,81 @@ import google.generativeai as genai
 try:
     api_key = st.secrets["GOOGLE_API_KEY"].strip()
     genai.configure(api_key=api_key)
-    # Usamos Gemini 2.5 Flash por su precisión en seguir estructuras
     model = genai.GenerativeModel('gemini-2.5-flash')
 except Exception as e:
-    st.error(f"⚠️ Error en la configuración: {e}")
+    st.error(f"⚠️ Error de configuración: {e}")
     st.stop()
 
-# --- 2. CONFIGURACIÓN DE LA PÁGINA (Identidad Luis Atencio) ---
+# --- 2. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Legado Maestro", page_icon="🍎")
 
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100)
     st.title("Legado Maestro")
     st.info("💡 Herramienta de Apoyo Docente")
-    st.caption("👨‍🏫 **Prof. Luis Atencio**")
-    st.caption("Taller Laboral 'Elena Rosa Aranguibel'")
+    st.caption("👨‍🏫 **Luis Atencio**")
+    st.caption("Bachiller Docente - Taller Laboral")
     st.write("---")
 
 # --- 3. LÓGICA DE LA APLICACIÓN ---
 st.title("🍎 Asistente Educativo - Zulia")
-st.subheader("Planificación para Educación Especial")
+st.subheader("Planificador Semanal por Actividades")
 
-opcion = st.selectbox(
-    "¿Qué vamos a trabajar hoy, colega?",
-    ["📝 Crear Plan de Clase", "🔧 Consultar Mantenimiento", "💡 Idea para Actividad"]
+# NUEVO CUADRO: Rango de Fechas
+rango_fecha = st.text_input("Ingresa el lapso de la semana:", placeholder="Ej: Del 19 al 23 de enero de 2026")
+
+# NUEVO CUADRO: Aula / Grupo
+grado = st.text_input("Aula / Grupo:", value="Mantenimiento y Servicios Generales")
+
+# NUEVO CUADRO: Cronograma libre
+st.markdown("### 📝 Cronograma de la Semana")
+st.info("Escribe el día y tus actividades. La IA se encargará de darle el formato profesional a cada una.")
+notas_docente = st.text_area(
+    "Escribe aquí (Ej: Lunes: Higiene personal. Martes: Mantenimiento general...)",
+    height=200,
+    placeholder="Lunes: [Actividades...]\nMartes: [Actividades...]\nMiércoles: [Actividades...]"
 )
 
-if opcion == "📝 Crear Plan de Clase":
-    tema = st.text_input("Ingresa el tema central de la semana:")
-    mes = st.selectbox("Selecciona el mes:", ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"])
-    
-    if st.button("✨ Generar Planificación con mi Estructura"):
-        if tema:
-            with st.spinner('Luis, estoy organizando el plan según tu formato de aula...'):
-                try:
-                    # PROMPT DE ESTRUCTURA: Obligamos a la IA a seguir tu orden exacto
-                    prompt = f"""
-                    Actúa como el Prof. Luis Atencio, docente de Educación Especial en el Zulia.
-                    Genera una planificación semanal para el Taller Laboral 'Elena Rosa Aranguibel'.
-                    
-                    TEMA SEMANAL: {tema}
-                    MES: {mes} de 2026.
+if st.button("🚀 Generar Planificación Estructurada"):
+    if rango_fecha and notas_docente:
+        with st.spinner('Luis, estoy organizando tus actividades en el formato oficial...'):
+            try:
+                # PROMPT DE ESTRUCTURACIÓN:
+                # Gemini usará los nombres de los días como delimitadores
+                prompt = f"""
+                Actúa como Luis Atencio, bachiller docente del Taller Laboral 'Elena Rosa Aranguibel'.
+                Tu tarea es tomar las notas rápidas del docente y organizarlas en una planificación profesional.
 
-                    ESTRUCTURA OBLIGATORIA PARA CADA DÍA (Lunes a Viernes):
-                    1. Día y Fecha: (Calcula las fechas según el mes indicado).
-                    2. Título de la Actividad: (Relacionado con el tema y mantenimiento).
-                    3. Competencia: (Definición técnica de la habilidad a desarrollar).
-                    4. Exploración: (Conversatorio inicial o teoría corta).
-                    5. Desarrollo: (Pasos prácticos de la actividad en el aula/taller).
-                    6. Cierre: (Reflexión y rutina de aseo personal obligatoria).
-                    7. Mantenimiento: (Tarea específica de limpieza u organización de herramientas).
+                LAPSO: {rango_fecha}
+                AULA: {grado}
 
-                    REGLAS DE ORO:
-                    - Usa lenguaje motivador y zuliano (Ej: "¡Epale mi gente!").
-                    - Enfócate en habilidades pre-laborales, autonomía y seguridad.
-                    - No dejes campos vacíos ni uses corchetes [ ].
-                    - Firma al final como Prof. Luis Atencio.
-                    """
-                    
-                    respuesta = model.generate_content(prompt)
-                    st.success("¡Planificación lista bajo tu formato!")
-                    st.markdown(respuesta.text)
-                except Exception as e:
-                    st.error(f"Error técnico: {e}")
-        else:
-            st.warning("Luis, por favor indica el tema de la semana.")
+                NOTAS DEL DOCENTE:
+                {notas_docente}
+
+                INSTRUCCIONES DE FORMATO PARA CADA DÍA MENCIONADO:
+                1. Día y Fecha: (Usa el lapso {rango_fecha} para asignar la fecha exacta a cada día).
+                2. Título de la Actividad: (Basado en lo que escribió el docente).
+                3. Competencia: (Redacta una competencia técnica acorde a la actividad).
+                4. Exploración: (Breve conversatorio o dinámica inicial).
+                5. Desarrollo: (Explica paso a paso las actividades que el docente anotó).
+                6. Cierre: (Rutina de aseo personal y reflexión).
+                7. Mantenimiento: (Tarea técnica de orden y limpieza del taller).
+
+                REGLAS DE ORO:
+                - Si el docente anotó varias actividades para un día, inclúyelas todas en el Desarrollo.
+                - Mantén el tono zuliano, sencillo y motivador ("¡Epale mi gente!").
+                - No inventes días que el docente no mencionó.
+                - Firma al final: Luis Atencio, Bachiller Docente.
+                """
+                
+                respuesta = model.generate_content(prompt)
+                st.success("¡Planificación organizada con éxito!")
+                st.markdown(respuesta.text)
+            except Exception as e:
+                st.error(f"Error técnico: {e}")
+    else:
+        st.warning("Luis, por favor ingresa el lapso de fecha y al menos una actividad.")
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.markdown("<div style='text-align: center'>Desarrollado con ❤️ por <b>Luis Atencio</b></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center'>Desarrollado con ❤️ por <b>Luis Atencio</b> para el Taller Laboral.</div>", unsafe_allow_html=True)
