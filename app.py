@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import time
 import random
+import os # <--- Importamos esto para verificar si la imagen existe
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -30,18 +31,16 @@ hide_streamlit_style = """
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# --- 3. URL DEL LOGO (Solo para la barra lateral) ---
-LOGO_URL = "https://raw.githubusercontent.com/luisatencio1903-boop/legado-maestro/main/logo_legado.png"
-
-# --- 4. ARRANQUE SEGURO ---
+# --- 3. ARRANQUE SEGURO ---
 if "ready" not in st.session_state:
     st.session_state.ready = True
 
-# --- 5. CONEXIÓN CON IA ---
+# --- 4. CONEXIÓN CON IA (MODELO RÁPIDO) ---
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"].strip())
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # Usamos el modelo 1.5 que es el más resistente a bloqueos
+        model = genai.GenerativeModel('gemini-1.5-flash')
     else:
         st.error("⚠️ Falta API Key.")
         st.stop()
@@ -49,19 +48,22 @@ except Exception as e:
     st.error(f"⚠️ Error de conexión: {e}")
     st.stop()
 
-# --- 6. BARRA LATERAL ---
+# --- 5. BARRA LATERAL (CON PROTECCIÓN DE IMAGEN ROTA) ---
 with st.sidebar:
-    try:
-        st.image(LOGO_URL, width=150)
-    except:
-        st.header("🍎") # Si falla la imagen, pone una manzana
+    # Verificamos si el archivo existe realmente
+    if os.path.exists("logo_legado.png"):
+        st.image("logo_legado.png", width=150)
+    else:
+        # Si no encuentra la imagen, pone la Manzana en vez del error feo
+        st.markdown("<h1 style='text-align: center;'>🍎</h1>", unsafe_allow_html=True)
+        
     st.title("Legado Maestro")
     st.markdown("---")
     st.caption("👨‍🏫 **Luis Atencio**")
     st.caption("Bachiller Docente")
     st.caption("T.E.L E.R.A.C")
 
-# --- 7. CUERPO DE LA APP ---
+# --- 6. CUERPO DE LA APP ---
 st.title("🍎 Asistente Educativo - Zulia")
 
 opcion = st.selectbox(
@@ -96,7 +98,7 @@ if opcion == "📝 Planificación Profesional":
                     st.success("¡Planificación Generada!")
                     st.markdown(res.text)
                 except Exception as e:
-                    st.warning("⏳ El sistema se está recargando. Por favor espera unos minutos.")
+                    st.warning("⏳ El sistema se está recargando. Intenta de nuevo en 1 min.")
 
 # --- OPCIÓN 2: MENSAJE MOTIVACIONAL ---
 elif opcion == "🌟 Mensaje Motivacional":
@@ -132,7 +134,7 @@ elif opcion == "🌟 Mensaje Motivacional":
                 """, unsafe_allow_html=True)
                 
             except Exception as e:
-                st.warning("⏳ El sistema se está recargando. Por favor espera unos minutos.")
+                st.warning("⏳ El sistema se está recargando. Intenta de nuevo en 1 min.")
 
 # --- OPCIÓN 3: IDEAS ---
 elif opcion == "💡 Ideas de Actividades":
@@ -143,7 +145,7 @@ elif opcion == "💡 Ideas de Actividades":
                 res = model.generate_content(f"Sugiere 3 actividades técnicas breves para {tema} en Taller Laboral.")
                 st.markdown(res.text)
         except:
-             st.warning("⏳ El sistema se está recargando. Por favor espera unos minutos.")
+             st.warning("⏳ El sistema se está recargando. Intenta de nuevo en 1 min.")
 
 # --- OPCIÓN 4: CONSULTAS ---
 elif opcion == "❓ Consultas Técnicas":
@@ -154,9 +156,9 @@ elif opcion == "❓ Consultas Técnicas":
                 res = model.generate_content(f"Respuesta técnica breve: {duda}")
                 st.markdown(res.text)
         except:
-             st.warning("⏳ El sistema se está recargando. Por favor espera unos minutos.")
+             st.warning("⏳ El sistema se está recargando. Intenta de nuevo en 1 min.")
 
-# --- 8. PIE DE PÁGINA (SIN IMAGEN PARA EVITAR ERRORES) ---
+# --- 7. PIE DE PÁGINA (SOLO TEXTO PARA EVITAR ERRORES) ---
 st.markdown("---")
 st.markdown(
     """
