@@ -10,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 2. ESTILOS CSS (Texto Negro y Diseño Limpio) ---
+# --- 2. ESTILOS CSS ---
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -18,11 +18,11 @@ hide_streamlit_style = """
             header {visibility: hidden;}
             .viewerBadge_container__1QSob {display: none !important;}
             
-            /* FUERZA EL TEXTO A NEGRO Y TAMAÑO LEGIBLE */
+            /* FUERZA EL TEXTO A NEGRO */
             .mensaje-texto {
                 color: #000000 !important;
                 font-family: 'Helvetica', sans-serif;
-                font-size: 1.2em; /* Un poco más grande para impacto */
+                font-size: 1.2em; 
                 font-weight: 500;
                 line-height: 1.4;
             }
@@ -93,56 +93,42 @@ if opcion == "📝 Planificación Profesional":
                     st.success("¡Planificación Generada!")
                     st.markdown(res.text)
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.warning("⏳ La IA está descansando. Espera 1 minuto y prueba de nuevo.")
 
-# --- OPCIÓN 2: MENSAJE MOTIVACIONAL (VERSIÓN CORTA Y DIRECTA ⚡) ---
+# --- OPCIÓN 2: MENSAJE MOTIVACIONAL ---
 elif opcion == "🌟 Mensaje Motivacional":
     st.subheader("Dosis de Ánimo Express ⚡")
     
     if st.button("❤️ Mensaje Corto para Compartir"):
         with st.spinner('Buscando frase perfecta...'):
             try:
-                # TEMAS VARIADOS PERO ESTRICTAMENTE CORTOS
                 temas = [
-                    # Opción 1: Bíblico Flash
-                    """Dame solo UNA frase bíblica poderosa sobre la enseñanza o el amor, y una mini aplicación de 5 palabras.
-                    Ejemplo: 'Instruye al niño en su camino. Tu huella es eterna.' 
-                    Nada más.""",
+                    """Dame solo UNA frase bíblica poderosa sobre la enseñanza o el amor. 
+                    Ejemplo: 'Instruye al niño en su camino...' 
+                    Corta y directa.""",
                     
-                    # Opción 2: Frase de Impacto
-                    """Una frase célebre corta sobre educación (tipo Hellen Keller o Mandela) y un 'Tú puedes' final.
-                    Máximo 20 palabras en total.""",
+                    """Una frase célebre corta sobre educación y superación.
+                    Máximo 15 palabras.""",
                     
-                    # Opción 3: Realidad Venezuela (Corto)
                     """Una frase de aliento guerrero para el docente venezolano. 
-                    Ejemplo: 'En tiempos difíciles, tu aula es un refugio de luz. Gracias por resistir.'
+                    Ejemplo: 'Tu aula es luz en tiempos difíciles.'
                     Corto y contundente.""",
                     
-                    # Opción 4: Vocación Pura
-                    """Un recordatorio flash de por qué educamos.
-                    Ejemplo: 'Ese pequeño avance de hoy valió todo el esfuerzo. Estás cambiando vidas.'"""
+                    """Un recordatorio flash de vocación.
+                    Ejemplo: 'Ese pequeño avance vale todo el esfuerzo.'"""
                 ]
                 
-                # ELEGIR TEMA AL AZAR
                 tema_elegido = random.choice(temas)
-                
-                # CONFIGURACIÓN DE CREATIVIDAD MEDIA (Para que sea coherente pero variado)
                 config_creativa = genai.types.GenerationConfig(temperature=0.9)
 
                 prompt_final = f"""
                 {tema_elegido}
-                
-                REGLAS OBLIGATORIAS DE LONGITUD:
-                1. MÁXIMO 2 ORACIONES.
-                2. MÁXIMO 25 PALABRAS.
-                3. Tiene que ser fácil de leer en un segundo.
-                4. CIERRE OBLIGATORIO: "Ánimos. Att: Profesor Luis Atencio"
+                REGLAS: MÁXIMO 25 PALABRAS.
+                CIERRE OBLIGATORIO: "Ánimos. Att: Profesor Luis Atencio"
                 """
                 
-                # Generamos
                 res = model.generate_content(prompt_final, generation_config=config_creativa)
                 
-                # MUESTRA EL MENSAJE
                 st.markdown(f"""
                 <div style="background-color: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #eee; border-left: 8px solid #ff4b4b; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
                     <div class="mensaje-texto">
@@ -152,32 +138,42 @@ elif opcion == "🌟 Mensaje Motivacional":
                 """, unsafe_allow_html=True)
                 
             except Exception as e:
-                st.error("Error al conectar con la inspiración.")
+                # AQUÍ ESTÁ EL MENSAJE AMIGABLE SI SE ACABA EL SALDO
+                st.warning("⏳ ¡Mucha inspiración por hoy! Espera 1 minuto para recargar energías.")
 
 # --- OPCIÓN 3: IDEAS ---
 elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
-        res = model.generate_content(f"Sugiere 3 actividades técnicas, creativas y breves para {tema} en Taller Laboral.")
-        st.markdown(res.text)
+        try:
+            res = model.generate_content(f"Sugiere 3 actividades técnicas, creativas y breves para {tema} en Taller Laboral.")
+            st.markdown(res.text)
+        except:
+             st.warning("⏳ Espera un momento, la IA se está reiniciando.")
 
 # --- OPCIÓN 4: CONSULTAS ---
 elif opcion == "❓ Consultas Técnicas":
     duda = st.text_area("Consulta:")
     if st.button("🔍 Responder"):
-        res = model.generate_content(f"Respuesta técnica profesional y breve: {duda}")
-        st.markdown(res.text)
+        try:
+            res = model.generate_content(f"Respuesta técnica profesional y breve: {duda}")
+            st.markdown(res.text)
+        except:
+             st.warning("⏳ Espera un momento, la IA se está reiniciando.")
 
 # --- 8. PIE DE PÁGINA ---
 st.markdown("---")
-st.markdown(
-    f"""
-    <div style='text-align: center;'>
-        <img src='{LOGO_URL}' width='50'><br>
-        <p style='margin-bottom: 5px;'>Desarrollado con ❤️ por <b>Luis Atencio</b></p>
-        <p style='font-size: 0.85em; color: #555;'>para sus amigos y participantes del <b>T.E.L E.R.A.C</b></p>
-        <p style='font-size: 0.75em; color: silver;'>Zulia, Venezuela | 2026</p>
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
+# Usamos columnas de Streamlit en lugar de HTML puro para que la imagen cargue mejor
+col1, col2, col3 = st.columns([1,2,1])
+with col2:
+    st.image(LOGO_URL, width=60)
+    st.markdown(
+        """
+        <div style='text-align: center;'>
+            <p style='margin-bottom: 5px;'>Desarrollado con ❤️ por <b>Luis Atencio</b></p>
+            <p style='font-size: 0.85em; color: #555;'>para sus amigos y participantes del <b>T.E.L E.R.A.C</b></p>
+            <p style='font-size: 0.75em; color: silver;'>Zulia, Venezuela | 2026</p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
