@@ -1,7 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import time
-import random  # <--- NUEVO: Para elegir mensajes variados
+import random
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -10,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 2. ESTILOS CSS (Modo App Nativa + CORRECCIÓN DE COLOR DE TEXTO) ---
+# --- 2. ESTILOS CSS (Modo App Nativa + Texto Negro) ---
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -18,11 +18,12 @@ hide_streamlit_style = """
             header {visibility: hidden;}
             .viewerBadge_container__1QSob {display: none !important;}
             
-            /* ESTO FUERZA EL TEXTO DEL MENSAJE A SER NEGRO SIEMPRE */
+            /* FUERZA EL TEXTO A NEGRO */
             .mensaje-texto {
                 color: #000000 !important;
-                font-weight: 500;
-                font-size: 1.1em;
+                font-family: 'Georgia', serif; /* Tipografía más elegante para mensajes */
+                font-size: 1.15em;
+                line-height: 1.6;
             }
             </style>
             """
@@ -93,52 +94,58 @@ if opcion == "📝 Planificación Profesional":
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-# --- OPCIÓN 2: MENSAJE MOTIVACIONAL (VARIADO Y CORREGIDO 🎨) ---
+# --- OPCIÓN 2: MENSAJE MOTIVACIONAL (LIBERTAD CREATIVA TOTAL 🎨) ---
 elif opcion == "🌟 Mensaje Motivacional":
     st.subheader("Inspiración Diaria ✨")
-    st.info("Un mensaje diferente cada vez: Fe, Éxito o Resiliencia.")
     
-    if st.button("❤️ Generar Mensaje de Hoy"):
-        with st.spinner('Buscando inspiración...'):
+    if st.button("❤️ Generar Mensaje Sorpresa"):
+        with st.spinner('Conectando con la inspiración...'):
             try:
-                # LISTA DE TEMAS VARIADOS
+                # LISTA DE TEMAS ABIERTOS (Sin instrucciones rígidas)
                 temas = [
-                    # TEMA 1: CITA BÍBLICA
-                    """Genera un mensaje basado en una CITA BÍBLICA poderosa sobre enseñar, servir al necesitado o el amor al prójimo. 
-                    Relaciona la cita con la labor del docente de educación especial.
-                    Tono: Espiritual y reconfortante.""",
+                    # Opción 1: Espiritualidad Libre
+                    """Reflexiona libremente sobre la belleza espiritual de enseñar a niños con necesidades especiales. 
+                    Usa un lenguaje poético y reconfortante sobre cómo esta labor agrada a Dios. 
+                    No uses frases cliché. Sé profundo y original.""",
                     
-                    # TEMA 2: HISTORIA DE ÉXITO
-                    """Genera un mensaje breve citando a un educador famoso o una persona histórica (como Hellen Keller, Anne Sullivan, etc.) que superó grandes obstáculos.
-                    Úsalo de ejemplo para motivar al docente actual.
-                    Tono: Inspirador y profesional.""",
+                    # Opción 2: El Poder de la Educación
+                    """Crea un mensaje potente sobre cómo un maestro cambia el futuro con pequeños gestos. 
+                    Inspírate en grandes educadores pero habla con tus propias palabras. 
+                    Enfócate en el impacto invisible pero eterno de la enseñanza.""",
                     
-                    # TEMA 3: VOCACIÓN PURA
-                    """Genera un mensaje centrado en la VOCACIÓN y el corazón. 
-                    Recuérdale al docente que su trabajo con niños especiales cambia vidas, aunque no siempre se vea el resultado inmediato.
-                    Tono: Emotivo y cercano.""",
+                    # Opción 3: Resiliencia y Esperanza (Sin mencionar crisis explícita)
+                    """Escribe una carta breve de aliento a un colega que quizás está cansado hoy. 
+                    Recuérdale por qué empezó en este camino. 
+                    Usa metáforas sobre sembrar, cultivar y la paciencia. Sé muy humano y cálido.""",
                     
-                    # TEMA 4: SITUACIÓN PAÍS (VENEZUELA)
-                    """Genera un mensaje de solidaridad sobre la situación en Venezuela. 
-                    Reconoce la dificultad económica pero resalta la valentía de seguir educando a pesar de todo.
-                    Tono: De lucha y compañerismo."""
+                    # Opción 4: La Alegría de los Participantes
+                    """Enfócate en la sonrisa y el logro de un participante del Taller Laboral. 
+                    Cómo ese pequeño avance vale todo el esfuerzo del mundo. 
+                    Celebra las pequeñas victorias."""
                 ]
                 
-                # ELEGIR UNO AL AZAR
+                # ELEGIR TEMA AL AZAR
                 tema_elegido = random.choice(temas)
                 
+                # CONFIGURACIÓN DE ALTA CREATIVIDAD (Temperature = 1.0)
+                config_creativa = genai.types.GenerationConfig(temperature=1.0)
+
                 prompt_final = f"""
                 {tema_elegido}
-                IMPORTANTE: El mensaje debe ser corto (máximo 1 párrafo).
-                CIERRE OBLIGATORIO: "Ánimos. Att: Profesor Luis Atencio"
+                
+                REGLAS DE ORO:
+                1. Sé totalmente original, evita repetir estructuras anteriores.
+                2. Habla con emoción genuina, de colega a colega.
+                3. CIERRE OBLIGATORIO: "Ánimos. Att: Profesor Luis Atencio"
                 """
                 
-                res = model.generate_content(prompt_final)
+                # Generamos con la nueva configuración de creatividad
+                res = model.generate_content(prompt_final, generation_config=config_creativa)
                 
-                # MUESTRA EL MENSAJE CON COLOR NEGRO FORZADO (class='mensaje-texto')
+                # MUESTRA EL MENSAJE
                 st.markdown(f"""
-                <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
-                    <h4 style="color: #000000 !important; margin-top: 0;">🌟 Para ti, colega:</h4>
+                <div style="background-color: #f0f2f6; padding: 25px; border-radius: 15px; border-left: 6px solid #ff4b4b; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
+                    <h4 style="color: #000000 !important; margin-top: 0;">🌟 Mensaje para hoy:</h4>
                     <div class="mensaje-texto">
                         {res.text}
                     </div>
@@ -152,14 +159,14 @@ elif opcion == "🌟 Mensaje Motivacional":
 elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
-        res = model.generate_content(f"Sugiere 3 actividades técnicas breves para {tema} en Taller Laboral.")
+        res = model.generate_content(f"Sugiere 3 actividades técnicas, creativas y breves para {tema} en Taller Laboral.")
         st.markdown(res.text)
 
 # --- OPCIÓN 4: CONSULTAS ---
 elif opcion == "❓ Consultas Técnicas":
     duda = st.text_area("Consulta:")
     if st.button("🔍 Responder"):
-        res = model.generate_content(f"Respuesta técnica breve: {duda}")
+        res = model.generate_content(f"Respuesta técnica profesional y breve: {duda}")
         st.markdown(res.text)
 
 # --- 8. PIE DE PÁGINA ---
