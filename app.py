@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import time
 import random
-import os # <--- Importamos esto para verificar si la imagen existe
+import os
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -11,7 +11,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 2. ESTILOS CSS ---
+# --- 2. ESTILOS CSS (Texto Negro y Diseño Limpio) ---
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -35,12 +35,15 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 if "ready" not in st.session_state:
     st.session_state.ready = True
 
-# --- 4. CONEXIÓN CON IA (MODELO RÁPIDO) ---
+# --- 4. CONEXIÓN CON IA (MODO ALTO TRÁFICO 🏎️) ---
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"].strip())
-        # Usamos el modelo 1.5 que es el más resistente a bloqueos
+        
+        # AQUÍ ESTÁ EL SECRETO: Usamos 'gemini-1.5-flash'
+        # Este modelo permite 15 peticiones por minuto (Ideal para varios docentes)
         model = genai.GenerativeModel('gemini-1.5-flash')
+        
     else:
         st.error("⚠️ Falta API Key.")
         st.stop()
@@ -48,14 +51,13 @@ except Exception as e:
     st.error(f"⚠️ Error de conexión: {e}")
     st.stop()
 
-# --- 5. BARRA LATERAL (CON PROTECCIÓN DE IMAGEN ROTA) ---
+# --- 5. BARRA LATERAL ---
 with st.sidebar:
-    # Verificamos si el archivo existe realmente
+    # Verificación inteligente de imagen
     if os.path.exists("logo_legado.png"):
         st.image("logo_legado.png", width=150)
     else:
-        # Si no encuentra la imagen, pone la Manzana en vez del error feo
-        st.markdown("<h1 style='text-align: center;'>🍎</h1>", unsafe_allow_html=True)
+        st.header("🍎") # Manzana de respaldo
         
     st.title("Legado Maestro")
     st.markdown("---")
@@ -98,20 +100,20 @@ if opcion == "📝 Planificación Profesional":
                     st.success("¡Planificación Generada!")
                     st.markdown(res.text)
                 except Exception as e:
-                    st.warning("⏳ El sistema se está recargando. Intenta de nuevo en 1 min.")
+                    st.warning("⏳ El sistema está atendiendo a muchos usuarios. Espera 1 min.")
 
 # --- OPCIÓN 2: MENSAJE MOTIVACIONAL ---
 elif opcion == "🌟 Mensaje Motivacional":
     st.subheader("Dosis de Ánimo Express ⚡")
     
     if st.button("❤️ Mensaje Corto para Compartir"):
-        with st.spinner('Buscando las palabras correctas...'):
+        with st.spinner('Conectando...'):
             try:
                 temas = [
-                    "Dame solo UNA frase bíblica poderosa sobre enseñar. Corta.",
-                    "Una frase célebre corta sobre educación y superación.",
-                    "Una frase de aliento guerrero para el docente venezolano. Corta.",
-                    "Un recordatorio flash de vocación docente."
+                    "Una frase bíblica corta sobre enseñar y servir.",
+                    "Una frase célebre corta de motivación educativa.",
+                    "Una frase de aliento guerrero para el docente venezolano.",
+                    "Recordatorio breve de la vocación docente."
                 ]
                 
                 tema_elegido = random.choice(temas)
@@ -134,18 +136,18 @@ elif opcion == "🌟 Mensaje Motivacional":
                 """, unsafe_allow_html=True)
                 
             except Exception as e:
-                st.warning("⏳ El sistema se está recargando. Intenta de nuevo en 1 min.")
+                st.warning("⏳ Mucha inspiración por ahora. Espera 1 min.")
 
 # --- OPCIÓN 3: IDEAS ---
 elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
         try:
-            with st.spinner('Pensando ideas...'):
+            with st.spinner('Pensando...'):
                 res = model.generate_content(f"Sugiere 3 actividades técnicas breves para {tema} en Taller Laboral.")
                 st.markdown(res.text)
         except:
-             st.warning("⏳ El sistema se está recargando. Intenta de nuevo en 1 min.")
+             st.warning("⏳ El sistema está ocupado. Espera 1 min.")
 
 # --- OPCIÓN 4: CONSULTAS ---
 elif opcion == "❓ Consultas Técnicas":
@@ -156,9 +158,9 @@ elif opcion == "❓ Consultas Técnicas":
                 res = model.generate_content(f"Respuesta técnica breve: {duda}")
                 st.markdown(res.text)
         except:
-             st.warning("⏳ El sistema se está recargando. Intenta de nuevo en 1 min.")
+             st.warning("⏳ El sistema está ocupado. Espera 1 min.")
 
-# --- 7. PIE DE PÁGINA (SOLO TEXTO PARA EVITAR ERRORES) ---
+# --- 7. PIE DE PÁGINA ---
 st.markdown("---")
 st.markdown(
     """
