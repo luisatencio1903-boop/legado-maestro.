@@ -34,11 +34,15 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 if "ready" not in st.session_state:
     st.session_state.ready = True
 
-# --- 4. CONEXIÓN CON IA (MODELO RÁPIDO 1.5) ---
+# --- 4. CONEXIÓN CON IA ---
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"].strip())
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # CAMBIO CLAVE AQUÍ: Usamos el nombre "largo" para que Google lo encuentre sí o sí.
+        # Si este falla, el plan B es usar 'gemini-pro'
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        
     else:
         st.error("⚠️ Falta la API Key en los Secrets de Streamlit.")
         st.stop()
