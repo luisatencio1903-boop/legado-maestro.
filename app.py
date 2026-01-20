@@ -3,59 +3,50 @@ import google.generativeai as genai
 
 # --- CONFIGURACIÓN DE SEGURIDAD ---
 try:
-    # Llamamos a tu llave desde los Secrets de Streamlit
-    raw_key = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=raw_key.strip())
+    # El .strip() elimina cualquier espacio invisible que pueda haber en tu captura de Secrets
+    api_key = st.secrets["GOOGLE_API_KEY"].strip()
+    genai.configure(api_key=api_key)
     
-    # CAMBIO CLAVE: Usamos solo el nombre del modelo sin prefijos
-    # Esto soluciona el error 404 en la mayoría de las versiones
+    # Intentamos con el modelo más estable
     model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"⚠️ Error de configuración: {e}")
     st.stop()
 
-# --- CONFIGURACIÓN DE LA PÁGINA (Tu esencia, Luis) ---
+# --- INTERFAZ (Tu diseño, Luis) ---
 st.set_page_config(page_title="Legado Maestro", page_icon="🍎")
 
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100)
     st.title("Legado Maestro")
-    st.write("---")
-    st.info("💡 Apoyo Docente")
+    st.info("💡 Herramienta Docente")
     st.caption("👨‍🏫 **Prof. Luis Atencio**")
-    st.caption("Taller Laboral 'Elena Rosa Aranguibel'")
-    st.write("---")
+    st.caption("Taller 'Elena Rosa Aranguibel'")
 
-st.title("🍎 Asistente Educativo")
-st.subheader("Planificación Pedagógica - Zulia")
+st.title("🍎 Asistente Educativo - Zulia")
 
-opcion = st.selectbox(
-    "¿Qué vamos a trabajar hoy, colega?",
-    ["📝 Crear Plan de Clase", "🔧 Consultar Mantenimiento", "💡 Idea para Actividad"]
-)
+# --- BOTÓN DE DIAGNÓSTICO (Solo para probar) ---
+if st.button("🔍 Probar conexión con Google"):
+    try:
+        # Esto nos dirá qué modelos realmente puede ver tu clave
+        modelos = [m.name for m in genai.list_models()]
+        st.write("Tu clave tiene acceso a:", modelos)
+    except Exception as e:
+        st.error(f"Tu clave API parece no tener permisos: {e}")
 
-if opcion == "📝 Crear Plan de Clase":
-    st.markdown("### Generador de Planificaciones")
-    tema = st.text_input("Tema (Ej: Higiene, Herramientas, Valores)")
-    grado = st.text_input("Grupo", value="Mantenimiento y Servicios Generales")
-    
-    if st.button("✨ Generar Plan"):
-        if tema and grado:
-            with st.spinner('Procesando orden del Prof. Luis...'):
-                try:
-                    # Instrucción optimizada para evitar errores de contenido
-                    prompt = f"Actúa como docente de Educación Especial en el Zulia. Crea un plan sobre {tema} para el grupo {grado} (Semana 19-23 de enero 2026). Incluye Inicio, Desarrollo y Cierre."
-                    respuesta = model.generate_content(prompt)
-                    st.success("¡Planificación lista!")
-                    st.markdown(respuesta.text)
-                except Exception as e:
-                    st.error(f"Error técnico al generar: {e}")
-        else:
-            st.warning("Por favor, completa los campos de tema y grupo.")
+# --- LÓGICA DE PLANIFICACIÓN ---
+tema = st.text_input("Tema de la clase")
+grupo = st.text_input("Grupo", value="Mantenimiento y Servicios Generales")
 
-# --- TU SELLO AL PIE ---
+if st.button("✨ Generar Plan"):
+    if tema:
+        with st.spinner('El Prof. Luis está consultando a la IA...'):
+            try:
+                # Si 'gemini-1.5-flash' da 404, el sistema nos dirá por qué
+                prompt = f"Crea un plan de clase sobre {tema} para {grupo} en el Zulia."
+                respuesta = model.generate_content(prompt)
+                st.markdown(respuesta.text)
+            except Exception as e:
+                st.error(f"Error 404 persistente. Intenta reiniciar la App en el panel de Streamlit. Detalle: {e}")
+
 st.markdown("---")
-st.markdown("<div style='text-align: center'>Desarrollado con ❤️ por <b>Luis Atencio</b> para el futuro de la educación.</div>", unsafe_allow_html=True)
-# --- TU SELLO AL PIE ---
-st.markdown("---")
-st.markdown("<div style='text-align: center'>Desarrollado con ❤️ por <b>Luis Atencio</b></div>", unsafe_allow_html=True)
+st.markdown("<center>Desarrollado por <b>Luis Atencio</b></center>", unsafe_allow_html=True)
