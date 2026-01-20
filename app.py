@@ -1,7 +1,7 @@
 import streamlit as st
-import google.generativeai as genai
 import os
 import random
+from groq import Groq
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -16,7 +16,6 @@ hide_streamlit_style = """
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
-            .viewerBadge_container__1QSob {display: none !important;}
             
             /* FUERZA EL TEXTO A NEGRO */
             .mensaje-texto {
@@ -30,27 +29,21 @@ hide_streamlit_style = """
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# --- 3. ARRANQUE SEGURO ---
-if "ready" not in st.session_state:
-    st.session_state.ready = True
-
-# --- 4. CONEXIÓN CON IA ---
+# --- 3. CONEXIÓN CON GROQ (El nuevo cerebro) ---
 try:
-    if "GOOGLE_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"].strip())
-        
-        # ¡AQUÍ ESTÁ LA SOLUCIÓN! 
-        # Usamos el modelo que SÍ apareció en tu lista de diagnóstico:
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
+    if "GROQ_API_KEY" in st.secrets:
+        # Iniciamos el cliente de Groq
+        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        # Modelo a usar: Llama 3 (Rápido y potente)
+        MODELO_USADO = "llama3-8b-8192"
     else:
-        st.error("⚠️ Falta la API Key en los Secrets de Streamlit.")
+        st.error("⚠️ Falta la API Key de Groq en los Secrets.")
         st.stop()
 except Exception as e:
     st.error(f"⚠️ Error de conexión inicial: {e}")
     st.stop()
 
-# --- 5. BARRA LATERAL ---
+# --- 4. BARRA LATERAL ---
 with st.sidebar:
     if os.path.exists("logo_legado.png"):
         st.image("logo_legado.png", width=150)
@@ -63,7 +56,7 @@ with st.sidebar:
     st.caption("Bachiller Docente")
     st.caption("T.E.L E.R.A.C")
 
-# --- 6. CUERPO DE LA APP ---
+# --- 5. CUERPO DE LA APP ---
 st.title("🍎 Asistente Educativo - Zulia")
 
 opcion = st.selectbox(
@@ -76,6 +69,27 @@ opcion = st.selectbox(
     ]
 )
 
+# --- FUNCIÓN AUXILIAR PARA GENERAR ---
+def generar_respuesta(prompt_usuario):
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Eres un asistente educativo experto en Educación Especial en Venezuela. Tu nombre es Luis Atencio."
+                },
+                {
+                    "role": "user",
+                    "content": prompt_usuario,
+                }
+            ],
+            model=MODELO_USADO,
+            temperature=0.7,
+        )
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        return f"Error: {e}"
+
 # --- OPCIÓN 1: PLANIFICADOR ---
 if opcion == "📝 Planificación Profesional":
     st.subheader("Planificación Técnica")
@@ -85,20 +99,21 @@ if opcion == "📝 Planificación Profesional":
 
     if st.button("🚀 Generar Planificación"):
         if rango and notas:
-            with st.spinner('Redactando documento...'):
-                try:
-                    prompt = f"""
-                    Actúa como Luis Atencio, Bachiller Docente. 
-                    Estructura estas notas en una planificación técnica para Educación Especial.
-                    Lapso: {rango} | Aula: {aula} | Notas: {notas}
-                    ESTRUCTURA: Día, Título, Competencia, Exploración, Desarrollo, REFLEXIÓN, Mantenimiento.
-                    FIRMA OBLIGATORIA: Luis Atencio, Bachiller Docente.
-                    """
-                    res = model.generate_content(prompt)
+            with st.spinner('Redactando documento con Llama 3...'):
+                prompt = f"""
+                Actúa como Luis Atencio, Bachiller Docente. 
+                Estructura estas notas en una planificación técnica para Educación Especial.
+                Lapso: {rango} | Aula: {aula} | Notas: {notas}
+                ESTRUCTURA: Día, Título, Competencia, Exploración, Desarrollo, REFLEXIÓN, Mantenimiento.
+                FIRMA OBLIGATORIA: Luis Atencio, Bachiller Docente.
+                """
+                respuesta = generar_respuesta(prompt)
+                
+                if "Error:" in respuesta:
+                    st.error(respuesta)
+                else:
                     st.success("¡Planificación Generada!")
-                    st.markdown(res.text)
-                except Exception as e:
-                    st.error(f"⚠️ ERROR DE GOOGLE: {e}")
+                    st.markdown(respuesta)
 
 # --- OPCIÓN 2: MENSAJE MOTIVACIONAL ---
 elif opcion == "🌟 Mensaje Motivacional":
@@ -106,59 +121,42 @@ elif opcion == "🌟 Mensaje Motivacional":
     
     if st.button("❤️ Mensaje Corto para Compartir"):
         with st.spinner('Conectando...'):
-            try:
-                temas = [
-                    "Una frase bíblica corta sobre enseñar y servir.",
-                    "Una frase célebre corta de motivación educativa.",
-                    "Una frase de aliento guerrero para el docente venezolano.",
-                    "Recordatorio breve de la vocación docente."
-                ]
-                
-                tema_elegido = random.choice(temas)
-                config_creativa = genai.types.GenerationConfig(temperature=0.9)
-
-                prompt_final = f"""
-                {tema_elegido}
-                REGLAS: MÁXIMO 25 PALABRAS.
-                CIERRE OBLIGATORIO: "Ánimos. Att: Profesor Luis Atencio"
-                """
-                
-                res = model.generate_content(prompt_final, generation_config=config_creativa)
-                
-                st.markdown(f"""
-                <div style="background-color: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #eee; border-left: 8px solid #ff4b4b; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
-                    <div class="mensaje-texto">
-                        {res.text}
-                    </div>
+            temas = [
+                "Una frase bíblica corta sobre enseñar y servir.",
+                "Una frase célebre corta de motivación educativa.",
+                "Una frase de aliento guerrero para el docente venezolano.",
+                "Recordatorio breve de la vocación docente."
+            ]
+            tema_elegido = random.choice(temas)
+            
+            prompt = f"{tema_elegido}. MÁXIMO 25 PALABRAS. Cierre: 'Ánimos. Att: Profesor Luis Atencio'"
+            respuesta = generar_respuesta(prompt)
+            
+            st.markdown(f"""
+            <div style="background-color: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #eee; border-left: 8px solid #ff4b4b; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
+                <div class="mensaje-texto">
+                    {respuesta}
                 </div>
-                """, unsafe_allow_html=True)
-                
-            except Exception as e:
-                st.error(f"⚠️ ERROR DE GOOGLE: {e}")
+            </div>
+            """, unsafe_allow_html=True)
 
 # --- OPCIÓN 3: IDEAS ---
 elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
-        try:
-            with st.spinner('Pensando...'):
-                res = model.generate_content(f"Sugiere 3 actividades técnicas breves para {tema} en Taller Laboral.")
-                st.markdown(res.text)
-        except Exception as e:
-             st.error(f"⚠️ ERROR DE GOOGLE: {e}")
+        with st.spinner('Pensando...'):
+            respuesta = generar_respuesta(f"Sugiere 3 actividades técnicas breves para {tema} en Taller Laboral.")
+            st.markdown(respuesta)
 
 # --- OPCIÓN 4: CONSULTAS ---
 elif opcion == "❓ Consultas Técnicas":
     duda = st.text_area("Consulta:")
     if st.button("🔍 Responder"):
-        try:
-            with st.spinner('Consultando...'):
-                res = model.generate_content(f"Respuesta técnica breve: {duda}")
-                st.markdown(res.text)
-        except Exception as e:
-             st.error(f"⚠️ ERROR DE GOOGLE: {e}")
+        with st.spinner('Consultando...'):
+            respuesta = generar_respuesta(f"Respuesta técnica breve: {duda}")
+            st.markdown(respuesta)
 
-# --- 7. PIE DE PÁGINA ---
+# --- PIE DE PÁGINA ---
 st.markdown("---")
 st.markdown(
     """
