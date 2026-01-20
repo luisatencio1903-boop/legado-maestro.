@@ -1,83 +1,54 @@
 import streamlit as st
 import google.generativeai as genai
 
-# --- CONEXIÓN SEGURA (Se solicita automáticamente de tus Secrets) ---
+# --- CONFIGURACIÓN DE SEGURIDAD (Limpieza de clave) ---
 try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
-except Exception:
-    st.error("⚠️ Configuración de seguridad pendiente en Streamlit.")
+    # Limpiamos posibles espacios en blanco en la clave de Secrets
+    raw_key = st.secrets["GOOGLE_API_KEY"]
+    clean_key = raw_key.strip() 
+    genai.configure(api_key=clean_key)
+    
+    # Usamos el nombre completo del modelo para evitar el error 'NotFound'
+    model = genai.GenerativeModel('models/gemini-1.5-flash')
+except Exception as e:
+    st.error(f"⚠️ Error en la configuración de seguridad: {e}")
     st.stop()
 
-# --- CONFIGURACIÓN DE LA PÁGINA ---
+# --- CONFIGURACIÓN DE LA PÁGINA (Tu esencia) ---
 st.set_page_config(page_title="Legado Maestro", page_icon="🍎")
 
-# --- BARRA LATERAL (TU FIRMA DE AUTOR) ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100)
     st.title("Legado Maestro")
-    st.write("---")
-    st.info("💡 Herramienta de Apoyo Docente")
-    # AQUÍ ESTÁ TU FIRMA ORIGINAL
-    st.caption("👨‍🏫 **Creado por el Prof. Luis Atencio**")
-    st.caption("Para el Taller Laboral, mis amigos y estudiantes.")
-    st.write("---")
+    st.info("💡 Apoyo Docente")
+    st.caption("👨‍🏫 **Prof. Luis Atencio**")
+    st.caption("Taller Laboral 'Elena Rosa Aranguibel'")
 
-# --- TÍTULO PRINCIPAL ---
 st.title("🍎 Asistente Educativo")
-st.subheader("Taller de Educación Laboral 'Elena Rosa Aranguibel'")
+st.subheader("Planificación Pedagógica")
 
-# --- MENÚ DE OPCIONES ---
 opcion = st.selectbox(
     "¿Qué vamos a trabajar hoy, colega?",
     ["📝 Crear Plan de Clase", "🔧 Consultar Mantenimiento", "💡 Idea para Actividad"]
 )
 
-# --- LÓGICA DE LA APLICACIÓN ---
 if opcion == "📝 Crear Plan de Clase":
-    st.markdown("### Generador de Planificaciones")
-    tema = st.text_input("¿Qué tema quieres enseñar? (Ej: Higiene, Herramientas, Valores)")
-    grado = st.text_input("¿Para qué grupo es? (Ej: Grupo de Mantenimiento)")
+    tema = st.text_input("Tema (Ej: Higiene, Efemérides)")
+    grado = st.text_input("Grupo (Ej: Mantenimiento)", value="Mantenimiento y Servicios Generales")
     
     if st.button("✨ Generar Plan"):
         if tema and grado:
-            with st.spinner('El Prof. Luis ha entrenado a esta IA para pensar...'):
-                prompt = f"""
-                Actúa como un docente experto de Educación Especial en Venezuela (Zulia).
-                Crea un plan de clase detallado para el Taller Laboral.
-                Tema: {tema}
-                Grupo: {grado}
-                
-                Incluye:
-                1. Inicio (Dinámica de bienvenida)
-                2. Desarrollo (Explicación sencilla y práctica)
-                3. Cierre (Evaluación o reflexión)
-                4. Recursos necesarios.
-                """
-                respuesta = model.generate_content(prompt)
-                st.success("¡Planificación lista!")
-                st.markdown(respuesta.text)
+            with st.spinner('Procesando orden del Prof. Luis...'):
+                try:
+                    prompt = f"Actúa como docente de Educación Especial en el Zulia. Crea un plan sobre {tema} para el grupo {grado} (Semana 19-23 de enero 2026). Incluye Inicio, Desarrollo y Cierre."
+                    respuesta = model.generate_content(prompt)
+                    st.success("¡Planificación lista!")
+                    st.markdown(respuesta.text)
+                except Exception as e:
+                    st.error(f"Error al conectar con la IA: {e}")
         else:
-            st.warning("Por favor, escribe el tema y el grupo.")
+            st.warning("Por favor, completa los campos.")
 
-elif opcion == "🔧 Consultar Mantenimiento":
-    st.markdown("### Guía de Mantenimiento y Servicios")
-    duda = st.text_area("¿Qué duda tienes sobre limpieza o mantenimiento?")
-    
-    if st.button("🔍 Consultar"):
-        if duda:
-            prompt = f"Actúa como supervisor de Mantenimiento y Servicios Generales. Responde esta duda técnica de forma educativa y sencilla: {duda}"
-            respuesta = model.generate_content(prompt)
-            st.info(respuesta.text)
-
-elif opcion == "💡 Idea para Actividad":
-    st.markdown("### Dinámicas para el Aula")
-    if st.button("🎲 Dame una idea sorpresa"):
-        prompt = "Dame una idea de juego o dinámica rápida para estudiantes de educación laboral que fomente el compañerismo en el taller."
-        respuesta = model.generate_content(prompt)
-        st.balloons() 
-        st.write(respuesta.text)
-
-# --- PIE DE PÁGINA (TU SELLO) ---
+# --- TU SELLO AL PIE ---
 st.markdown("---")
-st.markdown("<div style='text-align: center'>Desarrollado con ❤️ por <b>Luis Atencio</b> para el futuro de la educación.</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center'>Desarrollado con ❤️ por <b>Luis Atencio</b></div>", unsafe_allow_html=True)
