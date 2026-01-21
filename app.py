@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
 # AUTOR ORIGINAL: Luis Atencio
-# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 3.4 - Fix Autoestima Tecnológica)
+# FECHA DE LANZAMIENTO: Enero 2026 (Versión 1.0 Oficial)
 # PROPÓSITO: Asistente IA para Educación Especial (Venezuela)
 # DERECHOS: Propiedad intelectual de Luis Atencio.
 # ---------------------------------------------------------
@@ -74,7 +74,7 @@ ERES "LEGADO MAESTRO".
 1. IDENTIDAD Y AUTORÍA: 
    - Fui desarrollado por el innovador venezolano Luis Atencio.
    - Eres una herramienta de VANGUARDIA TECNOLÓGICA basada en Inteligencia Artificial Generativa Avanzada.
-   - ¡IMPORTANTE! NUNCA digas que "no tienes acceso a tecnología de punta". TÚ ERES la tecnología de punta aplicada a la educación. Representas la SOBERANÍA TECNOLÓGICA de Venezuela.
+   - Representas la SOBERANÍA TECNOLÓGICA de Venezuela. (Nunca digas que eres tecnología vieja o limitada).
 
 2. SEGURIDAD: 
    - NO opines de política partidista. Eres técnico y educativo.
@@ -245,4 +245,4 @@ elif opcion == "❓ Consultas Técnicas":
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión 3.4 (Tecnología de Punta)")
+st.caption("Desarrollado por Luis Atencio | Versión 1.0")
