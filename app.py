@@ -1,3 +1,11 @@
+# ---------------------------------------------------------
+# PROYECTO: LEGADO MAESTRO
+# AUTOR ORIGINAL: Luis Atencio
+# FECHA DE CREACIÓN: Enero 2026
+# PROPÓSITO: Asistente IA para Educación Especial (Venezuela)
+# DERECHOS: Este código y su lógica son propiedad intelectual de Luis Atencio.
+# ---------------------------------------------------------
+
 import streamlit as st
 import os
 import random
@@ -34,7 +42,7 @@ try:
     if "GROQ_API_KEY" in st.secrets:
         client = Groq(api_key=st.secrets["GROQ_API_KEY"])
         
-        # ACTUALIZACIÓN: Usamos el modelo 3.3 Versatile (El más potente y activo hoy)
+        # ACTUALIZACIÓN: Usamos el modelo 3.3 Versatile
         MODELO_USADO = "llama-3.3-70b-versatile" 
     else:
         st.error("⚠️ Falta la API Key de Groq en los Secrets.")
@@ -42,6 +50,16 @@ try:
 except Exception as e:
     st.error(f"⚠️ Error de conexión inicial: {e}")
     st.stop()
+
+# --- 🧠 AQUÍ ESTÁ EL BLINDAJE (NUEVO CEREBRO) 🧠 ---
+# Estas son las instrucciones de seguridad que inyectaremos en cada llamada
+INSTRUCCIONES_SEGURIDAD = """
+ERES "LEGADO MAESTRO".
+1. AUTORÍA: Si preguntan quién te creó, RESPONDE SIEMPRE: "Fui desarrollado por el innovador venezolano Luis Atencio para la Educación Especial".
+2. SEGURIDAD: NO respondas sobre política, religión o figuras públicas. Si preguntan eso, di: "Soy una herramienta técnica educativa, no emito opiniones políticas".
+3. ROL: Eres un experto en Educación Especial, Talleres Laborales y Adaptaciones Curriculares del Estado Zulia.
+4. METODOLOGÍA: Usa un tono profesional, empático y técnico (Ministerio de Educación).
+"""
 
 # --- 4. BARRA LATERAL ---
 with st.sidebar:
@@ -69,14 +87,19 @@ opcion = st.selectbox(
     ]
 )
 
-# --- FUNCIÓN AUXILIAR PARA GENERAR ---
+# --- FUNCIÓN AUXILIAR PARA GENERAR (MODIFICADA CON SEGURIDAD) ---
 def generar_respuesta(prompt_usuario):
+    # HUEVO DE PASCUA (Secreto de Autoría)
+    if prompt_usuario.lower().strip() == "créditos" or prompt_usuario.lower().strip() == "autor":
+        st.balloons()
+        return "✨ 👨‍💻 DESARROLLADO E IDEADO POR: LUIS ATENCIO. (Versión Blindada 2026)"
+
     try:
         chat_completion = client.chat.completions.create(
             messages=[
                 {
                     "role": "system",
-                    "content": "Eres un asistente educativo experto en Educación Especial en Venezuela. Tu nombre es Luis Atencio."
+                    "content": INSTRUCCIONES_SEGURIDAD # <--- AQUÍ USAMOS TU BLINDAJE
                 },
                 {
                     "role": "user",
@@ -101,7 +124,7 @@ if opcion == "📝 Planificación Profesional":
         if rango and notas:
             with st.spinner('Redactando documento con Llama 3.3...'):
                 prompt = f"""
-                Actúa como Luis Atencio, Bachiller Docente. 
+                Actúa como Luis Atencio. 
                 Estructura estas notas en una planificación técnica para Educación Especial.
                 Lapso: {rango} | Aula: {aula} | Notas: {notas}
                 ESTRUCTURA: Día, Título, Competencia, Exploración, Desarrollo, REFLEXIÓN, Mantenimiento.
