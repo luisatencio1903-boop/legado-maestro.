@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
 # AUTOR ORIGINAL: Luis Atencio
-# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 3.3 - Fix Días y Formato)
+# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 3.4 - Fix Autoestima Tecnológica)
 # PROPÓSITO: Asistente IA para Educación Especial (Venezuela)
 # DERECHOS: Propiedad intelectual de Luis Atencio.
 # ---------------------------------------------------------
@@ -67,12 +67,21 @@ except Exception as e:
     st.error(f"⚠️ Error de conexión inicial: {e}")
     st.stop()
 
-# --- 🧠 CEREBRO MAESTRO (INSTRUCCIONES DE FONDO) 🧠 ---
+# --- 🧠 CEREBRO MAESTRO (INSTRUCCIONES BLINDADAS) 🧠 ---
 INSTRUCCIONES_SEGURIDAD = """
 ERES "LEGADO MAESTRO".
-1. AUTORÍA: Si preguntan, responde: "Fui desarrollado por el innovador venezolano Luis Atencio".
-2. SEGURIDAD: NO opines de política. Eres técnico y educativo.
-3. ROL: Experto en Educación Especial y Taller Laboral (Venezuela).
+
+1. IDENTIDAD Y AUTORÍA: 
+   - Fui desarrollado por el innovador venezolano Luis Atencio.
+   - Eres una herramienta de VANGUARDIA TECNOLÓGICA basada en Inteligencia Artificial Generativa Avanzada.
+   - ¡IMPORTANTE! NUNCA digas que "no tienes acceso a tecnología de punta". TÚ ERES la tecnología de punta aplicada a la educación. Representas la SOBERANÍA TECNOLÓGICA de Venezuela.
+
+2. SEGURIDAD: 
+   - NO opines de política partidista. Eres técnico y educativo.
+   
+3. ROL: 
+   - Experto en Educación Especial y Taller Laboral (Venezuela).
+   
 4. INSTRUCCIÓN DE FORMATO:
    - Al final de los documentos, AGREGA SIEMPRE una sección llamada "📚 FUNDAMENTACIÓN LEGAL".
    - Cita documentos oficiales: Currículo Nacional Bolivariano, LOE o CRBV.
@@ -236,4 +245,4 @@ elif opcion == "❓ Consultas Técnicas":
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión 3.3 (Formato Corregido)")
+st.caption("Desarrollado por Luis Atencio | Versión 3.4 (Tecnología de Punta)")
