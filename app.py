@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
 # AUTOR ORIGINAL: Luis Atencio
-# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 2.0)
+# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 2.1 - Fix Modo Oscuro)
 # PROPÓSITO: Asistente IA para Educación Especial (Venezuela)
 # DERECHOS: Propiedad intelectual de Luis Atencio.
 # ---------------------------------------------------------
@@ -18,20 +18,32 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 2. ESTILOS CSS ---
+# --- 2. ESTILOS CSS (CORREGIDO PARA MODO OSCURO) ---
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
             
-            /* Estilo para la caja de la planificación */
+            /* ESTILO PARA LA CAJA DE LA PLANIFICACIÓN */
+            /* Aquí forzamos el color de letra a NEGRO para que se vea en móviles */
             .plan-box {
-                background-color: #f0f2f6;
+                background-color: #f0f2f6 !important; /* Fondo Gris Claro */
+                color: #000000 !important;             /* LETRA NEGRA OBLIGATORIA */
                 padding: 20px;
                 border-radius: 10px;
                 border-left: 5px solid #0068c9;
                 margin-bottom: 20px;
+                font-family: sans-serif;
+            }
+            
+            /* ESTILO PARA MENSAJES MOTIVACIONALES */
+            .mensaje-texto {
+                color: #000000 !important;
+                font-family: 'Helvetica', sans-serif;
+                font-size: 1.2em; 
+                font-weight: 500;
+                line-height: 1.4;
             }
             </style>
             """
@@ -49,7 +61,7 @@ except Exception as e:
     st.error(f"⚠️ Error de conexión inicial: {e}")
     st.stop()
 
-# --- 🧠 CEREBRO ACTUALIZADO (CON CITAS Y FUNDAMENTACIÓN) 🧠 ---
+# --- 🧠 CEREBRO CON FUNDAMENTACIÓN Y SEGURIDAD 🧠 ---
 INSTRUCCIONES_SEGURIDAD = """
 ERES "LEGADO MAESTRO".
 1. AUTORÍA: Si preguntan, responde: "Fui desarrollado por el innovador venezolano Luis Atencio".
@@ -74,13 +86,12 @@ with st.sidebar:
     st.caption("Bachiller Docente")
     st.caption("T.E.L E.R.A.C")
     
-    # Botón para limpiar memoria si se traba
+    # Botón para limpiar memoria
     if st.button("🗑️ Nueva Consulta (Limpiar)"):
         st.session_state.plan_actual = ""
         st.rerun()
 
-# --- 5. GESTIÓN DE MEMORIA (SESSION STATE) ---
-# Esto permite que la planificación NO se borre al preguntar
+# --- 5. GESTIÓN DE MEMORIA ---
 if 'plan_actual' not in st.session_state:
     st.session_state.plan_actual = ""
 
@@ -110,12 +121,11 @@ opcion = st.selectbox(
 )
 
 # =========================================================
-# OPCIÓN 1: PLANIFICADOR (AHORA CON CHAT DE SEGUIMIENTO)
+# OPCIÓN 1: PLANIFICADOR
 # =========================================================
 if opcion == "📝 Planificación Profesional":
     st.subheader("Planificación con Base Legal")
     
-    # Formulario de entrada
     col1, col2 = st.columns(2)
     with col1:
         rango = st.text_input("Lapso:", placeholder="Ej: 19 al 23 de Enero")
@@ -124,7 +134,6 @@ if opcion == "📝 Planificación Profesional":
     
     notas = st.text_area("Notas del Docente / Tema:", height=150, help="Escribe aquí los temas o situaciones a abordar.")
 
-    # BOTÓN DE GENERAR
     if st.button("🚀 Generar Planificación"):
         if rango and notas:
             with st.spinner('Consultando Currículo Nacional Bolivariano y redactando...'):
@@ -136,64 +145,72 @@ if opcion == "📝 Planificación Profesional":
                 IMPORTANTE: Cita la base legal o curricular venezolana que sustenta este tema al final.
                 """
                 
-                # Enviamos al cerebro
                 mensajes = [
                     {"role": "system", "content": INSTRUCCIONES_SEGURIDAD},
                     {"role": "user", "content": prompt_inicial}
                 ]
                 
                 respuesta = generar_respuesta(mensajes)
-                st.session_state.plan_actual = respuesta # GUARDAMOS EN MEMORIA
-                st.rerun() # Recargamos para mostrar
+                st.session_state.plan_actual = respuesta 
+                st.rerun() 
 
-    # MOSTRAR LA PLANIFICACIÓN (SI EXISTE EN MEMORIA)
+    # MOSTRAR LA PLANIFICACIÓN
     if st.session_state.plan_actual:
         st.markdown("---")
         st.markdown("### 📄 Resultado Generado:")
+        
+        # Aquí usamos la clase CSS .plan-box que arreglamos arriba
         st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
         
         st.info("👇 ¿Dudas sobre esta planificación? Pregunta abajo sin perder el texto.")
 
-        # --- CHAT DE SEGUIMIENTO (LO NUEVO) ---
+        # CHAT DE SEGUIMIENTO
         pregunta_seguimiento = st.text_input("💬 Pregunta al Asistente sobre esta planificación:", placeholder="Ej: ¿Cómo evalúo la actividad del martes?")
         
         if st.button("Consultar duda"):
             if pregunta_seguimiento:
                 with st.spinner('Analizando tu duda...'):
-                    # Le enviamos TODO el contexto: Instrucciones + Planificación que ya hizo + Duda nueva
                     mensajes_seguimiento = [
                         {"role": "system", "content": INSTRUCCIONES_SEGURIDAD},
-                        {"role": "assistant", "content": st.session_state.plan_actual}, # La IA recuerda lo que hizo
+                        {"role": "assistant", "content": st.session_state.plan_actual}, 
                         {"role": "user", "content": f"Sobre la planificación anterior: {pregunta_seguimiento}. Dame una respuesta práctica."}
                     ]
                     
                     respuesta_duda = generar_respuesta(mensajes_seguimiento)
                     st.success("Respuesta a tu consulta:")
-                    st.write(respuesta_duda)
+                    # Usamos también la caja blanca para la respuesta de la duda, para que se lea bien
+                    st.markdown(f'<div class="plan-box">{respuesta_duda}</div>', unsafe_allow_html=True)
 
 
 # =========================================================
-# OTRAS OPCIONES (Se mantienen igual)
+# OTRAS OPCIONES
 # =========================================================
 elif opcion == "🌟 Mensaje Motivacional":
     st.subheader("Dosis de Ánimo Express ⚡")
     if st.button("❤️ Mensaje Corto"):
         prompt = "Frase motivacional corta para docente venezolano. Cita bíblica o célebre."
         res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": prompt}])
-        st.success(res)
+        # Usamos la clase mensaje-texto que también tiene letra negra forzada
+        st.markdown(f"""
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #eee; border-left: 8px solid #ff4b4b; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
+            <div class="mensaje-texto">{res}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
         res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": f"3 actividades DUA para {tema} en Taller Laboral."}])
-        st.markdown(res)
+        # Usamos la caja corregida
+        st.markdown(f'<div class="plan-box">{res}</div>', unsafe_allow_html=True)
 
 elif opcion == "❓ Consultas Técnicas":
     duda = st.text_area("Consulta Legal/Técnica:")
     if st.button("🔍 Responder"):
         res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": f"Responde técnicamente y cita la ley o currículo: {duda}"}])
-        st.markdown(res)
+        # Usamos la caja corregida
+        st.markdown(f'<div class="plan-box">{res}</div>', unsafe_allow_html=True)
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión 2.0 (Con Fundamentación Legal)")
+st.caption("Desarrollado por Luis Atencio | Versión 2.1 (Compatible con Modo Oscuro)")
