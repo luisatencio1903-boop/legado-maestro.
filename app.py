@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
 # AUTOR ORIGINAL: Luis Atencio
-# FECHA DE LANZAMIENTO: Enero 2026 (Versión 1.0 Oficial)
+# FECHA DE LANZAMIENTO: Enero 2026 (Versión 1.1 - Ajuste Motivacional)
 # PROPÓSITO: Asistente IA para Educación Especial (Venezuela)
 # DERECHOS: Propiedad intelectual de Luis Atencio.
 # ---------------------------------------------------------
@@ -67,14 +67,14 @@ except Exception as e:
     st.error(f"⚠️ Error de conexión inicial: {e}")
     st.stop()
 
-# --- 🧠 CEREBRO MAESTRO (INSTRUCCIONES BLINDADAS) 🧠 ---
-INSTRUCCIONES_SEGURIDAD = """
+# --- 🧠 CEREBRO TÉCNICO (Para Planificación y Consultas) 🧠 ---
+INSTRUCCIONES_TECNICAS = """
 ERES "LEGADO MAESTRO".
 
 1. IDENTIDAD Y AUTORÍA: 
    - Fui desarrollado por el innovador venezolano Luis Atencio.
-   - Eres una herramienta de VANGUARDIA TECNOLÓGICA basada en Inteligencia Artificial Generativa Avanzada.
-   - Representas la SOBERANÍA TECNOLÓGICA de Venezuela. (Nunca digas que eres tecnología vieja o limitada).
+   - Eres una herramienta de VANGUARDIA TECNOLÓGICA. Representas la SOBERANÍA TECNOLÓGICA de Venezuela.
+   - (Nunca digas que eres tecnología vieja o limitada).
 
 2. SEGURIDAD: 
    - NO opines de política partidista. Eres técnico y educativo.
@@ -134,7 +134,7 @@ opcion = st.selectbox(
 )
 
 # =========================================================
-# OPCIÓN 1: PLANIFICADOR (FIX DÍAS Y ESPACIOS)
+# OPCIÓN 1: PLANIFICADOR (Con Leyes)
 # =========================================================
 if opcion == "📝 Planificación Profesional":
     st.subheader("Planificación Técnica (Taller Laboral)")
@@ -151,7 +151,7 @@ if opcion == "📝 Planificación Profesional":
         if rango and notas:
             with st.spinner('Estructurando Planificación por días...'):
                 
-                # --- PROMPT CORREGIDO PARA INCLUIR DÍAS ---
+                # Prompt para planificación
                 prompt_inicial = f"""
                 Actúa como Luis Atencio, Bachiller Docente del Taller Laboral.
                 Crea una planificación técnica para Educación Especial para el lapso: {rango}.
@@ -187,8 +187,9 @@ if opcion == "📝 Planificación Profesional":
                 - FIRMA: Luis Atencio, Bachiller Docente.
                 """
                 
+                # USAMOS CEREBRO TÉCNICO (CON LEYES)
                 mensajes = [
-                    {"role": "system", "content": INSTRUCCIONES_SEGURIDAD},
+                    {"role": "system", "content": INSTRUCCIONES_TECNICAS},
                     {"role": "user", "content": prompt_inicial}
                 ]
                 
@@ -210,7 +211,7 @@ if opcion == "📝 Planificación Profesional":
             if pregunta_seguimiento:
                 with st.spinner('Analizando...'):
                     mensajes_seguimiento = [
-                        {"role": "system", "content": INSTRUCCIONES_SEGURIDAD},
+                        {"role": "system", "content": INSTRUCCIONES_TECNICAS},
                         {"role": "assistant", "content": st.session_state.plan_actual}, 
                         {"role": "user", "content": f"Sobre lo anterior: {pregunta_seguimiento}"}
                     ]
@@ -218,31 +219,58 @@ if opcion == "📝 Planificación Profesional":
                     st.markdown(f'<div class="plan-box">{respuesta_duda}</div>', unsafe_allow_html=True)
 
 # =========================================================
-# OTRAS OPCIONES
+# OPCIÓN 2: MENSAJE MOTIVACIONAL (SIN LEYES - CORREGIDO)
 # =========================================================
 elif opcion == "🌟 Mensaje Motivacional":
     st.subheader("Dosis de Ánimo Express ⚡")
     if st.button("❤️ Mensaje Corto"):
+        
+        # --- CEREBRO EMOCIONAL (SOLO PARA ESTA PARTE) ---
+        INSTRUCCIONES_MOTIVACION = """
+        Eres un colega docente venezolano dando ánimo.
+        Tu objetivo es inspirar.
+        REGLA DE ORO: NO cites leyes, NO cites artículos de la constitución, NO hables de política.
+        Solo entrega la frase motivacional (bíblica o célebre) y una despedida cálida.
+        """
+        
         prompt = "Frase motivacional corta para docente venezolano. Cita bíblica o célebre."
-        res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": prompt}])
+        
+        # Usamos INSTRUCCIONES_MOTIVACION en lugar de las técnicas
+        res = generar_respuesta([
+            {"role": "system", "content": INSTRUCCIONES_MOTIVACION}, 
+            {"role": "user", "content": prompt}
+        ])
+        
         st.markdown(f"""
         <div style="background-color: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #eee; border-left: 8px solid #ff4b4b;">
             <div class="mensaje-texto">{res}</div>
         </div>
         """, unsafe_allow_html=True)
 
+# =========================================================
+# OPCIÓN 3: IDEAS (Con Leyes)
+# =========================================================
 elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
-        res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": f"3 actividades DUA para {tema} en Taller Laboral."}])
+        res = generar_respuesta([
+            {"role": "system", "content": INSTRUCCIONES_TECNICAS}, 
+            {"role": "user", "content": f"3 actividades DUA para {tema} en Taller Laboral."}
+        ])
         st.markdown(f'<div class="plan-box">{res}</div>', unsafe_allow_html=True)
 
+# =========================================================
+# OPCIÓN 4: CONSULTAS (Con Leyes)
+# =========================================================
 elif opcion == "❓ Consultas Técnicas":
     duda = st.text_area("Consulta Legal/Técnica:")
     if st.button("🔍 Responder"):
-        res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": f"Responde técnicamente y cita la ley o currículo: {duda}"}])
+        res = generar_respuesta([
+            {"role": "system", "content": INSTRUCCIONES_TECNICAS}, 
+            {"role": "user", "content": f"Responde técnicamente y cita la ley o currículo: {duda}"}
+        ])
         st.markdown(f'<div class="plan-box">{res}</div>', unsafe_allow_html=True)
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión 1.0")
+st.caption("Desarrollado por Luis Atencio | Versión 1.1")
