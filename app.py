@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
 # AUTOR ORIGINAL: Luis Atencio
-# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 3.1 - Final)
+# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 3.2 - Fix Visual)
 # PROPÓSITO: Asistente IA para Educación Especial (Venezuela)
 # DERECHOS: Propiedad intelectual de Luis Atencio.
 # ---------------------------------------------------------
@@ -118,7 +118,7 @@ opcion = st.selectbox(
 )
 
 # =========================================================
-# OPCIÓN 1: PLANIFICADOR (ESTRUCTURA CORREGIDA ✅)
+# OPCIÓN 1: PLANIFICADOR (VISUALMENTE CORREGIDO)
 # =========================================================
 if opcion == "📝 Planificación Profesional":
     st.subheader("Planificación Técnica (Taller Laboral)")
@@ -135,7 +135,7 @@ if opcion == "📝 Planificación Profesional":
         if rango and notas:
             with st.spinner('Estructurando Planificación (Exploración/Desarrollo/Reflexión)...'):
                 
-                # --- PROMPT MEJORADO Y LIMPIO ---
+                # --- PROMPT CON SALTOS DE LÍNEA OBLIGATORIOS ---
                 prompt_inicial = f"""
                 Actúa como Luis Atencio, Bachiller Docente del Taller Laboral.
                 Crea una planificación técnica para Educación Especial.
@@ -145,16 +145,25 @@ if opcion == "📝 Planificación Profesional":
                 - Aula: {aula}
                 - Tema/Notas: {notas}
 
-                ESTRUCTURA OBLIGATORIA (Repetir para cada día/tema):
-                1. TÍTULO DE LA CLASE
-                2. COMPETENCIA: (Escribe SOLO el texto técnico de la competencia. NO repitas frases como "según el currículo", ve directo al objetivo).
-                3. EXPLORACIÓN (Inicio / Diagnóstico)
-                4. DESARROLLO (Actividad central práctica)
-                5. REFLEXIÓN (Cierre / Evaluación Cualitativa)
-                6. MANTENIMIENTO (Orden y limpieza del taller)
+                ESTRUCTURA VISUAL OBLIGATORIA (Usa Markdown con negritas y saltos de línea):
+                Por favor, para cada día o tema, usa este formato EXACTO con espacios entre líneas:
+
+                **1. TÍTULO DE LA CLASE:** [Título aquí]
+                
+                **2. COMPETENCIA:** [Solo el texto técnico]
+                
+                **3. EXPLORACIÓN:** [Contenido]
+                
+                **4. DESARROLLO:** [Contenido]
+                
+                **5. REFLEXIÓN:** [Contenido]
+                
+                **6. MANTENIMIENTO:** [Contenido]
+                
+                (Repite esta estructura visualmente separada para los siguientes días).
 
                 AL FINAL DEL DOCUMENTO (Una sola vez):
-                - Agrega la sección "📚 FUNDAMENTACIÓN LEGAL" indicando que el contenido se basa en el Currículo Nacional Bolivariano y la LOE.
+                - **📚 FUNDAMENTACIÓN LEGAL:** Cita brevemente el Currículo Nacional Bolivariano y la LOE.
                 - FIRMA: Luis Atencio, Bachiller Docente.
                 """
                 
@@ -216,4 +225,4 @@ elif opcion == "❓ Consultas Técnicas":
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión 3.1")
+st.caption("Desarrollado por Luis Atencio | Versión 3.2 (Visual Fix)")
