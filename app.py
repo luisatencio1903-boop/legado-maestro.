@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
 # AUTOR ORIGINAL: Luis Atencio
-# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 2.1 - Fix Modo Oscuro)
+# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 3.0 - Estructura Corregida)
 # PROPÓSITO: Asistente IA para Educación Especial (Venezuela)
 # DERECHOS: Propiedad intelectual de Luis Atencio.
 # ---------------------------------------------------------
@@ -18,18 +18,17 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 2. ESTILOS CSS (CORREGIDO PARA MODO OSCURO) ---
+# --- 2. ESTILOS CSS (MODO OSCURO FIX) ---
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
             
-            /* ESTILO PARA LA CAJA DE LA PLANIFICACIÓN */
-            /* Aquí forzamos el color de letra a NEGRO para que se vea en móviles */
+            /* CAJA DE PLANIFICACIÓN: LETRA NEGRA OBLIGATORIA */
             .plan-box {
-                background-color: #f0f2f6 !important; /* Fondo Gris Claro */
-                color: #000000 !important;             /* LETRA NEGRA OBLIGATORIA */
+                background-color: #f0f2f6 !important;
+                color: #000000 !important; /* <--- ESTO ARREGLA EL MODO OSCURO */
                 padding: 20px;
                 border-radius: 10px;
                 border-left: 5px solid #0068c9;
@@ -37,7 +36,7 @@ hide_streamlit_style = """
                 font-family: sans-serif;
             }
             
-            /* ESTILO PARA MENSAJES MOTIVACIONALES */
+            /* CAJA DE MENSAJES: LETRA NEGRA OBLIGATORIA */
             .mensaje-texto {
                 color: #000000 !important;
                 font-family: 'Helvetica', sans-serif;
@@ -61,16 +60,15 @@ except Exception as e:
     st.error(f"⚠️ Error de conexión inicial: {e}")
     st.stop()
 
-# --- 🧠 CEREBRO CON FUNDAMENTACIÓN Y SEGURIDAD 🧠 ---
+# --- 🧠 CEREBRO MAESTRO (INSTRUCCIONES DE FONDO) 🧠 ---
 INSTRUCCIONES_SEGURIDAD = """
 ERES "LEGADO MAESTRO".
 1. AUTORÍA: Si preguntan, responde: "Fui desarrollado por el innovador venezolano Luis Atencio".
 2. SEGURIDAD: NO opines de política. Eres técnico y educativo.
 3. ROL: Experto en Educación Especial y Taller Laboral (Venezuela).
-4. FUNDAMENTACIÓN OBLIGATORIA: 
-   - Al final de cada planificación o respuesta técnica, AGREGA SIEMPRE una sección llamada "📚 FUNDAMENTACIÓN".
-   - CITA documentos oficiales: Currículo Nacional Bolivariano, LOE (Ley Orgánica de Educación), Artículos de la Constitución (CRBV) o Líneas de Investigación del MPPE.
-   - NO inventes leyes. Usa las bases de la Educación Especial Venezolana.
+4. INSTRUCCIÓN DE FORMATO:
+   - Al final de los documentos, AGREGA SIEMPRE una sección llamada "📚 FUNDAMENTACIÓN LEGAL".
+   - Cita documentos oficiales: Currículo Nacional Bolivariano, LOE o CRBV.
 """
 
 # --- 4. BARRA LATERAL ---
@@ -86,8 +84,7 @@ with st.sidebar:
     st.caption("Bachiller Docente")
     st.caption("T.E.L E.R.A.C")
     
-    # Botón para limpiar memoria
-    if st.button("🗑️ Nueva Consulta (Limpiar)"):
+    if st.button("🗑️ Limpiar Memoria"):
         st.session_state.plan_actual = ""
         st.rerun()
 
@@ -121,28 +118,44 @@ opcion = st.selectbox(
 )
 
 # =========================================================
-# OPCIÓN 1: PLANIFICADOR
+# OPCIÓN 1: PLANIFICADOR (ESTRUCTURA CORREGIDA ✅)
 # =========================================================
 if opcion == "📝 Planificación Profesional":
-    st.subheader("Planificación con Base Legal")
+    st.subheader("Planificación Técnica (Taller Laboral)")
     
     col1, col2 = st.columns(2)
     with col1:
         rango = st.text_input("Lapso:", placeholder="Ej: 19 al 23 de Enero")
     with col2:
-        aula = st.text_input("Aula/Taller:", value="Mantenimiento y Servicios")
+        aula = st.text_input("Aula/Taller:", value="Mantenimiento y Servicios Generales")
     
-    notas = st.text_area("Notas del Docente / Tema:", height=150, help="Escribe aquí los temas o situaciones a abordar.")
+    notas = st.text_area("Notas del Docente / Tema:", height=150)
 
     if st.button("🚀 Generar Planificación"):
         if rango and notas:
-            with st.spinner('Consultando Currículo Nacional Bolivariano y redactando...'):
+            with st.spinner('Estructurando Planificación (Exploración/Desarrollo/Reflexión)...'):
+                
+                # --- AQUÍ ESTÁ LA CORRECCIÓN DE LA ESTRUCTURA ---
                 prompt_inicial = f"""
-                Actúa como Luis Atencio. Crea una planificación para Educación Especial.
-                Contexto: Lapso {rango}, Aula {aula}.
-                Tema/Notas: {notas}.
-                ESTRUCTURA: Inicio, Desarrollo, Cierre y REFLEXIÓN PEDAGÓGICA.
-                IMPORTANTE: Cita la base legal o curricular venezolana que sustenta este tema al final.
+                Actúa como Luis Atencio, Bachiller Docente del Taller Laboral.
+                Crea una planificación técnica para Educación Especial.
+                
+                DATOS:
+                - Lapso: {rango}
+                - Aula: {aula}
+                - Tema/Notas: {notas}
+
+                ESTRUCTURA OBLIGATORIA (Repetir para cada día si es necesario o por tema):
+                1. TÍTULO DE LA CLASE
+                2. COMPETENCIA (Del Currículo Nacional Bolivariano)
+                3. EXPLORACIÓN (Inicio / Diagnóstico)
+                4. DESARROLLO (Actividad central práctica)
+                5. REFLEXIÓN (Cierre / Evaluación Cualitativa)
+                6. MANTENIMIENTO (Orden y limpieza del taller)
+
+                AL FINAL DEL DOCUMENTO:
+                - Agrega la sección "📚 FUNDAMENTACIÓN LEGAL" citando la base legal (LOE/CRBV).
+                - FIRMA: Luis Atencio, Bachiller Docente.
                 """
                 
                 mensajes = [
@@ -154,33 +167,26 @@ if opcion == "📝 Planificación Profesional":
                 st.session_state.plan_actual = respuesta 
                 st.rerun() 
 
-    # MOSTRAR LA PLANIFICACIÓN
+    # MOSTRAR RESULTADO
     if st.session_state.plan_actual:
         st.markdown("---")
         st.markdown("### 📄 Resultado Generado:")
-        
-        # Aquí usamos la clase CSS .plan-box que arreglamos arriba
         st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
         
-        st.info("👇 ¿Dudas sobre esta planificación? Pregunta abajo sin perder el texto.")
+        st.info("👇 Chat de seguimiento activo:")
 
-        # CHAT DE SEGUIMIENTO
-        pregunta_seguimiento = st.text_input("💬 Pregunta al Asistente sobre esta planificación:", placeholder="Ej: ¿Cómo evalúo la actividad del martes?")
+        pregunta_seguimiento = st.text_input("💬 Pregunta sobre esta planificación:", placeholder="Ej: ¿Qué instrumento de evaluación uso?")
         
         if st.button("Consultar duda"):
             if pregunta_seguimiento:
-                with st.spinner('Analizando tu duda...'):
+                with st.spinner('Analizando...'):
                     mensajes_seguimiento = [
                         {"role": "system", "content": INSTRUCCIONES_SEGURIDAD},
                         {"role": "assistant", "content": st.session_state.plan_actual}, 
-                        {"role": "user", "content": f"Sobre la planificación anterior: {pregunta_seguimiento}. Dame una respuesta práctica."}
+                        {"role": "user", "content": f"Sobre lo anterior: {pregunta_seguimiento}"}
                     ]
-                    
                     respuesta_duda = generar_respuesta(mensajes_seguimiento)
-                    st.success("Respuesta a tu consulta:")
-                    # Usamos también la caja blanca para la respuesta de la duda, para que se lea bien
                     st.markdown(f'<div class="plan-box">{respuesta_duda}</div>', unsafe_allow_html=True)
-
 
 # =========================================================
 # OTRAS OPCIONES
@@ -190,9 +196,8 @@ elif opcion == "🌟 Mensaje Motivacional":
     if st.button("❤️ Mensaje Corto"):
         prompt = "Frase motivacional corta para docente venezolano. Cita bíblica o célebre."
         res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": prompt}])
-        # Usamos la clase mensaje-texto que también tiene letra negra forzada
         st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #eee; border-left: 8px solid #ff4b4b; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #eee; border-left: 8px solid #ff4b4b;">
             <div class="mensaje-texto">{res}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -201,16 +206,14 @@ elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
         res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": f"3 actividades DUA para {tema} en Taller Laboral."}])
-        # Usamos la caja corregida
         st.markdown(f'<div class="plan-box">{res}</div>', unsafe_allow_html=True)
 
 elif opcion == "❓ Consultas Técnicas":
     duda = st.text_area("Consulta Legal/Técnica:")
     if st.button("🔍 Responder"):
         res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": f"Responde técnicamente y cita la ley o currículo: {duda}"}])
-        # Usamos la caja corregida
         st.markdown(f'<div class="plan-box">{res}</div>', unsafe_allow_html=True)
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión 2.1 (Compatible con Modo Oscuro)")
+st.caption("Desarrollado por Luis Atencio | Versión 3.0")
