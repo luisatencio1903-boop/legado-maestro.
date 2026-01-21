@@ -1,9 +1,9 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
 # AUTOR ORIGINAL: Luis Atencio
-# FECHA DE CREACIÓN: Enero 2026
+# FECHA DE ACTUALIZACIÓN: Enero 2026 (Versión 2.0)
 # PROPÓSITO: Asistente IA para Educación Especial (Venezuela)
-# DERECHOS: Este código y su lógica son propiedad intelectual de Luis Atencio.
+# DERECHOS: Propiedad intelectual de Luis Atencio.
 # ---------------------------------------------------------
 
 import streamlit as st
@@ -25,24 +25,22 @@ hide_streamlit_style = """
             footer {visibility: hidden;}
             header {visibility: hidden;}
             
-            /* FUERZA EL TEXTO A NEGRO */
-            .mensaje-texto {
-                color: #000000 !important;
-                font-family: 'Helvetica', sans-serif;
-                font-size: 1.2em; 
-                font-weight: 500;
-                line-height: 1.4;
+            /* Estilo para la caja de la planificación */
+            .plan-box {
+                background-color: #f0f2f6;
+                padding: 20px;
+                border-radius: 10px;
+                border-left: 5px solid #0068c9;
+                margin-bottom: 20px;
             }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# --- 3. CONEXIÓN CON GROQ (CEREBRO NUEVO 🧠) ---
+# --- 3. CONEXIÓN CON GROQ ---
 try:
     if "GROQ_API_KEY" in st.secrets:
         client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-        
-        # ACTUALIZACIÓN: Usamos el modelo 3.3 Versatile
         MODELO_USADO = "llama-3.3-70b-versatile" 
     else:
         st.error("⚠️ Falta la API Key de Groq en los Secrets.")
@@ -51,14 +49,16 @@ except Exception as e:
     st.error(f"⚠️ Error de conexión inicial: {e}")
     st.stop()
 
-# --- 🧠 AQUÍ ESTÁ EL BLINDAJE (NUEVO CEREBRO) 🧠 ---
-# Estas son las instrucciones de seguridad que inyectaremos en cada llamada
+# --- 🧠 CEREBRO ACTUALIZADO (CON CITAS Y FUNDAMENTACIÓN) 🧠 ---
 INSTRUCCIONES_SEGURIDAD = """
 ERES "LEGADO MAESTRO".
-1. AUTORÍA: Si preguntan quién te creó, RESPONDE SIEMPRE: "Fui desarrollado por el innovador venezolano Luis Atencio para la Educación Especial".
-2. SEGURIDAD: NO respondas sobre política, religión o figuras públicas. Si preguntan eso, di: "Soy una herramienta técnica educativa, no emito opiniones políticas".
-3. ROL: Eres un experto en Educación Especial, Talleres Laborales y Adaptaciones Curriculares del Estado Zulia.
-4. METODOLOGÍA: Usa un tono profesional, empático y técnico (Ministerio de Educación).
+1. AUTORÍA: Si preguntan, responde: "Fui desarrollado por el innovador venezolano Luis Atencio".
+2. SEGURIDAD: NO opines de política. Eres técnico y educativo.
+3. ROL: Experto en Educación Especial y Taller Laboral (Venezuela).
+4. FUNDAMENTACIÓN OBLIGATORIA: 
+   - Al final de cada planificación o respuesta técnica, AGREGA SIEMPRE una sección llamada "📚 FUNDAMENTACIÓN".
+   - CITA documentos oficiales: Currículo Nacional Bolivariano, LOE (Ley Orgánica de Educación), Artículos de la Constitución (CRBV) o Líneas de Investigación del MPPE.
+   - NO inventes leyes. Usa las bases de la Educación Especial Venezolana.
 """
 
 # --- 4. BARRA LATERAL ---
@@ -73,8 +73,30 @@ with st.sidebar:
     st.caption("👨‍🏫 **Luis Atencio**")
     st.caption("Bachiller Docente")
     st.caption("T.E.L E.R.A.C")
+    
+    # Botón para limpiar memoria si se traba
+    if st.button("🗑️ Nueva Consulta (Limpiar)"):
+        st.session_state.plan_actual = ""
+        st.rerun()
 
-# --- 5. CUERPO DE LA APP ---
+# --- 5. GESTIÓN DE MEMORIA (SESSION STATE) ---
+# Esto permite que la planificación NO se borre al preguntar
+if 'plan_actual' not in st.session_state:
+    st.session_state.plan_actual = ""
+
+# --- 6. FUNCIÓN GENERADORA ---
+def generar_respuesta(mensajes_historial):
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=mensajes_historial,
+            model=MODELO_USADO,
+            temperature=0.7,
+        )
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        return f"Error: {e}"
+
+# --- 7. CUERPO DE LA APP ---
 st.title("🍎 Asistente Educativo - Zulia")
 
 opcion = st.selectbox(
@@ -87,108 +109,91 @@ opcion = st.selectbox(
     ]
 )
 
-# --- FUNCIÓN AUXILIAR PARA GENERAR (MODIFICADA CON SEGURIDAD) ---
-def generar_respuesta(prompt_usuario):
-    # HUEVO DE PASCUA (Secreto de Autoría)
-    if prompt_usuario.lower().strip() == "créditos" or prompt_usuario.lower().strip() == "autor":
-        st.balloons()
-        return "✨ 👨‍💻 DESARROLLADO E IDEADO POR: LUIS ATENCIO. (Versión Blindada 2026)"
-
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": INSTRUCCIONES_SEGURIDAD # <--- AQUÍ USAMOS TU BLINDAJE
-                },
-                {
-                    "role": "user",
-                    "content": prompt_usuario,
-                }
-            ],
-            model=MODELO_USADO,
-            temperature=0.7,
-        )
-        return chat_completion.choices[0].message.content
-    except Exception as e:
-        return f"Error: {e}"
-
-# --- OPCIÓN 1: PLANIFICADOR ---
+# =========================================================
+# OPCIÓN 1: PLANIFICADOR (AHORA CON CHAT DE SEGUIMIENTO)
+# =========================================================
 if opcion == "📝 Planificación Profesional":
-    st.subheader("Planificación Técnica")
-    rango = st.text_input("Lapso:", placeholder="Ej: 19 al 23 de enero 2026")
-    aula = st.text_input("Aula:", value="Mantenimiento y Servicios Generales")
-    notas = st.text_area("Notas diarias:", height=200)
+    st.subheader("Planificación con Base Legal")
+    
+    # Formulario de entrada
+    col1, col2 = st.columns(2)
+    with col1:
+        rango = st.text_input("Lapso:", placeholder="Ej: 19 al 23 de Enero")
+    with col2:
+        aula = st.text_input("Aula/Taller:", value="Mantenimiento y Servicios")
+    
+    notas = st.text_area("Notas del Docente / Tema:", height=150, help="Escribe aquí los temas o situaciones a abordar.")
 
+    # BOTÓN DE GENERAR
     if st.button("🚀 Generar Planificación"):
         if rango and notas:
-            with st.spinner('Redactando documento con Llama 3.3...'):
-                prompt = f"""
-                Actúa como Luis Atencio. 
-                Estructura estas notas en una planificación técnica para Educación Especial.
-                Lapso: {rango} | Aula: {aula} | Notas: {notas}
-                ESTRUCTURA: Día, Título, Competencia, Exploración, Desarrollo, REFLEXIÓN, Mantenimiento.
-                FIRMA OBLIGATORIA: Luis Atencio, Bachiller Docente.
+            with st.spinner('Consultando Currículo Nacional Bolivariano y redactando...'):
+                prompt_inicial = f"""
+                Actúa como Luis Atencio. Crea una planificación para Educación Especial.
+                Contexto: Lapso {rango}, Aula {aula}.
+                Tema/Notas: {notas}.
+                ESTRUCTURA: Inicio, Desarrollo, Cierre y REFLEXIÓN PEDAGÓGICA.
+                IMPORTANTE: Cita la base legal o curricular venezolana que sustenta este tema al final.
                 """
-                respuesta = generar_respuesta(prompt)
                 
-                if "Error:" in respuesta:
-                    st.error(respuesta)
-                else:
-                    st.success("¡Planificación Generada!")
-                    st.markdown(respuesta)
+                # Enviamos al cerebro
+                mensajes = [
+                    {"role": "system", "content": INSTRUCCIONES_SEGURIDAD},
+                    {"role": "user", "content": prompt_inicial}
+                ]
+                
+                respuesta = generar_respuesta(mensajes)
+                st.session_state.plan_actual = respuesta # GUARDAMOS EN MEMORIA
+                st.rerun() # Recargamos para mostrar
 
-# --- OPCIÓN 2: MENSAJE MOTIVACIONAL ---
+    # MOSTRAR LA PLANIFICACIÓN (SI EXISTE EN MEMORIA)
+    if st.session_state.plan_actual:
+        st.markdown("---")
+        st.markdown("### 📄 Resultado Generado:")
+        st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
+        
+        st.info("👇 ¿Dudas sobre esta planificación? Pregunta abajo sin perder el texto.")
+
+        # --- CHAT DE SEGUIMIENTO (LO NUEVO) ---
+        pregunta_seguimiento = st.text_input("💬 Pregunta al Asistente sobre esta planificación:", placeholder="Ej: ¿Cómo evalúo la actividad del martes?")
+        
+        if st.button("Consultar duda"):
+            if pregunta_seguimiento:
+                with st.spinner('Analizando tu duda...'):
+                    # Le enviamos TODO el contexto: Instrucciones + Planificación que ya hizo + Duda nueva
+                    mensajes_seguimiento = [
+                        {"role": "system", "content": INSTRUCCIONES_SEGURIDAD},
+                        {"role": "assistant", "content": st.session_state.plan_actual}, # La IA recuerda lo que hizo
+                        {"role": "user", "content": f"Sobre la planificación anterior: {pregunta_seguimiento}. Dame una respuesta práctica."}
+                    ]
+                    
+                    respuesta_duda = generar_respuesta(mensajes_seguimiento)
+                    st.success("Respuesta a tu consulta:")
+                    st.write(respuesta_duda)
+
+
+# =========================================================
+# OTRAS OPCIONES (Se mantienen igual)
+# =========================================================
 elif opcion == "🌟 Mensaje Motivacional":
     st.subheader("Dosis de Ánimo Express ⚡")
-    
-    if st.button("❤️ Mensaje Corto para Compartir"):
-        with st.spinner('Conectando...'):
-            temas = [
-                "Una frase bíblica corta sobre enseñar y servir.",
-                "Una frase célebre corta de motivación educativa.",
-                "Una frase de aliento guerrero para el docente venezolano.",
-                "Recordatorio breve de la vocación docente."
-            ]
-            tema_elegido = random.choice(temas)
-            
-            prompt = f"{tema_elegido}. MÁXIMO 25 PALABRAS. Cierre: 'Ánimos. Att: Profesor Luis Atencio'"
-            respuesta = generar_respuesta(prompt)
-            
-            st.markdown(f"""
-            <div style="background-color: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #eee; border-left: 8px solid #ff4b4b; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
-                <div class="mensaje-texto">
-                    {respuesta}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+    if st.button("❤️ Mensaje Corto"):
+        prompt = "Frase motivacional corta para docente venezolano. Cita bíblica o célebre."
+        res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": prompt}])
+        st.success(res)
 
-# --- OPCIÓN 3: IDEAS ---
 elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
-        with st.spinner('Pensando...'):
-            respuesta = generar_respuesta(f"Sugiere 3 actividades técnicas breves para {tema} en Taller Laboral.")
-            st.markdown(respuesta)
+        res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": f"3 actividades DUA para {tema} en Taller Laboral."}])
+        st.markdown(res)
 
-# --- OPCIÓN 4: CONSULTAS ---
 elif opcion == "❓ Consultas Técnicas":
-    duda = st.text_area("Consulta:")
+    duda = st.text_area("Consulta Legal/Técnica:")
     if st.button("🔍 Responder"):
-        with st.spinner('Consultando...'):
-            respuesta = generar_respuesta(f"Respuesta técnica breve: {duda}")
-            st.markdown(respuesta)
+        res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_SEGURIDAD}, {"role": "user", "content": f"Responde técnicamente y cita la ley o currículo: {duda}"}])
+        st.markdown(res)
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center;'>
-        <p style='font-size: 1.5em; margin-bottom: 5px;'>🍎</p>
-        <p style='margin-bottom: 2px;'>Desarrollado con ❤️ por <b>Luis Atencio</b></p>
-        <p style='font-size: 0.85em; color: #555; margin-bottom: 2px;'>para sus amigos y participantes del <b>T.E.L E.R.A.C</b></p>
-        <p style='font-size: 0.75em; color: silver;'>Zulia, Venezuela | 2026</p>
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
+st.caption("Desarrollado por Luis Atencio | Versión 2.0 (Con Fundamentación Legal)")
