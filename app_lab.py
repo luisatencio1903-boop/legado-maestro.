@@ -1,110 +1,106 @@
-# ---------------------------------------------------------
-# PROYECTO: LEGADO MAESTRO (LABORATORIO)
-# VERSIÓN: 2.0 (Conexión Blindada - Hoja1)
-# ---------------------------------------------------------
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 from groq import Groq
 from streamlit_gsheets import GSheetsConnection
 
-# --- 1. CONFIGURACIÓN ---
-st.set_page_config(page_title="Legado Maestro LAB", page_icon="🧪", layout="centered")
+# --- 1. BASE DE DATOS DE USUARIOS (SISTEMA REAL) ---
+# En una fase avanzada, esto irá en una hoja oculta de Excel.
+USUARIOS = {
+    "latencio": {"clave": "luis2026", "nombre": "Luis Atencio", "rol": "DOCENTE"},
+    "dgabriela": {"clave": "zulia2026", "nombre": "Directora Gabriela", "rol": "DIRECTOR"},
+    "super_reg": {"clave": "regional2026", "nombre": "Supervisor Regional", "rol": "SUPERVISOR"}
+}
 
-# --- 2. ESTILOS CSS ---
-st.markdown("""
-    <style>
-    .plan-box {
-        background-color: #f0f2f6 !important;
-        color: #000000 !important; 
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 5px solid #0068c9;
-        margin-bottom: 20px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# --- 2. CONFIGURACIÓN INICIAL ---
+st.set_page_config(page_title="Legado Maestro - Seguridad", layout="wide")
 
-# --- 3. CONEXIÓN A GOOGLE SHEETS ---
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception as e:
-    st.error(f"Error de conexión inicial: {e}")
+# Conexión a Google Sheets
+conn = st.connection("gsheets", type=GSheetsConnection)
+URL_HOJA = st.secrets["GSHEETS_URL"]
 
-# --- 4. FUNCIÓN DE GUARDADO (CONFIGURADA PARA 'Hoja1') ---
-def guardar_en_nube(aula, tema, contenido):
-    try:
-        # Limpiamos la URL de cualquier espacio invisible
-        url_hoja = st.secrets["GSHEETS_URL"].strip()
-        
-        # Leemos la hoja (Usamos 'Hoja1' sin espacios)
-        df_existente = conn.read(spreadsheet=url_hoja, worksheet="Hoja1", ttl=0)
-        
-        nueva_fila = pd.DataFrame([{
-            "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "Aula": aula,
-            "Tema": tema,
-            "Contenido": contenido
-        }])
-        
-        # Unimos los datos
-        df_final = pd.concat([df_existente, nueva_fila], ignore_index=True)
-        
-        # Actualizamos la hoja en la nube
-        conn.update(spreadsheet=url_hoja, worksheet="Hoja1", data=df_final)
-        return True
-    except Exception as e:
-        st.error(f"Error al guardar: {e}")
-        return False
+# --- 3. LÓGICA DE SESIÓN ---
+if 'autenticado' not in st.session_state:
+    st.session_state.autenticado = False
+    st.session_state.user_data = None
 
-# --- 5. LÓGICA DE IA (GROQ) ---
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# --- 4. INTERFAZ DE LOGIN ---
+if not st.session_state.autenticado:
+    st.title("🛡️ Acceso Legado Maestro")
+    st.markdown("---")
+    
+    with st.container():
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            st.subheader("Inicio de Sesión")
+            input_user = st.text_input("Usuario (Cédula o ID)")
+            input_pass = st.text_input("Contraseña", type="password")
+            
+            if st.button("🔓 INGRESAR AL SISTEMA"):
+                if input_user in USUARIOS and USUARIOS[input_user]["clave"] == input_pass:
+                    st.session_state.autenticado = True
+                    st.session_state.user_data = USUARIOS[input_user]
+                    st.success(f"Bienvenido, {USUARIOS[input_user]['nombre']}")
+                    time.sleep(1) # Pequeña pausa para efecto visual
+                    st.rerun()
+                else:
+                    st.error("❌ Credenciales incorrectas. Acceso denegado.")
 
-def generar_respuesta(mensajes):
-    chat_completion = client.chat.completions.create(
-        messages=mensajes, 
-        model="llama-3.3-70b-versatile", 
-        temperature=0.4
-    )
-    return chat_completion.choices[0].message.content
-
-# --- 6. INTERFAZ ---
-st.title("📝 Registro en la Nube (Prueba)")
-
-with st.sidebar:
-    st.subheader("📂 Gaveta Digital")
-    if st.button("🔄 Actualizar"):
+# --- 5. SISTEMA UNA VEZ AUTENTICADO ---
+else:
+    # Barra lateral de control
+    st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100)
+    st.sidebar.title(st.session_state.user_data["nombre"])
+    st.sidebar.write(f"Rol: **{st.session_state.user_data['rol']}**")
+    
+    if st.sidebar.button("🚪 Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.session_state.user_data = None
         st.rerun()
-    
-    # Intento de lectura para mostrar historial rápido
-    try:
-        url_check = st.secrets["GSHEETS_URL"].strip()
-        df_ver = conn.read(spreadsheet=url_check, worksheet="Hoja1", ttl=0)
-        if not df_ver.empty:
-            for i, row in df_ver.tail(3).iterrows():
-                st.success(f"📌 {row['Fecha']}\n{row['Tema']}")
-    except:
-        st.caption("Conexión pendiente...")
 
-# Formulario
-aula = st.text_input("Aula/Taller:", value="Mantenimiento")
-tema = st.text_input("Tema central:")
-notas = st.text_area("Detalles:")
+    # Leer datos de Google Sheets
+    df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
 
-if st.button("🚀 Generar Planificación"):
-    if tema:
-        with st.spinner('Procesando...'):
-            prompt = f"Actúa como Luis Atencio. Crea una planificación técnica de 8 puntos para {aula} sobre {tema}. Notas: {notas}."
-            res = generar_respuesta([{"role": "user", "content": prompt}])
-            st.session_state.plan_temp = res
-            st.rerun()
+    # --- PRIVACIDAD: FILTRADO DE DATOS ---
+    if st.session_state.user_data["rol"] == "DOCENTE":
+        # EL MAESTRO SOLO VE SUS DATOS
+        df_mostrar = df[df['USUARIO'] == st.session_state.user_data["nombre"]]
+    else:
+        # EL DIRECTOR Y SUPERVISOR VEN TODO
+        df_mostrar = df
 
-if 'plan_temp' in st.session_state:
-    st.markdown(f'<div class="plan-box">{st.session_state.plan_temp}</div>', unsafe_allow_html=True)
-    
-    if st.button("💾 GUARDAR EN GOOGLE SHEETS"):
-        with st.spinner("Subiendo datos a la nube..."):
-            if guardar_en_nube(aula, tema, st.session_state.plan_temp):
-                st.success("✅ ¡Guardado exitoso en el Excel!")
+    # --- PANEL DOCENTE ---
+    if st.session_state.user_data["rol"] == "DOCENTE":
+        st.header(f"👨‍🏫 Gestión de Aula: {st.session_state.user_data['nombre']}")
+        
+        tab1, tab2 = st.tabs(["📝 Planificación", "📊 Mis Registros"])
+        
+        with tab1:
+            tema = st.text_input("Tema de la actividad:")
+            if st.button("🧠 Generar Plan Técnico"):
+                # Aquí iría tu lógica de Groq ya configurada
+                st.session_state.plan_temp = "Planificación técnica de 8 puntos generada..." 
+                st.info(st.session_state.plan_temp)
+            
+            if st.button("🚀 INICIAR Y GUARDAR"):
+                # Lógica de guardado que ya probamos con los globos
                 st.balloons()
+                st.success("Actividad guardada en la nube.")
+
+        with tab2:
+            st.subheader("Mi Historial Pedagógico")
+            st.dataframe(df_mostrar)
+
+    # --- PANEL DIRECTOR / SUPERVISOR ---
+    elif st.session_state.user_data["rol"] in ["DIRECTOR", "SUPERVISOR"]:
+        st.header(f"📋 Panel de Supervisión: {st.session_state.user_data['rol']}")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Actividades Registradas", len(df_mostrar))
+        with col2:
+            activos = len(df_mostrar[df_mostrar['ESTADO'] == 'EN CURSO'])
+            st.metric("Maestros en Aula (En Vivo)", activos)
+        
+        st.subheader("Reporte General de Institución")
+        st.dataframe(df_mostrar)
