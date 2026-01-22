@@ -202,11 +202,12 @@ opcion = st.selectbox(
 )
 
 # =========================================================
-# OPCIÓN 1: PLANIFICADOR (CORREGIDO - INCLUYE RECURSOS 7 y 8)
+# OPCIÓN 1: PLANIFICADOR (FLUJO: BORRADOR -> GUARDAR)
 # =========================================================
 if opcion == "📝 Planificación Profesional":
     st.subheader("Planificación Técnica (Taller Laboral)")
     
+    # Entradas de datos
     col1, col2 = st.columns(2)
     with col1:
         rango = st.text_input("Lapso:", placeholder="Ej: 19 al 23 de Enero")
@@ -215,76 +216,77 @@ if opcion == "📝 Planificación Profesional":
     
     notas = st.text_area("Notas del Docente / Tema:", height=150)
 
-    if st.button("🚀 Generar Planificación"):
+    # --- PASO 1: GENERAR BORRADOR (NO GUARDA EN BD) ---
+    if st.button("🚀 Generar Borrador con IA"):
         if rango and notas:
-            with st.spinner('Generando Planificación Completa (Incluyendo Estrategias y Recursos)...'):
+            with st.spinner('Redactando propuesta...'):
                 
-                # --- PROMPT MAESTRO CORREGIDO ---
+                # Guardamos el contexto temporalmente
+                st.session_state.temp_rango = rango
+                st.session_state.temp_tema = notas
+                
                 prompt_inicial = f"""
                 Actúa como Luis Atencio, experto en Educación Especial.
                 Crea una planificación técnica para el lapso: {rango}.
                 Aula: {aula}. Tema: {notas}.
 
                 ⚠️ INSTRUCCIÓN OBLIGATORIA DE ESTRUCTURA:
-                Para CADA DÍA (Lunes, Martes, Miércoles, Jueves, Viernes), debes generar EXACTAMENTE estos 8 puntos. NO OMITAS NINGUNO.
-                Usa separadores visuales claros entre días.
-
-                ### 📅 [DÍA Y FECHA]
+                Para CADA DÍA (Lunes a Viernes), genera EXACTAMENTE estos 8 puntos:
+                1. TÍTULO DE LA CLASE, 2. COMPETENCIA, 3. EXPLORACIÓN, 4. DESARROLLO, 
+                5. REFLEXIÓN, 6. MANTENIMIENTO, 7. ESTRATEGIAS, 8. RECURSOS.
                 
-                **1. TÍTULO DE LA CLASE:** [Título corto]
-                
-                **2. COMPETENCIA:** [Objetivo técnico]
-                
-                **3. EXPLORACIÓN:** [Inicio de la clase]
-                
-                **4. DESARROLLO:** [Actividad central práctica]
-                
-                **5. REFLEXIÓN:** [Cierre pedagógico]
-                
-                **6. MANTENIMIENTO:** [Orden del taller]
-                
-                **7. ESTRATEGIAS:** [Técnicas usadas. Ej: Lluvia de ideas, demostración, trabajo grupal]
-                
-                **8. RECURSOS:** [LISTA OBLIGATORIA. Ej: Palas, rastrillos, pizarrón, video beam]
-
-                ---
-                (Repite esta estructura de 8 puntos para el siguiente día)
-
-                AL FINAL DEL DOCUMENTO (Solo una vez):
-                - **📚 FUNDAMENTACIÓN LEGAL:** Cita brevemente Currículo Nacional y LOE.
-                - FIRMA: Luis Atencio, Bachiller Docente.
+                AL FINAL: 📚 FUNDAMENTACIÓN LEGAL (LOE/CNB).
                 """
                 
-                # Usamos temperatura 0.4 para obligar a cumplir la estructura
                 mensajes = [
                     {"role": "system", "content": INSTRUCCIONES_TECNICAS},
                     {"role": "user", "content": prompt_inicial}
                 ]
                 
+                # Generamos y mostramos en pantalla (SOLO MEMORIA RAM)
                 respuesta = generar_respuesta(mensajes, temperatura=0.4)
-                st.session_state.plan_actual = respuesta 
-                st.rerun() 
+                st.session_state.plan_actual = respuesta
+                st.rerun()
 
-    # MOSTRAR RESULTADO
+    # --- MOSTRAR RESULTADO Y OPCIÓN DE GUARDAR ---
     if st.session_state.plan_actual:
         st.markdown("---")
-        st.markdown("### 📄 Resultado Generado:")
+        st.info("👀 Revisa el borrador abajo. Si te gusta, guárdalo en tu carpeta.")
+        
+        # Muestra el plan en la caja bonita
         st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
         
-        st.info("👇 Chat de seguimiento activo:")
-
-        pregunta_seguimiento = st.text_input("💬 Ajustar algo:", placeholder="Ej: Agrega más recursos al día martes")
-        
-        if st.button("Consultar duda"):
-            if pregunta_seguimiento:
-                with st.spinner('Ajustando...'):
-                    mensajes_seguimiento = [
-                        {"role": "system", "content": INSTRUCCIONES_TECNICAS},
-                        {"role": "assistant", "content": st.session_state.plan_actual}, 
-                        {"role": "user", "content": pregunta_seguimiento}
-                    ]
-                    respuesta_duda = generar_respuesta(mensajes_seguimiento, temperatura=0.6)
-                    st.markdown(f'<div class="plan-box">{respuesta_duda}</div>', unsafe_allow_html=True)
+        # --- PASO 2: GUARDAR DEFINITIVO (SOLO SI EL USUARIO QUIERE) ---
+        col_save_1, col_save_2 = st.columns([2,1])
+        with col_save_1:
+            if st.button("💾 SÍ, GUARDAR EN MI CARPETA"):
+                try:
+                    with st.spinner("Archivando en el expediente..."):
+                        # 1. Leemos la base de datos actual
+                        df_act = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+                        
+                        # 2. Preparamos el paquete de datos
+                        # Usamos los datos guardados o los actuales
+                        tema_guardar = st.session_state.get('temp_tema', notas)
+                        
+                        nueva_fila = pd.DataFrame([{
+                            "FECHA": datetime.now().strftime("%d/%m/%Y"),
+                            "USUARIO": st.session_state.u['NOMBRE'], # Nombre del docente logueado
+                            "TEMA": tema_guardar,
+                            "CONTENIDO": st.session_state.plan_actual,
+                            "ESTADO": "GUARDADO",
+                            "HORA_INICIO": "--", "HORA_FIN": "--"
+                        }])
+                        
+                        # 3. Enviamos a Google Sheets
+                        datos_actualizados = pd.concat([df_act, nueva_fila], ignore_index=True)
+                        conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=datos_actualizados)
+                        
+                        st.success("✅ ¡Planificación archivada con éxito!")
+                        time.sleep(2)
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar: {e}")
 
 # =========================================================
 # OPCIÓN 2: MENSAJE MOTIVACIONAL (CEREBRO EMOCIONAL)
