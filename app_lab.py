@@ -455,72 +455,128 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
                 st.error(f"Error guardando: {e}")
 
 # =========================================================
-# 3. REGISTRO DE EVALUACIONES (FIX VISUALIZACIÓN COMPLETA)
+# 3. REGISTRO DE EVALUACIONES (EXPEDIENTE 360° + ASISTENCIA)
 # =========================================================
 elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
-    st.subheader("Historial Académico")
+    st.subheader("🎓 Expediente Estudiantil 360°")
     
     try:
-        # Leemos TODAS las columnas, incluyendo la EVALUACION_IA que es la importante
+        # 1. Cargamos TODA la base de datos de evaluaciones
         df_e = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
+        # Filtramos solo las de este docente (para privacidad)
         mis_evals = df_e[df_e['USUARIO'] == st.session_state.u['NOMBRE']]
         
         if mis_evals.empty:
-            st.warning("No hay evaluaciones registradas aún.")
+            st.info("📭 Aún no has registrado evaluaciones. Ve a la opción 'Evaluar Alumno' para empezar.")
         else:
-            tab1, tab2 = st.tabs(["📅 Bitácora Detallada", "📈 Informe de Progreso"])
+            # 2. SELECTOR DE ALUMNO (El centro de todo)
+            lista_alumnos = sorted(mis_evals['ESTUDIANTE'].unique().tolist())
+            col_sel, col_vacio = st.columns([2,1])
+            with col_sel:
+                alumno_sel = st.selectbox("📂 Seleccionar Expediente del Estudiante:", lista_alumnos)
             
-            with tab1:
-                st.info("Despliega cada fila para ver la evaluación técnica completa.")
+            st.markdown("---")
+            
+            # 3. CÁLCULO DE ASISTENCIA INTELIGENTE
+            # Lógica: Total días de clase = Cantidad de fechas ÚNICAS registradas por el docente en general
+            # Lógica: Asistencia del alumno = Cantidad de fechas ÚNICAS donde aparece este alumno
+            
+            total_dias_clase = len(mis_evals['FECHA'].unique())
+            datos_alumno = mis_evals[mis_evals['ESTUDIANTE'] == alumno_sel]
+            dias_asistidos = len(datos_alumno['FECHA'].unique())
+            
+            try:
+                porcentaje_asistencia = (dias_asistidos / total_dias_clase) * 100
+            except:
+                porcentaje_asistencia = 0
+            
+            # 4. TABLERO DE MÉTRICAS (ASISTENCIA)
+            st.markdown(f"### 📊 Reporte de Asistencia: {alumno_sel}")
+            
+            col_m1, col_m2, col_m3 = st.columns(3)
+            col_m1.metric("Días Asistidos", f"{dias_asistidos} / {total_dias_clase}")
+            col_m1.caption("Basado en evaluaciones realizadas")
+            
+            col_m2.metric("Porcentaje de Asistencia", f"{porcentaje_asistencia:.1f}%")
+            
+            # Lógica de Semáforo para el Estado
+            if porcentaje_asistencia >= 75:
+                col_m3.success("✅ ASISTENCIA REGULAR")
+            elif 50 <= porcentaje_asistencia < 75:
+                col_m3.warning("⚠️ ASISTENCIA MEDIA")
+            else:
+                col_m3.error("🚨 CRÍTICO")
+            
+            # 5. ALERTA DE REPRESENTANTE (La función que pediste)
+            if porcentaje_asistencia < 60:
+                st.error(f"""
+                🚨 **ALERTA DE DESERCIÓN ESCOLAR DETECTADA**
+                El estudiante {alumno_sel} tiene una asistencia del {porcentaje_asistencia:.1f}%, lo cual es crítico.
                 
-                # Iteramos para mostrar FICHAS en vez de una tabla cortada
-                # Invertimos ([::-1]) para ver la más reciente primero
-                for idx, row in mis_evals.iloc[::-1].iterrows():
-                    
-                    titulo_ficha = f"📅 {row['FECHA']} | 👤 {row['ESTUDIANTE']} | 📌 {str(row['ACTIVIDAD'])[:30]}..."
-                    
-                    with st.expander(titulo_ficha):
-                        st.markdown(f"**Actividad Completa:** {row['ACTIVIDAD']}")
-                        st.markdown(f"**Observación del Docente (Anécdota):**")
-                        st.info(f"_{row['ANECDOTA']}_")
+                👉 **ACCIÓN RECOMENDADA:** CITAR AL REPRESENTANTE DE INMEDIATO.
+                """)
+            
+            st.markdown("---")
+            
+            # 6. HISTORIAL DE EVALUACIONES (Tus fichas desplegables, pero SOLO de este alumno)
+            st.markdown(f"### 📑 Historial de Evaluaciones de {alumno_sel}")
+            
+            # Pestañas para organizar la vista
+            tab_hist, tab_ia = st.tabs(["📜 Bitácora de Actividades", "🤖 Generar Informe IA"])
+            
+            with tab_hist:
+                if datos_alumno.empty:
+                    st.write("No hay registros.")
+                else:
+                    # Iteramos solo sobre los datos de este alumno, del más reciente al más antiguo
+                    for idx, row in datos_alumno.iloc[::-1].iterrows():
+                        fecha = row['FECHA']
+                        actividad = row['ACTIVIDAD']
+                        # Emoji según resultado (si existiera columna nota, por ahora genérico)
                         
-                        st.markdown("---")
-                        st.markdown("### 🤖 Evaluación Técnica (IA):")
-                        # AQUÍ ESTÁ LA CASILLA QUE PEDÍAS:
-                        st.markdown(f"""
-                        <div class="eval-box">
-                            {row['EVALUACION_IA']}
-                        </div>
-                        """, unsafe_allow_html=True)
-
-            with tab2:
-                st.markdown("Genera un informe detallado basado en todas las evaluaciones previas.")
-                lista_alumnos = mis_evals['ESTUDIANTE'].unique().tolist()
-                alumno_sel = st.selectbox("Seleccionar Alumno:", lista_alumnos)
-                
-                if st.button(f"📈 Generar Informe para {alumno_sel}"):
-                    with st.spinner(f"Compilando historial de {alumno_sel}..."):
-                        historial = mis_evals[mis_evals['ESTUDIANTE'] == alumno_sel]
-                        texto_historial = historial[['FECHA', 'ACTIVIDAD', 'EVALUACION_IA']].to_string()
+                        with st.expander(f"📅 {fecha} | {actividad}"):
+                            st.markdown(f"**📝 Observación Docente:**")
+                            st.info(f"_{row['ANECDOTA']}_")
+                            
+                            st.markdown(f"**🤖 Análisis Técnico (Legado Maestro):**")
+                            st.success(row['EVALUACION_IA'])
+                            
+                            # Aquí podríamos poner un botón de borrar evaluación específica en el futuro
+            
+            with tab_ia:
+                st.info("La IA analizará todo el historial de arriba para crear un informe de lapso.")
+                if st.button(f"⚡ Generar Informe de Progreso para {alumno_sel}"):
+                    with st.spinner("Leyendo todas las evaluaciones del estudiante..."):
+                        # Recopilamos todo el texto de las IAs previas
+                        historial_texto = datos_alumno[['FECHA', 'ACTIVIDAD', 'EVALUACION_IA']].to_string()
                         
                         prompt_informe = f"""
-                        ACTÚA COMO SUPERVISOR PEDAGÓGICO.
-                        Genera un INFORME DE PROGRESO CUALITATIVO para el estudiante: {alumno_sel}.
-                        Basado en este historial de evaluaciones reales:
-                        {texto_historial}
+                        ACTÚA COMO UN SUPERVISOR DE EDUCACIÓN ESPECIAL EXPERTO.
+                        
+                        Genera un INFORME CUALITATIVO DE PROGRESO para el estudiante: {alumno_sel}.
+                        
+                        DATOS DE ASISTENCIA: {porcentaje_asistencia:.1f}% ({dias_asistidos} de {total_dias_clase} días).
+                        
+                        HISTORIAL DE EVALUACIONES DIARIAS:
+                        {historial_texto}
                         
                         ESTRUCTURA DEL INFORME:
-                        1. **Resumen General de Desempeño:**
-                        2. **Fortalezas Observadas:**
-                        3. **Áreas que Requieren Refuerzo:**
-                        4. **Recomendaciones para el Docente:**
+                        1. **Resumen de Asistencia:** (Menciona si es preocupante o buena).
+                        2. **Evolución de Competencias:** (¿Ha mejorado desde la primera fecha hasta la última?).
+                        3. **Fortalezas Consolidadas:**
+                        4. **Debilidades / Áreas de Atención:**
+                        5. **Recomendación Final:**
                         """
-                        informe = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_TECNICAS}, {"role": "user", "content": prompt_informe}], 0.6)
-                        st.markdown(f'<div class="plan-box"><h3>📊 Informe de Progreso: {alumno_sel}</h3>{informe}</div>', unsafe_allow_html=True)
-                    
-    except Exception as e:
-        st.error(f"⚠️ Error cargando datos. Verifica que la hoja EVALUACIONES tenga la columna 'EVALUACION_IA'. Detalle: {e}")
+                        
+                        informe_final = generar_respuesta([
+                            {"role": "system", "content": INSTRUCCIONES_TECNICAS},
+                            {"role": "user", "content": prompt_informe}
+                        ], temperatura=0.6)
+                        
+                        st.markdown(f'<div class="plan-box"><h3>📄 Informe de Progreso: {alumno_sel}</h3>{informe_final}</div>', unsafe_allow_html=True)
 
+    except Exception as e:
+        st.error(f"⚠️ Error conectando con la base de datos. Detalle: {e}")
 # =========================================================
 # 4. MI ARCHIVO PEDAGÓGICO (UI EXPANDER + BORRADO SEGURO)
 # =========================================================
