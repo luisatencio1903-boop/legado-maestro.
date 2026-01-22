@@ -10,10 +10,15 @@ import os
 from groq import Groq
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
+    page_title="Legado Maestro",
+    page_icon="logo_legado.png",
+    layout="centered"
+)
 
-    # 1. Función para limpiar cédulas
+# 1. Función para limpiar cédulas
 def limpiar_id(v): return str(v).strip().split('.')[0].replace(',', '').replace('.', '')
 
 # 2. Inicializar Estado de Autenticación
@@ -29,14 +34,6 @@ try:
 except:
     st.error("⚠️ Error conectando con la Base de Datos.")
     st.stop()
-    page_title="Legado Maestro",
-    page_icon="logo_legado.png",
-    layout="centered"
-)
-
-# --- 2. ESTILOS CSS (MODO OSCURO + FORMATO) ---
-
-# --- PEGAR ESTO ANTES DE LOS ESTILOS CSS O DEL SIDEBAR ---
 
 if not st.session_state.auth:
     st.title("🛡️ Acceso Legado Maestro")
@@ -73,6 +70,8 @@ if not st.session_state.auth:
     # ESTA LÍNEA ES MÁGICA: Detiene la carga aquí si no hay login.
     # Así no tienes que indentar ni mover tu código original de abajo.
     st.stop()
+
+# --- 2. ESTILOS CSS (MODO OSCURO + FORMATO) ---
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
