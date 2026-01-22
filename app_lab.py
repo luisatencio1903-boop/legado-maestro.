@@ -41,7 +41,7 @@ if not st.session_state.auth:
     
     col_a, col_b = st.columns([1,2])
     with col_a:
-      if os.path.exists("logo_legado.png"):
+        if os.path.exists("logo_legado.png"):
             st.image("logo_legado.png", width=150)
         else:
             st.header("🍎")
