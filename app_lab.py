@@ -1,6 +1,6 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
-# VERSIÓN: LEGADO PRUEBA 1.9 (Final: Sesión Persistente + Borrado UI)
+# VERSIÓN: 2.1 (SISTEMA INTEGRAL: PLANIFICACIÓN + EVALUACIÓN)
 # FECHA: Enero 2026
 # AUTOR: Luis Atencio
 # ---------------------------------------------------------
@@ -39,32 +39,24 @@ except:
     st.stop()
 
 # --- LÓGICA DE PERSISTENCIA DE SESIÓN (AUTO-LOGIN) ---
-# Verificamos si hay un usuario anclado en la URL (query params)
-# Si el usuario recarga la página, esto se ejecuta primero.
-
 query_params = st.query_params
 usuario_en_url = query_params.get("u", None)
 
 if not st.session_state.auth and usuario_en_url:
     try:
-        # Intentamos recuperar la sesión automáticamente
         df_u = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=0)
         df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
-        
-        # Buscamos al usuario por la cédula que está en la URL
         match = df_u[df_u['C_L'] == usuario_en_url]
         
         if not match.empty:
             st.session_state.auth = True
             st.session_state.u = match.iloc[0].to_dict()
-            # No mostramos mensaje de éxito para que sea transparente y rápido
         else:
-            # Si la cédula en la URL no es válida, limpiamos la URL
             st.query_params.clear()
     except:
-        pass # Si falla, simplemente pedirá login normal
+        pass 
 
-# --- FORMULARIO DE LOGIN (Solo si no logró autenticarse arriba) ---
+# --- FORMULARIO DE LOGIN ---
 if not st.session_state.auth:
     st.title("🛡️ Acceso Legado Maestro")
     st.markdown("Ingrese sus credenciales para acceder a la plataforma.")
@@ -82,21 +74,15 @@ if not st.session_state.auth:
         
         if st.button("🔐 Iniciar Sesión"):
             try:
-                # Leemos la hoja USUARIOS
                 df_u = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=0)
                 df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
-                
-                # Verificamos credenciales
                 cedula_limpia = limpiar_id(c_in)
                 match = df_u[(df_u['C_L'] == cedula_limpia) & (df_u['CLAVE'] == p_in)]
                 
                 if not match.empty:
                     st.session_state.auth = True
                     st.session_state.u = match.iloc[0].to_dict()
-                    
-                    # AQUÍ ESTÁ EL TRUCO: Guardamos la cédula en la URL para el futuro
-                    st.query_params["u"] = cedula_limpia
-                    
+                    st.query_params["u"] = cedula_limpia # Anclamos sesión
                     st.success("¡Bienvenido!")
                     time.sleep(1)
                     st.rerun()
@@ -104,8 +90,6 @@ if not st.session_state.auth:
                     st.error("❌ Credenciales inválidas.")
             except Exception as e:
                 st.error(f"Error de conexión: {e}")
-    
-    # Detiene la carga aquí si no hay login.
     st.stop()
 
 # --- 2. ESTILOS CSS (MODO OSCURO + FORMATO) ---
@@ -115,7 +99,7 @@ hide_streamlit_style = """
             footer {visibility: hidden;}
             header {visibility: hidden;}
             
-            /* CAJA DE PLANIFICACIÓN: LETRA NEGRA OBLIGATORIA */
+            /* CAJA DE PLANIFICACIÓN */
             .plan-box {
                 background-color: #f0f2f6 !important;
                 color: #000000 !important; 
@@ -125,20 +109,28 @@ hide_streamlit_style = """
                 margin-bottom: 20px;
                 font-family: sans-serif;
             }
-            
-            /* Títulos de días en la planificación */
             .plan-box h3 {
                 color: #0068c9 !important;
                 margin-top: 30px;
                 padding-bottom: 5px;
                 border-bottom: 2px solid #ccc;
             }
-            
-            /* Negritas más fuertes para los puntos */
             .plan-box strong {
                 color: #2c3e50 !important;
                 font-weight: 700;
             }
+
+            /* CAJA DE EVALUACIÓN (NUEVO ESTILO) */
+            .eval-box {
+                background-color: #e8f5e9 !important;
+                color: #000000 !important;
+                padding: 15px;
+                border-radius: 8px;
+                border-left: 5px solid #2e7d32;
+                margin-top: 10px;
+                margin-bottom: 10px;
+            }
+            .eval-box h4 { color: #2e7d32 !important; }
 
             /* CAJA DE MENSAJES */
             .mensaje-texto {
@@ -149,17 +141,15 @@ hide_streamlit_style = """
                 line-height: 1.4;
             }
             
-            /* ESTILO PARA EL CONSULTOR DEL ARCHIVO - FIX MODO OSCURO */
+            /* CONSULTOR DEL ARCHIVO */
             .consultor-box {
-                background-color: #e8f4f8 !important; /* Fondo claro forzado */
-                color: #000000 !important; /* LETRA NEGRA FORZADA */
+                background-color: #e8f4f8 !important;
+                color: #000000 !important;
                 padding: 15px;
                 border-radius: 8px;
                 border: 1px solid #b3d7ff;
                 margin-top: 10px;
             }
-            
-            /* Asegurar que el texto dentro del consultor sea legible */
             .consultor-box p, .consultor-box li, .consultor-box strong {
                 color: #000000 !important;
             }
@@ -223,18 +213,16 @@ with st.sidebar:
     if st.button("🗑️ Limpiar Memoria"):
         st.session_state.plan_actual = ""
         st.rerun()
-        st.markdown("---")
     
-    # BOTÓN DE CERRAR SESIÓN (MODIFICADO PARA LIMPIAR URL)
     if st.button("🔒 Cerrar Sesión"):
         st.session_state.auth = False
         st.session_state.u = None
-        st.query_params.clear() # Limpiamos la huella en la URL
+        st.query_params.clear() 
         st.rerun()
 
 # --- 5. GESTIÓN DE MEMORIA ---
-if 'plan_actual' not in st.session_state:
-    st.session_state.plan_actual = ""
+if 'plan_actual' not in st.session_state: st.session_state.plan_actual = ""
+if 'actividad_detectada' not in st.session_state: st.session_state.actividad_detectada = "" # PARA EVALUACIÓN
 
 # --- 6. FUNCIÓN GENERADORA GENÉRICA ---
 def generar_respuesta(mensajes_historial, temperatura=0.7):
@@ -255,6 +243,8 @@ opcion = st.selectbox(
     "Seleccione herramienta:",
     [
         "📝 Planificación Profesional", 
+        "📝 Evaluar Alumno (NUEVO)",
+        "📊 Registro de Evaluaciones (NUEVO)",
         "📂 Mi Archivo Pedagógico",
         "🌟 Mensaje Motivacional", 
         "💡 Ideas de Actividades", 
@@ -263,12 +253,11 @@ opcion = st.selectbox(
 )
 
 # =========================================================
-# OPCIÓN 1: PLANIFICADOR (FLUJO: BORRADOR -> GUARDAR)
+# 1. PLANIFICADOR (FLUJO: BORRADOR -> GUARDAR)
 # =========================================================
 if opcion == "📝 Planificación Profesional":
     st.subheader("Planificación Técnica (Taller Laboral)")
     
-    # Entradas de datos
     col1, col2 = st.columns(2)
     with col1:
         rango = st.text_input("Lapso:", placeholder="Ej: 19 al 23 de Enero")
@@ -277,12 +266,11 @@ if opcion == "📝 Planificación Profesional":
     
     notas = st.text_area("Notas del Docente / Tema:", height=150)
 
-    # --- PASO 1: GENERAR BORRADOR (NO GUARDA EN BD) ---
+    # --- PASO 1: GENERAR BORRADOR ---
     if st.button("🚀 Generar Borrador con IA"):
         if rango and notas:
             with st.spinner('Analizando Currículo Nacional y redactando...'):
                 
-                # Guardamos el contexto temporalmente
                 st.session_state.temp_rango = rango
                 st.session_state.temp_tema = notas
                 
@@ -332,32 +320,23 @@ if opcion == "📝 Planificación Profesional":
                     {"role": "system", "content": INSTRUCCIONES_TECNICAS},
                     {"role": "user", "content": prompt_inicial}
                 ]
-
-                # Generamos y mostramos
                 respuesta = generar_respuesta(mensajes, temperatura=0.4)
                 st.session_state.plan_actual = respuesta
                 st.rerun()
 
-    # --- MOSTRAR RESULTADO Y OPCIÓN DE GUARDAR ---
+    # --- PASO 2: GUARDAR ---
     if st.session_state.plan_actual:
         st.markdown("---")
         st.info("👀 Revisa el borrador abajo. Si te gusta, guárdalo en tu carpeta.")
-        
-        # Muestra el plan en la caja bonita
         st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
         
-        # --- PASO 2: GUARDAR DEFINITIVO ---
         col_save_1, col_save_2 = st.columns([2,1])
         with col_save_1:
             if st.button("💾 SÍ, GUARDAR EN MI CARPETA"):
                 try:
                     with st.spinner("Archivando en el expediente..."):
-                        # 1. Leemos la base de datos actual
                         df_act = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
-                        
-                        # 2. Preparamos el paquete de datos
                         tema_guardar = st.session_state.get('temp_tema', notas)
-                        
                         nueva_fila = pd.DataFrame([{
                             "FECHA": datetime.now().strftime("%d/%m/%Y"),
                             "USUARIO": st.session_state.u['NOMBRE'], 
@@ -366,11 +345,8 @@ if opcion == "📝 Planificación Profesional":
                             "ESTADO": "GUARDADO",
                             "HORA_INICIO": "--", "HORA_FIN": "--"
                         }])
-                        
-                        # 3. Enviamos a Google Sheets
                         datos_actualizados = pd.concat([df_act, nueva_fila], ignore_index=True)
                         conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=datos_actualizados)
-                        
                         st.success("✅ ¡Planificación archivada con éxito!")
                         time.sleep(2)
                         st.rerun()
@@ -378,76 +354,186 @@ if opcion == "📝 Planificación Profesional":
                     st.error(f"Error al guardar: {e}")
 
 # =========================================================
-# OPCIÓN 2: MENSAJE MOTIVACIONAL (CEREBRO EMOCIONAL 3.0)
+# 2. EVALUAR ALUMNO (NUEVO CEREBRO)
 # =========================================================
-elif opcion == "🌟 Mensaje Motivacional":
-    st.subheader("Dosis de Ánimo Express ⚡")
-    st.markdown("Sin saludos protocolares. Solo la energía que necesitas.")
+elif opcion == "📝 Evaluar Alumno (NUEVO)":
+    st.subheader("Evaluación Diaria Inteligente")
+    st.info("Selecciona la fecha para buscar qué actividad tocaba hoy.")
     
-    if st.button("❤️ Recibir Dosis"):
+    # 1. FECHA Y BÚSQUEDA AUTOMÁTICA
+    col_f, col_btn = st.columns([2,1])
+    with col_f:
+        fecha_eval = st.date_input("Fecha de Evaluación:", datetime.now())
+    with col_btn:
+        st.write("")
+        st.write("")
+        if st.button("🔄 Buscar Actividad"):
+            try:
+                with st.spinner("Buscando en tus planes guardados..."):
+                    # Buscamos en los planes del usuario
+                    df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+                    mis_planes = df[df['USUARIO'] == st.session_state.u['NOMBRE']]
+                    
+                    if mis_planes.empty:
+                        st.warning("No tienes planes guardados para buscar.")
+                    else:
+                        # Unimos todos los planes para que la IA busque
+                        contexto_planes = "\n\n".join(mis_planes['CONTENIDO'].astype(str).tolist())
+                        
+                        dia_semana = fecha_eval.strftime("%A") 
+                        prompt_busqueda = f"""
+                        ACTÚA COMO UN BUSCADOR DE DATOS.
+                        Tengo estos planes guardados del docente:
+                        {contexto_planes[:15000]} 
+                        
+                        TAREA: Identifica qué actividad específica o competencia está planificada para la fecha: {fecha_eval} (Día: {dia_semana}).
+                        Responde SOLO con el nombre de la actividad o competencia. Se breve.
+                        Si no encuentras nada para esa fecha exacta, di "Actividad general del taller".
+                        """
+                        resultado = generar_respuesta([{"role": "system", "content": "Eres un buscador exacto."}, {"role": "user", "content": prompt_busqueda}], 0.1)
+                        st.session_state.actividad_detectada = resultado.replace('"', '')
+                        st.success("¡Búsqueda completada!")
+            except Exception as e:
+                st.error(f"Error buscando: {e}")
+
+    # 2. DATOS DEL ALUMNO
+    actividad_final = st.text_input("Actividad Detectada:", value=st.session_state.actividad_detectada)
+    estudiante = st.text_input("Nombre del Estudiante:")
+    anecdota = st.text_area("Descripción Anecdótica (¿Qué observaste hoy?):", height=100, placeholder="Ej: Juan se mostró participativo pero le costó manipular la escoba...")
+    
+    # 3. GENERACIÓN IA
+    if st.button("⚡ Generar Evaluación Técnica"):
+        if estudiante and anecdota and actividad_final:
+            with st.spinner("Analizando desempeño pedagógico..."):
+                prompt_eval = f"""
+                ACTÚA COMO EXPERTO EN EVALUACIÓN DE EDUCACIÓN ESPECIAL (VENEZUELA).
+                
+                DATOS:
+                - Estudiante: {estudiante}
+                - Actividad: {actividad_final}
+                - Observación del docente: "{anecdota}"
+                
+                TAREA:
+                1. Redacta una evaluación técnica y profesional basada en la observación. Usa lenguaje pedagógico (logros, indicadores).
+                2. Determina el nivel de logro: (Consolidado, En Proceso, Iniciado).
+                
+                FORMATO DE SALIDA (MARKDOWN):
+                **Evaluación Técnica:** [Texto]
+                
+                **Nivel de Logro:** [Nivel]
+                """
+                res_ia = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_TECNICAS}, {"role": "user", "content": prompt_eval}], 0.5)
+                
+                # Guardamos en estado para mostrar y luego guardar
+                st.session_state.eval_resultado = res_ia
+        else:
+            st.warning("Por favor completa todos los campos.")
+
+    # 4. VISUALIZACIÓN Y GUARDADO
+    if 'eval_resultado' in st.session_state:
+        st.markdown(f'<div class="eval-box"><h4>🤖 Resultado del Análisis:</h4>{st.session_state.eval_resultado}</div>', unsafe_allow_html=True)
         
-        estilos_posibles = [
-            {"rol": "El Colega Realista", "instruccion": "Dile algo crudo pero esperanzador sobre el cansancio y la satisfacción de enseñar. Usa humor venezolano ligero. NO SALUDES."},
-            {"rol": "El Sabio Espiritual", "instruccion": "Dame solo una cita bíblica de fortaleza (Salmos, Josué, Isaías) y una frase corta de aplicación docente. Sin sermones. NO SALUDES."},
-            {"rol": "El Motivador Directo", "instruccion": "Una frase corta, tipo 'golpe de energía'. Que sea una orden cariñosa para no rendirse. Ejemplo: '¡Límpiate las rodillas y sigue!'. NO SALUDES."},
-            {"rol": "El Observador", "instruccion": "Hazle una pregunta que lo haga recordar a su alumno favorito o su momento más feliz en el aula. NO SALUDES."}
-        ]
-        
-        estilo = random.choice(estilos_posibles)
-        
-        INSTRUCCIONES_MOTIVACION = f"""
-        ERES "LEGADO MAESTRO". HOY TU ROL ES: {estilo['rol']}.
-        ⚠️ REGLA DE ORO (ANTI-ROBOT):
-        1. PROHIBIDO ABSOLUTAMENTE empezar con: "Querido docente", "Hola", etc.
-        2. EMPIEZA DIRECTO. 
-        3. NO uses la frase de Nelson Mandela.
-        4. Tono: Venezolano, cercano.
-        TU TAREA: {estilo['instruccion']}
-        """
-        
-        with st.spinner(f"Sintonizando modo {estilo['rol']}..."):
-            res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_MOTIVACION}, {"role": "user", "content": "Dame el mensaje."}], temperatura=1.0)
-            st.markdown(f"""
-            <div style="background-color: #fff; padding: 20px; border-radius: 12px; border-left: 6px solid #FF4B4B; box-shadow: 2px 2px 10px rgba(0,0,0,0.05);">
-                <div class="mensaje-texto" style="font-size: 1.4em; font-weight: 600; color: #333;">"{res}"</div>
-                <div style="margin-top: 10px; font-size: 0.8em; color: #888; text-align: right;">Modo: {estilo['rol']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        if st.button("💾 GUARDAR EN REGISTRO"):
+            try:
+                # Intentamos leer la hoja EVALUACIONES
+                try:
+                    df_evals = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
+                except:
+                    st.error("⚠️ No encontré la hoja 'EVALUACIONES'. Por favor créala en Google Sheets.")
+                    st.stop()
+                
+                # Preparamos los datos
+                nueva_eval = pd.DataFrame([{
+                    "FECHA": fecha_eval.strftime("%d/%m/%Y"),
+                    "USUARIO": st.session_state.u['NOMBRE'],
+                    "ESTUDIANTE": estudiante,
+                    "ACTIVIDAD": actividad_final,
+                    "ANECDOTA": anecdota,
+                    "EVALUACION_IA": st.session_state.eval_resultado,
+                    "RESULTADO": "Registrado"
+                }])
+                
+                conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=pd.concat([df_evals, nueva_eval], ignore_index=True))
+                st.success(f"✅ Evaluación de {estudiante} registrada correctamente.")
+                del st.session_state.eval_resultado # Limpiar memoria
+                time.sleep(2)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error guardando: {e}")
 
 # =========================================================
-# OPCIÓN 5: 📂 MI ARCHIVO PEDAGÓGICO (FIX UI EXPANDER + MODO OSCURO)
+# 3. REGISTRO DE EVALUACIONES (EL REPORTE)
+# =========================================================
+elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
+    st.subheader("Historial Académico")
+    
+    try:
+        df_e = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
+        mis_evals = df_e[df_e['USUARIO'] == st.session_state.u['NOMBRE']]
+        
+        if mis_evals.empty:
+            st.warning("No hay evaluaciones registradas aún.")
+        else:
+            tab1, tab2 = st.tabs(["📅 Bitácora Diaria", "📈 Informe de Progreso"])
+            
+            with tab1:
+                # Mostramos una tabla limpia
+                st.dataframe(mis_evals[['FECHA', 'ESTUDIANTE', 'ACTIVIDAD', 'ANECDOTA']])
+                
+            with tab2:
+                st.markdown("Genera un informe detallado basado en todas las evaluaciones previas.")
+                # Selección de alumno único
+                lista_alumnos = mis_evals['ESTUDIANTE'].unique().tolist()
+                alumno_sel = st.selectbox("Seleccionar Alumno:", lista_alumnos)
+                
+                if st.button(f"📈 Generar Informe para {alumno_sel}"):
+                    with st.spinner(f"Compilando historial de {alumno_sel}..."):
+                        # Filtramos las notas de ese alumno
+                        historial = mis_evals[mis_evals['ESTUDIANTE'] == alumno_sel]
+                        texto_historial = historial[['FECHA', 'ACTIVIDAD', 'EVALUACION_IA']].to_string()
+                        
+                        prompt_informe = f"""
+                        ACTÚA COMO SUPERVISOR PEDAGÓGICO.
+                        
+                        Genera un INFORME DE PROGRESO CUALITATIVO para el estudiante: {alumno_sel}.
+                        Basado en este historial de evaluaciones reales:
+                        {texto_historial}
+                        
+                        ESTRUCTURA DEL INFORME:
+                        1. **Resumen General de Desempeño:**
+                        2. **Fortalezas Observadas:**
+                        3. **Áreas que Requieren Refuerzo:**
+                        4. **Recomendaciones para el Docente:**
+                        """
+                        informe = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_TECNICAS}, {"role": "user", "content": prompt_informe}], 0.6)
+                        st.markdown(f'<div class="plan-box"><h3>📊 Informe de Progreso: {alumno_sel}</h3>{informe}</div>', unsafe_allow_html=True)
+                    
+    except Exception as e:
+        st.info("⚠️ Error conectando con la hoja EVALUACIONES. Verifica que exista en Google Sheets.")
+
+# =========================================================
+# 4. MI ARCHIVO PEDAGÓGICO (UI EXPANDER + BORRADO SEGURO)
 # =========================================================
 elif opcion == "📂 Mi Archivo Pedagógico":
     st.subheader(f"📂 Expediente de: {st.session_state.u['NOMBRE']}")
-    st.info("Aquí están tus planificaciones guardadas. Puedes consultarlas o borrarlas.")
+    st.info("Aquí están tus planificaciones guardadas.")
     
     try:
-        # 1. Leer datos y filtrar por usuario
         df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
         mis_planes = df[df['USUARIO'] == st.session_state.u['NOMBRE']]
         
         if mis_planes.empty:
             st.warning("Aún no tienes planificaciones guardadas.")
         else:
-            # Iteramos sobre los planes (invirtiendo orden para ver el más nuevo primero)
             for index, row in mis_planes.iloc[::-1].iterrows():
-                
-                # Título del desplegable (Fecha y Tema)
                 etiqueta = f"📅 {row['FECHA']} | 📌 {str(row['TEMA'])[:40]}..."
-                
-                # TRUCO DE LÓGICA: Si estamos en modo "confirmar borrado" para este item,
-                # forzamos que el expander se mantenga abierto (expanded=True).
                 esta_borrando = st.session_state.get(f"confirm_del_{index}", False)
                 
                 with st.expander(etiqueta, expanded=esta_borrando):
-                    
-                    # 1. VISUALIZACIÓN
                     contenido_plan = st.text_area("Contenido:", value=row['CONTENIDO'], height=300, key=f"txt_{index}")
                     
-                    # 2. BOTONERA (CONSULTAR vs BORRAR)
                     col_izq, col_der = st.columns([4, 1])
                     
-                    # --- CONSULTOR ---
                     with col_izq:
                         st.markdown("#### 🤖 Consultor Inteligente")
                         pregunta = st.text_input("Duda sobre este plan:", key=f"preg_{index}", placeholder="Ej: ¿Cómo evalúo esto?")
@@ -463,29 +549,23 @@ elif opcion == "📂 Mi Archivo Pedagógico":
                                 ], temperatura=0.5)
                                 st.markdown(f'<div class="consultor-box">💡 <strong>Respuesta:</strong><br>{respuesta_contextual}</div>', unsafe_allow_html=True)
 
-                    # --- ZONA DE PELIGRO (BORRAR) ---
                     with col_der:
-                        st.write("") # Espacio
+                        st.write("") 
                         st.write("")
                         st.write("")
-                        # Botón inicial de borrar
                         if st.button("🗑️", key=f"del_init_{index}", help="Borrar planificación"):
                             st.session_state[f"confirm_del_{index}"] = True
-                            st.rerun() # Recargamos para que el expander se quede abierto
+                            st.rerun() 
                     
-                    # CONFIRMACIÓN DE BORRADO (Solo visible si se activa el botón)
                     if st.session_state.get(f"confirm_del_{index}", False):
-                        st.error("⚠️ ¿Estás seguro de eliminar esta planificación?")
+                        st.error("⚠️ ¿Estás seguro?")
                         col_si, col_no = st.columns(2)
                         
                         if col_si.button("✅ SÍ", key=f"yes_{index}"):
                             with st.spinner("Eliminando..."):
-                                # LEEMOS DE NUEVO LA BASE ACTUALIZADA (Evitar conflictos)
                                 df_root = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
-                                # Borramos por el índice original
                                 df_root = df_root.drop(index)
                                 conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_root)
-                                # Limpiamos el estado
                                 del st.session_state[f"confirm_del_{index}"]
                                 st.success("Eliminado.")
                                 time.sleep(1)
@@ -499,8 +579,23 @@ elif opcion == "📂 Mi Archivo Pedagógico":
         st.error(f"Error cargando archivo: {e}")
 
 # =========================================================
-# OPCIÓN 3: IDEAS (CEREBRO TÉCNICO)
+# OTROS MÓDULOS (EXTRAS)
 # =========================================================
+elif opcion == "🌟 Mensaje Motivacional":
+    st.subheader("Dosis de Ánimo Express ⚡")
+    if st.button("❤️ Recibir Dosis"):
+        estilos_posibles = [
+            {"rol": "El Colega Realista", "instruccion": "Dile algo crudo pero esperanzador sobre enseñar. Humor venezolano. NO SALUDES."},
+            {"rol": "El Sabio Espiritual", "instruccion": "Cita bíblica de fortaleza y frase docente. NO SALUDES."},
+            {"rol": "El Motivador Directo", "instruccion": "Orden cariñosa para no rendirse. Ej: '¡Límpiate las rodillas!'. NO SALUDES."},
+            {"rol": "El Observador", "instruccion": "Pregunta sobre su mejor alumno o momento feliz. NO SALUDES."}
+        ]
+        estilo = random.choice(estilos_posibles)
+        prompt = "Dame el mensaje."
+        with st.spinner(f"Modo {estilo['rol']}..."):
+            res = generar_respuesta([{"role": "system", "content": f"ERES LEGADO MAESTRO. ROL: {estilo['rol']}. TAREA: {estilo['instruccion']}"}, {"role": "user", "content": prompt}], 1.0)
+            st.markdown(f'<div class="plan-box" style="border-left: 5px solid #ff4b4b;"><h3>❤️ {estilo["rol"]}</h3><div class="mensaje-texto">"{res}"</div></div>', unsafe_allow_html=True)
+
 elif opcion == "💡 Ideas de Actividades":
     tema = st.text_input("Tema a trabajar:")
     if st.button("✨ Sugerir"):
@@ -510,9 +605,6 @@ elif opcion == "💡 Ideas de Actividades":
         ], temperatura=0.7)
         st.markdown(f'<div class="plan-box">{res}</div>', unsafe_allow_html=True)
 
-# =========================================================
-# OPCIÓN 4: CONSULTAS (CEREBRO TÉCNICO)
-# =========================================================
 elif opcion == "❓ Consultas Técnicas":
     duda = st.text_area("Consulta Legal/Técnica:")
     if st.button("🔍 Responder"):
@@ -524,4 +616,4 @@ elif opcion == "❓ Consultas Técnicas":
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión: LEGADO PRUEBA 1.9")
+st.caption("Desarrollado por Luis Atencio | Versión: 2.1 (Sistema Integral)")
