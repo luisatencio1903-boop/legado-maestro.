@@ -225,7 +225,7 @@ if opcion == "📝 Planificación Profesional":
                 st.session_state.temp_rango = rango
                 st.session_state.temp_tema = notas
                 
-               prompt_inicial = f"""
+                prompt_inicial = f"""
                 Actúa como Luis Atencio, experto en Educación Especial.
                 Planificación técnica para: {rango}.
                 Aula: {aula}. Tema: {notas}.
