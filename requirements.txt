@@ -2,3 +2,6 @@ streamlit
 pandas
 st-gsheets-connection
 groq
+pyotp
+qrcode
+pillow
