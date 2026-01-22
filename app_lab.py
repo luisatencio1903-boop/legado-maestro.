@@ -1,96 +1,94 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import time
+from groq import Groq
+from streamlit_gsheets import GSheetsConnection
 
-# --- ESTRUCTURA DE PANTALLA PROFESIONAL ---
-st.set_page_config(page_title="Legado Maestro - Torre de Control", layout="wide")
-
-# Estilos CSS para tarjetas y botones
+# --- 1. ESTILOS DE ALTO CONTRASTE ---
 st.markdown("""
     <style>
-    .card { background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #0068c9; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
-    .status-pendiente { color: #f39c12; font-weight: bold; }
-    .status-aprobado { color: #2ecc71; font-weight: bold; }
-    .status-envivo { color: #e74c3c; font-weight: bold; animation: blinker 1.5s linear infinite; }
-    @keyframes blinker { 50% { opacity: 0; } }
+    .stApp { background-color: #FFFFFF; }
+    .docente-card { 
+        background-color: #F8F9FA; 
+        padding: 25px; 
+        border-radius: 15px; 
+        border-left: 8px solid #007BFF;
+        color: #1A1A1A !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 0.9em;
+    }
+    h1, h2, h3, p { color: #1A1A1A !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- LÓGICA DE USUARIOS (Ya funcional) ---
-# (Asumimos que el usuario ya está logueado y tenemos st.session_state.usuario)
-
-u = st.session_state.usuario
-
-# --- PANEL DOCENTE (ESTILO NAVEGADOR) ---
-if u['ROL'] == "DOCENTE":
-    st.title(f"👨‍🏫 Aula de {u['NOMBRE']}")
+# --- 2. LÓGICA DEL NAVEGADOR DOCENTE ---
+def vista_docente(u, conn, URL_HOJA):
+    st.title(f"🏫 Gestión de Aula: {u['NOMBRE']}")
     
     # Sistema de ventanas tipo navegador
-    t_semana, t_hoy, t_historial = st.tabs(["📅 Planificación Semanal", "🚀 Actividad de Hoy", "📜 Mi Memoria"])
+    tab_plan, tab_ejecucion, tab_memoria = st.tabs(["📅 Planificación Semanal", "🚀 Actividad de Hoy", "📜 Mi Memoria"])
 
-    with t_semana:
-        st.subheader("Planificación de la Próxima Semana")
-        # Aquí el docente genera su plan (por ejemplo un domingo)
-        plan_propuesto = st.text_area("Desarrolle la planificación técnica:", height=200)
-        if st.button("Enviar para Revisión del Director"):
-            # GUARDAR EN EXCEL con ESTADO = "PENDIENTE REVISION"
-            st.success("Planificación enviada. Espere la aprobación del Director para ejecutar.")
+    # --- VENTANA 1: PLANIFICACIÓN ---
+    with tab_plan:
+        st.subheader("Diseño Pedagógico Semanal")
+        with st.container():
+            st.markdown("<div class='docente-card'>", unsafe_allow_html=True)
+            tema_propuesto = st.text_input("Tema para la próxima semana:", placeholder="Ej: Electricidad Básica")
+            
+            if st.button("🧠 Generar Plan con IA"):
+                client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                # Generamos el plan de 8 puntos técnicos
+                res = client.chat.completions.create(
+                    messages=[{"role": "user", "content": f"Planifica 8 puntos técnicos para {tema_propuesto}."}],
+                    model="llama-3.3-70b-versatile"
+                )
+                st.session_state.temp_plan = res.choices[0].message.content
+            
+            if 'temp_plan' in st.session_state:
+                st.write(st.session_state.temp_plan)
+                if st.button("📤 Enviar a Dirección para Aprobación"):
+                    # Aquí guardamos en la Hoja1 con ESTADO = "PENDIENTE"
+                    st.success("Enviado. El Director revisará tu plan pronto.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    with t_hoy:
-        # Filtramos en el Excel si hay una planificación APROBADA para HOY
-        st.subheader(f"Actividad Programada: {datetime.now().strftime('%A %d/%m')}")
-        
-        # Simulamos que hay una aprobada
-        st.info("✅ Planificación Aprobada por Dirección: 'Mantenimiento de Circuitos'")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("▶️ INICIAR ACTIVIDAD"):
-                st.session_state.en_clase = True
-                # Registrar HORA_INICIO en Hoja1
-        with c2:
-            if st.button("⏹️ CULMINAR ACTIVIDAD"):
-                st.session_state.en_clase = False
-                # Registrar HORA_FIN y pedir EVIDENCIA
-        
-        if st.session_state.get('en_clase'):
-            st.markdown("### <span class='status-envivo'>● ACTIVIDAD EN PROGRESO</span>", unsafe_allow_html=True)
-            foto = st.file_uploader("Subir Evidencia (Foto/Reporte)")
+    # --- VENTANA 2: ACTIVIDAD DE HOY (SISTEMA DE CONTROL) ---
+    with tab_ejecucion:
+        df_hoy = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+        # Buscamos si hay algo aprobado para este usuario hoy
+        plan_aprobado = df_hoy[(df_hoy['USUARIO'] == u['NOMBRE']) & (df_hoy['ESTADO'] == 'APROBADO')]
 
-# --- PANEL DIRECTOR (MONITOR INTERACTIVO) ---
-elif u['ROL'] == "DIRECTOR":
-    st.title("🏛️ Torre de Control Institucional")
-    
-    col_m1, col_m2, col_m3 = st.columns(3)
-    col_m1.metric("Docentes Activos", "4", "+1")
-    col_m2.metric("Pendientes por Revisar", "2")
-    col_m3.metric("Evidencias Cargadas", "85%")
+        if plan_aprobado.empty:
+            st.warning("⚠️ No tienes actividades aprobadas para hoy. Contacta al Director.")
+        else:
+            fila_plan = plan_aprobado.iloc[-1]
+            st.markdown(f"""
+                <div class='docente-card'>
+                    <h3>✅ Plan Aprobado: {fila_plan['TEMA']}</h3>
+                    <p><b>Instrucción del Director:</b> {fila_plan.get('OBSERVACIONES', 'Sin observaciones.')}</p>
+                </div>
+            """, unsafe_allow_html=True)
 
-    st.markdown("---")
-    
-    # VENTANA 1: REVISIÓN DE PLANES (Lo que pediste de los viernes/lunes)
-    with st.expander("📥 Planificaciones por Aprobar", expanded=True):
-        st.write("Docente: Luis Atencio - Aula: Mantenimiento")
-        st.text("Plan: Mantenimiento de motores para el día miércoles...")
-        
-        # Cuadro de sugerencias que pediste
-        observacion = st.text_input("Sugerencias o modificaciones (Ej: Cambiar actividad del miércoles):")
-        
-        c_a1, c_a2 = st.columns(2)
-        if c_a1.button("✅ APROBAR PLAN"):
-            st.success("Plan aprobado. El docente ya puede visualizarlo.")
-        if c_a2.button("⚠️ ENVIAR CON OBSERVACIONES"):
-            st.warning("Sugerencias enviadas al docente.")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("▶️ INICIAR ACTIVIDAD"):
+                    st.session_state.clase_activa = True
+                    # Actualizar ESTADO a 'EN CURSO' y HORA_INICIO en el Excel
+            with c2:
+                if st.button("⏹️ CULMINAR ACTIVIDAD"):
+                    st.session_state.clase_activa = False
+                    # Actualizar ESTADO a 'FINALIZADO' y HORA_FIN
+            
+            if st.session_state.get('clase_activa'):
+                st.info("🕒 Actividad en curso... No olvides cargar tu evidencia al finalizar.")
+                st.file_uploader("📸 Cargar Evidencia Fotográfica (En vivo)")
 
-    # VENTANA 2: MONITOR EN VIVO
-    st.subheader("👀 Monitor de Actividad en Tiempo Real (Hoy)")
-    # Simulamos datos del día
-    st.markdown("""
-        <div class='card'>
-            <h4>Docente: Luis Atencio</h4>
-            <p><b>Estado:</b> <span class='status-envivo'>● EN CLASE</span></p>
-            <p><b>Tema:</b> Motores Eléctricos | <b>Inicio:</b> 08:00 AM</p>
-            <p><b>Evidencia:</b> <span style='color:gray'>Esperando culminación...</span></p>
-        </div>
-    """, unsafe_allow_html=True)
+    # --- VENTANA 3: MEMORIA ---
+    with tab_memoria:
+        st.subheader("Historial de mis actividades")
+        df_total = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+        st.dataframe(df_total[df_total['USUARIO'] == u['NOMBRE']])
