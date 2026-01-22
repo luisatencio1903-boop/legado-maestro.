@@ -166,6 +166,11 @@ with st.sidebar:
     if st.button("🗑️ Limpiar Memoria"):
         st.session_state.plan_actual = ""
         st.rerun()
+        st.markdown("---")
+    if st.button("🔒 Cerrar Sesión"):
+        st.session_state.auth = False
+        st.session_state.u = None
+        st.rerun()
 
 # --- 5. GESTIÓN DE MEMORIA ---
 if 'plan_actual' not in st.session_state:
