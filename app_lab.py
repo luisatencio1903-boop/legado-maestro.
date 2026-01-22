@@ -1,6 +1,6 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
-# VERSIÓN: 1.5 (Fix: Competencias Reales + Validación MPPE)
+# VERSIÓN: LEGADO PRUEBA 1.6 (Módulo: Archivo + Chat Contextual)
 # FECHA: Enero 2026
 # AUTOR: Luis Atencio
 # ---------------------------------------------------------
@@ -12,6 +12,7 @@ from datetime import datetime
 from groq import Groq
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+import random
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -115,6 +116,15 @@ hide_streamlit_style = """
                 font-weight: 500;
                 line-height: 1.4;
             }
+            
+            /* ESTILO PARA EL CONSULTOR DEL ARCHIVO */
+            .consultor-box {
+                background-color: #e8f4f8;
+                padding: 15px;
+                border-radius: 8px;
+                border: 1px solid #b3d7ff;
+                margin-top: 10px;
+            }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -158,6 +168,7 @@ TÚ ERES "LEGADO MAESTRO".
 4. FORMATO:
    - Usa Markdown estricto (Negritas, Títulos).
 """
+
 # --- 4. BARRA LATERAL ---
 with st.sidebar:
     if os.path.exists("logo_legado.png"):
@@ -203,6 +214,7 @@ opcion = st.selectbox(
     "Seleccione herramienta:",
     [
         "📝 Planificación Profesional", 
+        "📂 Mi Archivo Pedagógico",
         "🌟 Mensaje Motivacional", 
         "💡 Ideas de Actividades", 
         "❓ Consultas Técnicas"
@@ -233,7 +245,7 @@ if opcion == "📝 Planificación Profesional":
                 st.session_state.temp_rango = rango
                 st.session_state.temp_tema = notas
                 
-                # --- PROMPT MAESTRO (VERIFICACIÓN REAL + COMPETENCIAS REALES) ---
+                # --- PROMPT MAESTRO ---
                 prompt_inicial = f"""
                 Actúa como Luis Atencio, experto en Educación Especial (Taller Laboral) en Venezuela.
                 Planificación para: {rango}. Aula: {aula}. Tema: {notas}.
@@ -243,15 +255,13 @@ if opcion == "📝 Planificación Profesional":
                 "📝 **Planificación Sugerida y Certificada:** Esta propuesta ha sido verificada internamente para asegurar su cumplimiento con los lineamientos del **Ministerio del Poder Popular para la Educación (MPPE)** y el **Currículo Nacional Bolivariano**, adaptada específicamente para Taller Laboral."
                 (Deja dos espacios vacíos después de esto).
 
-                ⚠️ PASO 1: LÓGICA DE COMPETENCIAS (NO TE EQUIVOQUES AQUÍ):
-                - ERROR GRAVE: Poner "Aprender a Hacer" o "Aprender a Convivir" como competencia. ¡ESOS SON PILARES, NO COMPETENCIAS!
+                ⚠️ PASO 1: LÓGICA DE COMPETENCIAS:
                 - LO CORRECTO: La Competencia debe ser una FRASE DE ACCIÓN ESPECÍFICA sobre el tema.
-                - EJEMPLO MALO: "Competencia: Aprender a Hacer".
                 - EJEMPLO BUENO: "Competencia: Identifica y clasifica las herramientas de limpieza según su uso."
 
                 ⚠️ PASO 2: HUMANIZACIÓN (EL LEGADO DOCENTE):
                 - PROHIBIDO el "copia y pega" robótico. No empieces todos los días igual.
-                - ELIMINA la voz pasiva aburrida ("Se presenta...", "Se realiza...").
+                - ELIMINA la voz pasiva aburrida.
                 - USA VOZ ACTIVA: "Arrancamos el día...", "Invitamos a...", "Desafiamos al grupo...".
 
                 ⚠️ PASO 3: ESTRUCTURA DIARIA (Sigue este formato exacto):
@@ -259,7 +269,7 @@ if opcion == "📝 Planificación Profesional":
                 ### [DÍA]
 
                 1. **TÍTULO:** [Creativo]
-                2. **COMPETENCIA:** [Redacta la habilidad técnica específica. PROHIBIDO poner solo los Pilares.]
+                2. **COMPETENCIA:** [Redacta la habilidad técnica específica]
 
                 3. **EXPLORACIÓN:** [Párrafo humano. EJEMPLO: Iniciamos con un conversatorio sobre... invitando a los estudiantes a compartir experiencias. Mediante el diálogo interactivo, despertamos la curiosidad.]
 
@@ -274,7 +284,7 @@ if opcion == "📝 Planificación Profesional":
                 ---
                 (Repite para los 5 días).
 
-                AL FINAL: 📚 FUNDAMENTACIÓN LEGAL: Cita el artículo específico de la LOE o la CRBV que respalda esta planificación, confirmando que has verificado la información.
+                AL FINAL: 📚 FUNDAMENTACIÓN LEGAL: Cita el artículo específico de la LOE o la CRBV.
                 """
                 
                 mensajes = [
@@ -295,7 +305,7 @@ if opcion == "📝 Planificación Profesional":
         # Muestra el plan en la caja bonita
         st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
         
-        # --- PASO 2: GUARDAR DEFINITIVO (SOLO SI EL USUARIO QUIERE) ---
+        # --- PASO 2: GUARDAR DEFINITIVO ---
         col_save_1, col_save_2 = st.columns([2,1])
         with col_save_1:
             if st.button("💾 SÍ, GUARDAR EN MI CARPETA"):
@@ -305,12 +315,11 @@ if opcion == "📝 Planificación Profesional":
                         df_act = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
                         
                         # 2. Preparamos el paquete de datos
-                        # Usamos los datos guardados o los actuales
                         tema_guardar = st.session_state.get('temp_tema', notas)
                         
                         nueva_fila = pd.DataFrame([{
                             "FECHA": datetime.now().strftime("%d/%m/%Y"),
-                            "USUARIO": st.session_state.u['NOMBRE'], # Nombre del docente logueado
+                            "USUARIO": st.session_state.u['NOMBRE'], 
                             "TEMA": tema_guardar,
                             "CONTENIDO": st.session_state.plan_actual,
                             "ESTADO": "GUARDADO",
@@ -326,8 +335,9 @@ if opcion == "📝 Planificación Profesional":
                         st.rerun()
                 except Exception as e:
                     st.error(f"Error al guardar: {e}")
+
 # =========================================================
-# OPCIÓN 2: MENSAJE MOTIVACIONAL (CEREBRO EMOCIONAL 3.0 - SIN ROBOTISMOS)
+# OPCIÓN 2: MENSAJE MOTIVACIONAL (CEREBRO EMOCIONAL 3.0)
 # =========================================================
 elif opcion == "🌟 Mensaje Motivacional":
     st.subheader("Dosis de Ánimo Express ⚡")
@@ -335,60 +345,110 @@ elif opcion == "🌟 Mensaje Motivacional":
     
     if st.button("❤️ Recibir Dosis"):
         
-        import random
-        
-        # Ruleta de ESTILOS (No solo temas, sino FORMAS de hablar)
         estilos_posibles = [
-            {
-                "rol": "El Colega Realista",
-                "instruccion": "Dile algo crudo pero esperanzador sobre el cansancio y la satisfacción de enseñar. Usa humor venezolano ligero. NO SALUDES."
-            },
-            {
-                "rol": "El Sabio Espiritual",
-                "instruccion": "Dame solo una cita bíblica de fortaleza (Salmos, Josué, Isaías) y una frase corta de aplicación docente. Sin sermones. NO SALUDES."
-            },
-            {
-                "rol": "El Motivador Directo",
-                "instruccion": "Una frase corta, tipo 'golpe de energía'. Que sea una orden cariñosa para no rendirse. Ejemplo: '¡Límpiate las rodillas y sigue!'. NO SALUDES."
-            },
-            {
-                "rol": "El Observador",
-                "instruccion": "Hazle una pregunta que lo haga recordar a su alumno favorito o su momento más feliz en el aula. NO SALUDES."
-            }
+            {"rol": "El Colega Realista", "instruccion": "Dile algo crudo pero esperanzador sobre el cansancio y la satisfacción de enseñar. Usa humor venezolano ligero. NO SALUDES."},
+            {"rol": "El Sabio Espiritual", "instruccion": "Dame solo una cita bíblica de fortaleza (Salmos, Josué, Isaías) y una frase corta de aplicación docente. Sin sermones. NO SALUDES."},
+            {"rol": "El Motivador Directo", "instruccion": "Una frase corta, tipo 'golpe de energía'. Que sea una orden cariñosa para no rendirse. Ejemplo: '¡Límpiate las rodillas y sigue!'. NO SALUDES."},
+            {"rol": "El Observador", "instruccion": "Hazle una pregunta que lo haga recordar a su alumno favorito o su momento más feliz en el aula. NO SALUDES."}
         ]
         
-        estilo_seleccionado = random.choice(estilos_posibles)
+        estilo = random.choice(estilos_posibles)
         
         INSTRUCCIONES_MOTIVACION = f"""
-        ERES "LEGADO MAESTRO". HOY TU ROL ES: {estilo_seleccionado['rol']}.
-        
+        ERES "LEGADO MAESTRO". HOY TU ROL ES: {estilo['rol']}.
         ⚠️ REGLA DE ORO (ANTI-ROBOT):
-        1. PROHIBIDO ABSOLUTAMENTE empezar con: "Querido docente", "Estimado colega", "Hola", "Saludos".
-        2. EMPIEZA DIRECTO AL GRANO. Como si estuvieras continuando una conversación.
+        1. PROHIBIDO ABSOLUTAMENTE empezar con: "Querido docente", "Hola", etc.
+        2. EMPIEZA DIRECTO. 
         3. NO uses la frase de Nelson Mandela.
-        4. Tono: Venezolano, cercano, corto (máximo 2 líneas).
-        
-        TU TAREA ESPECÍFICA: {estilo_seleccionado['instruccion']}
+        4. Tono: Venezolano, cercano.
+        TU TAREA: {estilo['instruccion']}
         """
         
-        prompt = "Dame el mensaje ahora."
-        
-        with st.spinner(f"Sintonizando modo {estilo_seleccionado['rol']}..."):
-            res = generar_respuesta([
-                {"role": "system", "content": INSTRUCCIONES_MOTIVACION}, 
-                {"role": "user", "content": prompt}
-            ], temperatura=1.0) # Temperatura máxima para variedad total
-            
+        with st.spinner(f"Sintonizando modo {estilo['rol']}..."):
+            res = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_MOTIVACION}, {"role": "user", "content": "Dame el mensaje."}], temperatura=1.0)
             st.markdown(f"""
             <div style="background-color: #fff; padding: 20px; border-radius: 12px; border-left: 6px solid #FF4B4B; box-shadow: 2px 2px 10px rgba(0,0,0,0.05);">
-                <div class="mensaje-texto" style="font-size: 1.4em; font-weight: 600; color: #333;">
-                    "{res}"
-                </div>
-                <div style="margin-top: 10px; font-size: 0.8em; color: #888; text-align: right;">
-                    Modo: {estilo_seleccionado['rol']}
-                </div>
+                <div class="mensaje-texto" style="font-size: 1.4em; font-weight: 600; color: #333;">"{res}"</div>
+                <div style="margin-top: 10px; font-size: 0.8em; color: #888; text-align: right;">Modo: {estilo['rol']}</div>
             </div>
             """, unsafe_allow_html=True)
+
+# =========================================================
+# OPCIÓN 5: 📂 MI ARCHIVO PEDAGÓGICO (NUEVA JOYA)
+# =========================================================
+elif opcion == "📂 Mi Archivo Pedagógico":
+    st.subheader(f"📂 Expediente de: {st.session_state.u['NOMBRE']}")
+    st.info("Aquí están tus planificaciones guardadas. Despliega una para verla y chatea con ella.")
+    
+    try:
+        # 1. Leer datos y filtrar por usuario
+        df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+        mis_planes = df[df['USUARIO'] == st.session_state.u['NOMBRE']]
+        
+        if mis_planes.empty:
+            st.warning("Aún no tienes planificaciones guardadas.")
+        else:
+            # Iteramos sobre los planes (invirtiendo orden para ver el más nuevo primero)
+            for index, row in mis_planes.iloc[::-1].iterrows():
+                
+                # Título del desplegable (Fecha y Tema)
+                etiqueta = f"📅 {row['FECHA']} | 📌 {str(row['TEMA'])[:40]}..."
+                
+                with st.expander(etiqueta):
+                    
+                    # 1. ÁREA DE VISUALIZACIÓN / EDICIÓN TEMPORAL
+                    # Usamos text_area para que puedan copiar o modificar localmente para la consulta
+                    contenido_plan = st.text_area("Contenido del Plan:", value=row['CONTENIDO'], height=300, key=f"txt_{index}")
+                    
+                    st.markdown("---")
+                    
+                    # 2. EL CONSULTOR CONTEXTUAL (LA MAGIA)
+                    st.markdown("#### 🤖 Consultor Inteligente")
+                    st.caption("Pregunta algo sobre ESTA planificación específica. Ej: '¿Cómo evalúo la actividad del martes?'")
+                    
+                    col_preg, col_btn = st.columns([3,1])
+                    
+                    with col_preg:
+                        pregunta = st.text_input("Tu duda:", key=f"preg_{index}", placeholder="Escribe aquí tu duda sobre este plan...")
+                    
+                    with col_btn:
+                        st.write("") # Espacio para alinear
+                        st.write("") 
+                        boton_consultar = st.button("Consultar", key=f"btn_{index}")
+                    
+                    if boton_consultar and pregunta:
+                        with st.spinner("Analizando tu planificación..."):
+                            # PROMPT CONTEXTUAL: Le pasamos el plan exacto a la IA
+                            prompt_contextual = f"""
+                            ACTÚA COMO UN ASESOR PEDAGÓGICO EXPERTO.
+                            
+                            CONTEXTO: El docente tiene la siguiente planificación guardada:
+                            ------------------------------------------------------------
+                            {contenido_plan}
+                            ------------------------------------------------------------
+                            
+                            SU PREGUNTA: "{pregunta}"
+                            
+                            TU MISIÓN: Responde la duda basándote EXCLUSIVAMENTE en la planificación de arriba.
+                            Sé práctico, directo y útil. Dame ejemplos concretos de cómo aplicar lo que me preguntas.
+                            """
+                            
+                            respuesta_contextual = generar_respuesta([
+                                {"role": "system", "content": INSTRUCCIONES_TECNICAS},
+                                {"role": "user", "content": prompt_contextual}
+                            ], temperatura=0.5)
+                            
+                            # Mostrar respuesta en una cajita diferenciada
+                            st.markdown(f"""
+                            <div class="consultor-box">
+                                <strong>💡 Respuesta del Consultor:</strong><br><br>
+                                {respuesta_contextual}
+                            </div>
+                            """, unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"Error cargando archivo: {e}")
+
 # =========================================================
 # OPCIÓN 3: IDEAS (CEREBRO TÉCNICO)
 # =========================================================
@@ -415,4 +475,4 @@ elif opcion == "❓ Consultas Técnicas":
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión 1.5 (Fix Competencias)")
+st.caption("Desarrollado por Luis Atencio | Versión: LEGADO PRUEBA 1.6")
