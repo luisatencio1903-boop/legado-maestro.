@@ -273,7 +273,7 @@ if opcion == "📝 Planificación Profesional":
     AL FINAL: 📚 FUNDAMENTACIÓN LEGAL: Cita el artículo específico de la LOE o la CRBV que respalda esta planificación particular que has creado.
     """
                 
-     mensajes = [
+    mensajes = [
                     {"role": "system", "content": INSTRUCCIONES_TECNICAS},
                     {"role": "user", "content": prompt_inicial}
                 ]
