@@ -225,33 +225,31 @@ if opcion == "📝 Planificación Profesional":
                 st.session_state.temp_rango = rango
                 st.session_state.temp_tema = notas
                 
-        # --- PROMPT CALIBRADO (OBJETIVO: 40 PALABRAS / 250 CARACTERES) ---
+        # --- PROMPT MODO TWITTER (MAX 280 CARACTERES) ---
                 prompt_inicial = f"""
-                Actúa como Luis Atencio, experto en Educación Especial.
-                Planificación técnica para: {rango}.
+                Actúa como Luis Atencio. Planificación técnica para: {rango}.
                 Aula: {aula}. Tema: {notas}.
 
                 ⚠️ INSTRUCCIONES DE FORMATO:
                 - Antes del título de cada día (Ej: "### Lunes"), deja UNA LÍNEA VACÍA.
 
-                ⚠️ CONTROL DE EXTENSIÓN (PUNTOS 3, 4 y 5):
+                ⚠️ CONTROL DE EXTENSIÓN ESTRICTO (Regla del Tweet):
                 - En EXPLORACIÓN, DESARROLLO y REFLEXIÓN:
-                - Tu objetivo es la PRECISIÓN.
-                - Redacta párrafos de ENTRE 35 y 45 PALABRAS EXACTAS.
-                - NO escribas menos de 30 palabras (es muy pobre).
-                - NO escribas más de 50 palabras (es muy largo).
-                - Sé directo. Elimina los saludos o introducciones innecesarias. Ve directo a la acción.
+                - Imagina que estás escribiendo un TWEET.
+                - Tienes un LÍMITE DURO de 280 caracteres (unas 40-50 palabras) por punto.
+                - Ve directo al grano. NO uses introducciones como "En esta parte haremos...". Empieza con el verbo.
+                - Ejemplo perfecto: "Los estudiantes clasifican herramientas reales de limpieza en una mesa, debatiendo en grupos de 3 cuál es el uso correcto de cada una para fijar el conocimiento práctico." (Esto es un Tweet perfecto).
 
                 ESTRUCTURA DIARIA (Lunes a Viernes):
 
                 ### [DÍA]
                 
                 1. **TÍTULO:** [Corto]
-                2. **COMPETENCIA:** [Objetivo claro]
-                3. **EXPLORACIÓN:** [Párrafo de 35-45 palabras.]
-                4. **DESARROLLO:** [Párrafo de 35-45 palabras.]
-                5. **REFLEXIÓN:** [Párrafo de 35-45 palabras.]
-                6. **MANTENIMIENTO:** [Acción de orden]
+                2. **COMPETENCIA:** [Objetivo]
+                3. **EXPLORACIÓN:** [Longitud de un TWEET. Máx 280 caracteres.]
+                4. **DESARROLLO:** [Longitud de un TWEET. Máx 280 caracteres.]
+                5. **REFLEXIÓN:** [Longitud de un TWEET. Máx 280 caracteres.]
+                6. **MANTENIMIENTO:** [Acción]
                 7. **ESTRATEGIAS:** [Técnicas]
                 8. **RECURSOS:** [Lista]
 
