@@ -225,19 +225,20 @@ if opcion == "📝 Planificación Profesional":
                 st.session_state.temp_rango = rango
                 st.session_state.temp_tema = notas
                 
+               # --- PROMPT AJUSTADO (MAX 250 CARACTERES) ---
                 prompt_inicial = f"""
                 Actúa como Luis Atencio, experto en Educación Especial.
                 Planificación técnica para: {rango}.
                 Aula: {aula}. Tema: {notas}.
 
-                ⚠️ INSTRUCCIONES DE FORMATO (IMPORTANTE):
-                - Separa bien los días.
-                - Antes del título de cada día (Ej: "### Lunes"), deja UNA LÍNEA VACÍA para que no salga pegado al anterior.
+                ⚠️ INSTRUCCIONES DE FORMATO:
+                - Antes del título de cada día (Ej: "### Lunes"), deja UNA LÍNEA VACÍA.
 
-                ⚠️ CALIBRACIÓN DE CONTENIDO (PUNTOS 3, 4 y 5):
-                - En EXPLORACIÓN, DESARROLLO y REFLEXIÓN: El contenido actual es muy corto.
-                - Por favor, REDACTA UN PÁRRAFO DE 2 O 3 ORACIONES COMPLETAS en estos puntos.
-                - Objetivo: Que tenga el DOBLE de texto que un simple título, explicando brevemente la actividad.
+                ⚠️ CONTROL DE LONGITUD (PUNTOS 3, 4 y 5):
+                - En EXPLORACIÓN, DESARROLLO y REFLEXIÓN:
+                - REGLA DE ORO: La extensión debe estar entre 200 y 270 caracteres (aprox 40-50 palabras).
+                - Sé directo y técnico. No des rodeos. 
+                - Ejemplo ideal: "Se inicia con una lluvia de ideas sobre las plantas, mostrando ejemplos reales del jardín para activar conocimientos previos." (Esto es perfecto).
 
                 ESTRUCTURA DIARIA (Lunes a Viernes):
 
@@ -245,17 +246,17 @@ if opcion == "📝 Planificación Profesional":
                 
                 1. **TÍTULO:** [Corto]
                 2. **COMPETENCIA:** [Objetivo]
-                3. **EXPLORACIÓN:** [Párrafo de 2-3 oraciones. Explica el inicio.]
-                4. **DESARROLLO:** [Párrafo de 2-3 oraciones. Explica la actividad.]
-                5. **REFLEXIÓN:** [Párrafo de 2-3 oraciones. Cierre.]
-                6. **MANTENIMIENTO:** [Acción de orden]
+                3. **EXPLORACIÓN:** [Párrafo de 40-50 palabras. Conciso.]
+                4. **DESARROLLO:** [Párrafo de 40-50 palabras. Acción directa.]
+                5. **REFLEXIÓN:** [Párrafo de 40-50 palabras. Cierre.]
+                6. **MANTENIMIENTO:** [Acción]
                 7. **ESTRATEGIAS:** [Técnicas]
                 8. **RECURSOS:** [Lista]
 
                 ---
                 (Repite estructura)
 
-               AL FINAL: 📚 FUNDAMENTACIÓN LEGAL (LOE/CNB).
+                AL FINAL: 📚 FUNDAMENTACIÓN LEGAL (LOE/CNB).
                 """
                 
                 mensajes = [
