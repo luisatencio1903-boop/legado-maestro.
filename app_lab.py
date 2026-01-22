@@ -255,8 +255,7 @@ if opcion == "📝 Planificación Profesional":
                 ---
                 (Repite estructura)
 
-                AL FINAL: 📚 FUNDAMENTACIÓN LEGAL (LOE/CNB).
-                """
+               AL FINAL: 📚 FUNDAMENTACIÓN LEGAL (LOE/CNB).
                 """
                 
                 mensajes = [
