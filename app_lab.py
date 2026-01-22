@@ -273,7 +273,7 @@ if opcion == "📝 Planificación Profesional":
     AL FINAL: 📚 FUNDAMENTACIÓN LEGAL: Cita el artículo específico de la LOE o la CRBV que respalda esta planificación particular que has creado.
     """
                 
-mensajes = [
+    mensajes = [
     {"role": "system", "content": INSTRUCCIONES_TECNICAS},
     {"role": "user", "content": prompt_inicial}
 ]
@@ -282,8 +282,6 @@ mensajes = [
 respuesta = generar_respuesta(mensajes, temperatura=0.4)
 st.session_state.plan_actual = respuesta
 st.rerun()
-
-
     # --- MOSTRAR RESULTADO Y OPCIÓN DE GUARDAR ---
     if st.session_state.plan_actual:
         st.markdown("---")
