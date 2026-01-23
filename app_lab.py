@@ -1,17 +1,20 @@
 # -----------------------------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
-# VERSIÓN: 3.6 (EDICIÓN MAESTRA: ROBUSTA + FORMATO MINISTERIAL)
+# VERSIÓN: 3.8 (EDICIÓN EXTENDIDA Y ROBUSTA - FINAL)
 # FECHA: Enero 2026
 # AUTOR: Luis Atencio (Bachiller Docente)
 # INSTITUCIÓN: T.E.L E.R.A.C
-# DESCRIPCIÓN: Asistente con IA para Educación Especial.
-# CAMBIOS: Código expandido (800+ líneas), formato vertical forzado en IA.
+# DESCRIPCIÓN: 
+#   Plataforma de asistencia pedagógica basada en IA para Educación Especial.
+#   Incluye gestión de usuarios, planificación inteligente, adaptación ministerial,
+#   evaluación diaria y expedientes.
+#   Optimizada para navegación móvil.
 # -----------------------------------------------------------------------------
 
 import streamlit as st
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from groq import Groq
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
@@ -25,7 +28,8 @@ import re  # Librería para expresiones regulares (detectar fechas automáticame
 st.set_page_config(
     page_title="Legado Maestro",
     page_icon="logo_legado.png",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="collapsed" # Ayuda en móviles
 )
 
 # -----------------------------------------------------------------------------
@@ -34,14 +38,18 @@ st.set_page_config(
 
 def limpiar_id(v): 
     """
-    Limpia el formato de la cédula para evitar errores de comparación.
+    Limpia el formato de la cédula de identidad para evitar errores de comparación
+    en la base de datos.
     Ejemplo: Convierte 'V-12.345.678' en '12345678'.
     """
-    return str(v).strip().split('.')[0].replace(',', '').replace('.', '')
+    if v is None:
+        return ""
+    return str(v).strip().split('.')[0].replace(',', '').replace('.', '').replace('V-', '').replace('E-', '')
 
 # -----------------------------------------------------------------------------
 # INICIALIZACIÓN DE VARIABLES DE SESIÓN (STATE)
 # -----------------------------------------------------------------------------
+# Inicializamos las variables globales que persisten durante la sesión del usuario.
 
 if 'auth' not in st.session_state:
     st.session_state.auth = False
@@ -53,12 +61,16 @@ if 'u' not in st.session_state:
 if 'pagina_actual' not in st.session_state:
     st.session_state.pagina_actual = "HOME"
 
-# Variables de memoria para la IA (Persistencia temporal)
+# Variables de memoria para la IA (Persistencia temporal de respuestas)
 if 'plan_actual' not in st.session_state: 
     st.session_state.plan_actual = ""
 
 if 'actividad_detectada' not in st.session_state: 
     st.session_state.actividad_detectada = ""
+
+# Variables para guardar datos temporales antes de escribir en BD
+if 'eval_resultado' not in st.session_state:
+    st.session_state.eval_resultado = ""
 
 if 'redirigir_a_archivo' not in st.session_state: 
     st.session_state.redirigir_a_archivo = False
@@ -68,9 +80,16 @@ if 'redirigir_a_archivo' not in st.session_state:
 # =============================================================================
 
 try:
+    # Establecemos la conexión utilizando los secretos configurados en Streamlit
     conn = st.connection("gsheets", type=GSheetsConnection)
-    # Se requiere que en .streamlit/secrets.toml exista la clave GSHEETS_URL
-    URL_HOJA = st.secrets["GSHEETS_URL"]
+    
+    # Verificamos que la URL exista en los secretos
+    if "GSHEETS_URL" in st.secrets:
+        URL_HOJA = st.secrets["GSHEETS_URL"]
+    else:
+        st.error("⚠️ Error de Configuración: Falta 'GSHEETS_URL' en secrets.toml")
+        st.stop()
+        
 except Exception as e:
     st.error("⚠️ Error Crítico: No se pudo establecer conexión con la Base de Datos.")
     st.error(f"Detalle del error: {e}")
@@ -86,7 +105,7 @@ def obtener_plan_activa_usuario(usuario_nombre):
     Retorna un diccionario con los datos o None si no existe.
     """
     try:
-        # Leemos con un TTL bajo para tener datos frescos
+        # Leemos con un TTL bajo (5 seg) para tener datos frescos
         df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=5)
         
         # Filtramos por usuario y estado activo
@@ -150,6 +169,7 @@ def desactivar_plan_activa(usuario_nombre):
     try:
         df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=0)
         mask_usuario = df_activa['USUARIO'] == usuario_nombre
+        
         if not df_activa[mask_usuario].empty:
             df_activa.loc[mask_usuario, 'ACTIVO'] = False
             conn.update(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", data=df_activa)
@@ -162,6 +182,7 @@ def desactivar_plan_activa(usuario_nombre):
 # =============================================================================
 
 # --- LÓGICA DE PERSISTENCIA DE SESIÓN (AUTO-LOGIN VÍA URL) ---
+# Permite mantener la sesión si se recarga la página
 query_params = st.query_params
 usuario_en_url = query_params.get("u", None)
 
@@ -175,6 +196,7 @@ if not st.session_state.auth and usuario_en_url:
             st.session_state.auth = True
             st.session_state.u = match.iloc[0].to_dict()
         else:
+            # Si el usuario en URL no es válido, limpiamos
             st.query_params.clear()
     except:
         pass 
@@ -197,20 +219,23 @@ if not st.session_state.auth:
         
         if st.button("🔐 Iniciar Sesión"):
             try:
+                # Leemos la base de usuarios
                 df_u = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=0)
                 df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
                 cedula_limpia = limpiar_id(c_in)
+                
+                # Buscamos coincidencia
                 match = df_u[(df_u['C_L'] == cedula_limpia) & (df_u['CLAVE'] == p_in)]
                 
                 if not match.empty:
                     st.session_state.auth = True
                     st.session_state.u = match.iloc[0].to_dict()
-                    st.query_params["u"] = cedula_limpia # Anclamos sesión
+                    st.query_params["u"] = cedula_limpia # Anclamos sesión en URL
                     st.success("¡Bienvenido, Docente!")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("❌ Credenciales inválidas.")
+                    st.error("❌ Credenciales inválidas. Verifique cédula o contraseña.")
             except Exception as e:
                 st.error(f"Error de conexión: {e}")
     st.stop()
@@ -224,7 +249,7 @@ hide_streamlit_style = """
             footer {visibility: hidden;}
             header {visibility: hidden;}
             
-            /* CAJA DE PLANIFICACIÓN */
+            /* CAJA DE PLANIFICACIÓN - ESTILO DOCUMENTO */
             .plan-box {
                 background-color: #f0f2f6 !important;
                 color: #000000 !important; 
@@ -235,6 +260,7 @@ hide_streamlit_style = """
                 font-family: 'Arial', sans-serif;
                 font-size: 1.05em;
                 line-height: 1.6;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
             .plan-box h3 {
                 color: #0068c9 !important;
@@ -256,6 +282,7 @@ hide_streamlit_style = """
                 border-left: 5px solid #2e7d32;
                 margin-top: 10px;
                 margin-bottom: 10px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             }
             .eval-box h4 { color: #2e7d32 !important; }
 
@@ -266,6 +293,7 @@ hide_streamlit_style = """
                 font-size: 1.2em; 
                 font-weight: 500;
                 line-height: 1.4;
+                font-style: italic;
             }
             
             /* CONSULTOR DEL ARCHIVO */
@@ -305,6 +333,11 @@ hide_streamlit_style = """
                 border: 0;
                 border-top: 2px solid rgba(0,0,0,.1);
             }
+            
+            /* BOTONES DE ACCIÓN RÁPIDA (MOVIL) */
+            div[data-testid="column"] button {
+               width: 100%; 
+            }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -316,6 +349,7 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 try:
     if "GROQ_API_KEY" in st.secrets:
         client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        # Modelo potente para razonamiento educativo
         MODELO_USADO = "llama-3.3-70b-versatile" 
     else:
         st.error("⚠️ Falta la API Key de Groq en los Secrets.")
@@ -324,7 +358,7 @@ except Exception as e:
     st.error(f"⚠️ Error de conexión inicial con IA: {e}")
     st.stop()
 
-# --- PROMPTS DE SISTEMA (CEREBRO TÉCNICO V3.6) ---
+# --- PROMPTS DE SISTEMA (CEREBRO TÉCNICO V3.8) ---
 # Se han actualizado las reglas para exigir competencias descriptivas y formato limpio.
 
 INSTRUCCIONES_TECNICAS = """
@@ -337,25 +371,28 @@ TU ROL: Experto en Educación Especial y Taller Laboral (Estudiantes con Discapa
 1. **COMPETENCIAS TÉCNICAS COMPLETAS (MUY IMPORTANTE):**
    - NUNCA escribas un competencia con un solo verbo (Ej: "Diseñar"). ¡ESO ESTÁ MAL!
    - La competencia debe describir: LA ACCIÓN + EL OBJETO + LA CONDICIÓN.
-   - EJEMPLO CORRECTO: "Selecciona y utiliza adecuadamente los materiales de limpieza".
-   - EJEMPLO CORRECTO: "Manipula con precisión tijeras y pega para crear manualidades".
+   - EJEMPLO CORRECTO: "Selecciona y utiliza adecuadamente los materiales de limpieza para el mantenimiento del aula".
+   - EJEMPLO CORRECTO: "Manipula con precisión tijeras y pega para crear manualidades temáticas".
+   - EJEMPLO CORRECTO: "Participa en juegos grupales respetando las normas de convivencia".
 
 2. **ACTIVIDADES CONCRETAS (NO ABSTRACTAS):**
-   - PROHIBIDO mandar a "Investigar", "Hacer resúmenes", o "Leer textos densos".
-   - Los estudiantes aprenden HACIENDO: Recortar, pegar, limpiar, ordenar, observar, dramatizar.
+   - PROHIBIDO mandar a "Investigar por su cuenta", "Hacer resúmenes escritos", o "Leer textos densos".
+   - Los estudiantes aprenden HACIENDO: Recortar, pegar, limpiar, ordenar, observar, dramatizar, pintar.
 
 3. **VARIEDAD DE LENGUAJE:**
-   - NO empieces siempre con "Invitamos". Usa: "Hoy descubrimos", "Manos a la obra", "Jugamos a".
+   - NO empieces siempre con "Invitamos".
+   - Usa variantes: "Hoy descubrimos", "Manos a la obra", "Jugamos a", "Nos divertimos creando".
 
 4. **FORMATO VISUAL (CRÍTICO):**
-   - Usa saltos de línea (doble espacio) entre secciones.
-   - NO escribas todo pegado en un bloque.
+   - Usa saltos de línea (doble espacio) entre secciones para que la respuesta no sea un bloque de texto.
+   - Usa Negritas para los títulos.
 """
 
 # --- FUNCIÓN GENERADORA GENÉRICA ---
 def generar_respuesta(mensajes_historial, temperatura=0.7):
     """
     Envía la solicitud a Groq y maneja posibles errores de conexión.
+    Tiene reintentos automáticos básicos.
     """
     try:
         chat_completion = client.chat.completions.create(
@@ -368,7 +405,7 @@ def generar_respuesta(mensajes_historial, temperatura=0.7):
         return f"Error de conexión con el cerebro del sistema: {e}"
 
 # =============================================================================
-# 7. BARRA LATERAL (MODO INFORMATIVO)
+# 7. BARRA LATERAL (MODO INFORMATIVO - SIN BOTONES DE NAVEGACIÓN)
 # =============================================================================
 
 with st.sidebar:
@@ -384,9 +421,10 @@ with st.sidebar:
     st.caption("T.E.L E.R.A.C")
     
     # --- SECCIÓN: ESTADO DE PLANIFICACIÓN ACTIVA ---
-    st.markdown("---")
+    # Mostramos qué planificación se está usando actualmente
     plan_activa = obtener_plan_activa_usuario(st.session_state.u['NOMBRE'])
     
+    st.markdown("---")
     if plan_activa:
         st.success("📌 **Planificación Activa**")
         with st.expander("Ver detalles", expanded=False):
@@ -396,20 +434,9 @@ with st.sidebar:
     else:
         st.warning("⚠️ **Sin planificación activa**")
         st.caption("Ve a 'Mi Archivo' para activar una")
-    
-    st.markdown("---")
-    
-    # --- BOTONES DE CONTROL DE SESIÓN ---
-    if st.button("🗑️ Limpiar Memoria"):
-        st.session_state.plan_actual = ""
-        st.session_state.actividad_detectada = ""
-        st.rerun()
-    
-    if st.button("🔒 Cerrar Sesión"):
-        st.session_state.auth = False
-        st.session_state.u = None
-        st.query_params.clear() 
-        st.rerun()
+
+    # NOTA: Los botones de Cerrar Sesión y Limpiar se movieron al Home
+    # para mejor experiencia en móviles.
 
 # =============================================================================
 # 8. CONTROLADOR DE NAVEGACIÓN (STATE MACHINE)
@@ -426,10 +453,29 @@ if st.session_state.redirigir_a_archivo:
 
 if st.session_state.pagina_actual == "HOME":
     
-    st.title("🍎 Asistente Educativo - Zulia")
-    st.info("👋 Saludos, Colega. ¿Qué herramienta vamos a usar hoy?")
+    # --- CABECERA DE ACCIONES RÁPIDAS (OPTIMIZADO PARA MÓVIL) ---
+    col_clean, col_space, col_logout = st.columns([1, 1, 1])
     
+    with col_clean:
+        if st.button("🧹 Limpiar", help="Borrar memoria temporal"):
+            st.session_state.plan_actual = ""
+            st.session_state.actividad_detectada = ""
+            st.session_state.eval_resultado = ""
+            st.rerun()
+            
+    with col_logout:
+        if st.button("🔒 Salir", type="primary", help="Cerrar sesión"):
+            st.session_state.auth = False
+            st.session_state.u = None
+            st.query_params.clear() 
+            st.rerun()
+
     st.divider()
+    
+    st.title("🍎 Asistente Educativo - Zulia")
+    st.info(f"👋 Saludos, **{st.session_state.u['NOMBRE']}**. ¿Qué herramienta vamos a usar hoy?")
+    
+    st.write("") # Espacio
     
     # --- BARRA 1: HERRAMIENTAS DE GESTIÓN PRINCIPAL ---
     st.markdown("### 🛠️ GESTIÓN DOCENTE")
@@ -476,7 +522,7 @@ else:
     col_nav_1, col_nav_2 = st.columns([1, 4])
     
     with col_nav_1:
-        if st.button("⬅️ VOLVER AL INICIO", key="btn_volver_home", use_container_width=True):
+        if st.button("⬅️ VOLVER", key="btn_volver_home", use_container_width=True):
             st.session_state.pagina_actual = "HOME"
             st.rerun()
             
@@ -521,7 +567,7 @@ else:
                     1. **COMPETENCIAS BIEN REDACTADAS:** 
                        - NO USES UN SOLO VERBO. 
                        - Usa frases como: "Identifica y utiliza...", "Reconoce y aplica...", "Participa activamente en...".
-                    2. **ACTIVIDADES CONCRETAS:** Los alumnos aprenden haciendo.
+                    2. **ACTIVIDADES CONCRETAS:** Los alumnos aprenden haciendo (Recortar, Pegar, Limpiar, Ordenar).
                     
                     ESTRUCTURA DIARIA (Lunes a Viernes):
                     
@@ -569,9 +615,10 @@ else:
                     prompt_adaptacion = f"""
                     ERES UN EXPERTO EN ADAPTACIÓN CURRICULAR (TALLER LABORAL).
                     TEXTO MINISTERIO: "{texto_whatsapp}"
+                    AULA: {aula_min}.
                     
                     **INSTRUCCIONES CLAVE DE FORMATO:**
-                    1. **ENCABEZADO OBLIGATORIO:**
+                    1. **ENCABEZADO OBLIGATORIO:** Empieza la respuesta con:
                        "📝 **Planificación del Ministerio de Educación (Adaptada para Taller Laboral)**"
                        "Adaptación para el Taller: {aula_min}"
                     2. **ESPACIADO:** Usa DOBLE ESPACIO entre cada punto para que se vea una lista vertical ordenada.
@@ -657,7 +704,7 @@ else:
     elif opcion == "📝 Evaluar Alumno (NUEVO)":
         st.subheader("Evaluación Diaria Inteligente")
         
-        from datetime import timedelta
+        # Ajuste de hora Venezuela
         fecha_segura_ve = datetime.utcnow() - timedelta(hours=4)
         fecha_hoy_str = fecha_segura_ve.strftime("%d/%m/%Y")
         dia_semana_hoy = fecha_segura_ve.strftime("%A")
@@ -677,7 +724,7 @@ else:
             with col_btn:
                 if st.button("🔍 Buscar Actividad de HOY", type="primary"):
                     try:
-                        with st.spinner(f"Analizando..."):
+                        with st.spinner(f"Analizando planificación activa..."):
                             contenido_planificacion = plan_activa['CONTENIDO_PLAN']
                             prompt_busqueda = f"""
                             PLANIFICACIÓN: {contenido_planificacion[:10000]}
@@ -718,7 +765,7 @@ else:
                         st.session_state.estudiante_evaluado = estudiante
                         st.session_state.anecdota_guardada = anecdota
             
-            if 'eval_resultado' in st.session_state:
+            if st.session_state.eval_resultado:
                 st.markdown("---")
                 st.subheader("📋 Evaluación Generada")
                 st.markdown(f'<div class="eval-box">{st.session_state.eval_resultado}</div>', unsafe_allow_html=True)
@@ -734,7 +781,7 @@ else:
                         }])
                         conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=pd.concat([df_evals, nueva_eval], ignore_index=True))
                         st.success("✅ Guardado.")
-                        del st.session_state.eval_resultado
+                        st.session_state.eval_resultado = "" # Limpiar
                         time.sleep(1)
                         st.rerun()
                     except Exception as e: st.error(f"Error: {e}")
@@ -762,7 +809,10 @@ else:
                 # --- MÉTRICAS DE ASISTENCIA ---
                 total_dias = len(mis_evals['FECHA'].unique())
                 dias_asistidos = len(datos_alumno['FECHA'].unique())
-                pct = (dias_asistidos / total_dias) * 100 if total_dias > 0 else 0
+                if total_dias > 0:
+                    pct = (dias_asistidos / total_dias) * 100 
+                else:
+                    pct = 0
                 
                 st.markdown("---")
                 cm1, cm2, cm3 = st.columns(3)
@@ -881,4 +931,4 @@ else:
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión: 3.6 (Edición Maestra Final)")
+st.caption("Desarrollado por Luis Atencio | Versión: 3.8 (Edición Final Extendida)")
