@@ -1,6 +1,6 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
-# VERSIÓN: 2.4.3 (CON MIGRACIÓN Y DESELECCIÓN)
+# VERSIÓN: 2.4.4 (SESIÓN PERSISTENTE + CACHÉ OPTIMIZADO)
 # FECHA: Enero 2026
 # AUTOR: Luis Atencio
 # ---------------------------------------------------------
@@ -8,7 +8,7 @@
 import streamlit as st
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from groq import Groq
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
@@ -39,122 +39,116 @@ except:
     st.error("⚠️ Error conectando con la Base de Datos.")
     st.stop()
 
-# --- SISTEMA DE PLANIFICACIÓN ACTIVA MEJORADO ---
-def migrar_planificaciones_activas():
-    """Migra planificaciones activas desde evaluaciones recientes si PLAN_ACTIVA está vacía"""
-    try:
-        # Verificar si PLAN_ACTIVA está vacía
-        df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=5)
-        
-        # Si tiene datos, no hacer migración
-        if not df_activa.empty and 'USUARIO' in df_activa.columns:
-            return False
-        
-        st.info("🔍 Detectando planificaciones en uso recientemente...")
-        
-        # Leer evaluaciones de los últimos 7 días
-        df_eval = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=5)
-        if df_eval.empty:
-            return False
-        
-        # Convertir fecha a datetime
+# --- SISTEMA DE CACHÉ PARA EVITAR RATE LIMITS ---
+class CacheManager:
+    def __init__(self):
+        self.cache_data = {}
+        self.cache_timestamps = {}
+    
+    def get(self, key, max_age_seconds=30):
+        """Obtiene datos del caché si no han expirado"""
+        if key in self.cache_data and key in self.cache_timestamps:
+            age = time.time() - self.cache_timestamps[key]
+            if age < max_age_seconds:
+                return self.cache_data[key]
+        return None
+    
+    def set(self, key, data):
+        """Guarda datos en el caché"""
+        self.cache_data[key] = data
+        self.cache_timestamps[key] = time.time()
+    
+    def clear(self, key=None):
+        """Limpia el caché"""
+        if key:
+            if key in self.cache_data:
+                del self.cache_data[key]
+            if key in self.cache_timestamps:
+                del self.cache_timestamps[key]
+        else:
+            self.cache_data.clear()
+            self.cache_timestamps.clear()
+
+# Instancia global del caché
+cache = CacheManager()
+
+# --- FUNCIONES DE LECTURA CON CACHÉ (PERO NO PARA LOGIN) ---
+def leer_con_cache(worksheet, ttl_seconds=30, force_refresh=False, usar_cache=True):
+    """Lee una hoja de Google Sheets con caché para evitar rate limits"""
+    
+    # CRÍTICO: Para USUARIOS durante el auto-login, NO usar caché
+    if worksheet == "USUARIOS" and not usar_cache:
         try:
-            df_eval['FECHA_DT'] = pd.to_datetime(df_eval['FECHA'], format='%d/%m/%Y', errors='coerce')
+            return conn.read(spreadsheet=URL_HOJA, worksheet=worksheet, ttl=0)
         except:
-            return False
-        
-        # Filtrar evaluaciones de los últimos 7 días
-        fecha_limite = datetime.now() - timedelta(days=7)
-        eval_recientes = df_eval[df_eval['FECHA_DT'] >= fecha_limite]
-        
-        if eval_recientes.empty:
-            return False
-        
-        # Para cada usuario, encontrar la planificación más reciente usada
-        usuarios_unicos = eval_recientes['USUARIO'].unique()
-        
-        for usuario in usuarios_unicos:
-            eval_usuario = eval_recientes[eval_recientes['USUARIO'] == usuario]
-            # Ordenar por fecha descendente
-            eval_usuario = eval_usuario.sort_values('FECHA_DT', ascending=False)
-            
-            # Tomar la evaluación más reciente
-            ultima_eval = eval_usuario.iloc[0]
-            
-            # Buscar la planificación correspondiente en Hoja1
-            df_planes = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=5)
-            if df_planes.empty:
-                continue
-            
-            # Buscar planificaciones del usuario
-            planes_usuario = df_planes[df_planes['USUARIO'] == usuario]
-            
-            if not planes_usuario.empty:
-                # Tomar la planificación más reciente del usuario
-                plan_reciente = planes_usuario.sort_values('FECHA', ascending=False).iloc[0]
-                
-                # Establecer como activa
-                establecer_plan_activa(
-                    usuario_nombre=usuario,
-                    id_plan=plan_reciente.name,  # índice
-                    contenido=plan_reciente['CONTENIDO'],
-                    rango="Migrado automáticamente",
-                    aula="Taller Laboral"
-                )
-        
-        return True
-    except Exception as e:
-        st.error(f"Error en migración: {e}")
-        return False
-
-def inicializar_hoja_plan_activa():
-    """Inicializa la hoja PLAN_ACTIVA si está vacía o no existe"""
+            return pd.DataFrame()
+    
+    cache_key = f"sheet_{worksheet}"
+    
+    # Intentar obtener del caché primero (si no forzamos refresco)
+    if usar_cache and not force_refresh:
+        cached_data = cache.get(cache_key, max_age_seconds=ttl_seconds)
+        if cached_data is not None:
+            return cached_data
+    
     try:
-        # Intentar leer la hoja
-        df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=0)
+        # Leer de Google Sheets
+        df = conn.read(spreadsheet=URL_HOJA, worksheet=worksheet, ttl=0)
         
-        # Si está vacía o no tiene columnas, inicializarla
-        if df_activa.empty or 'USUARIO' not in df_activa.columns:
-            columnas = ["USUARIO", "FECHA_ACTIVACION", "ID_PLAN", "CONTENIDO_PLAN", "RANGO", "AULA", "ACTIVO", "FINALIZADA"]
-            df_inicial = pd.DataFrame(columns=columnas)
-            conn.update(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", data=df_inicial)
-            
-            # Intentar migrar planificaciones existentes
-            migrar_planificaciones_activas()
+        # Guardar en caché
+        if usar_cache:
+            cache.set(cache_key, df)
+        return df
     except Exception as e:
-        # Si la hoja no existe, crearla
-        columnas = ["USUARIO", "FECHA_ACTIVACION", "ID_PLAN", "CONTENIDO_PLAN", "RANGO", "AULA", "ACTIVO", "FINALIZADA"]
-        df_inicial = pd.DataFrame(columns=columnas)
-        conn.update(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", data=df_inicial)
+        # Si hay error, intentar usar caché aunque esté expirado
+        if cache_key in cache.cache_data and usar_cache:
+            return cache.cache_data[cache_key]
+        # Si no hay nada en caché, devolver DataFrame vacío
+        return pd.DataFrame()
 
+# --- FUNCIÓN DE ESCRITURA CON REINTENTOS ---
+def escribir_con_reintento(worksheet, data, max_intentos=3):
+    """Escribe datos en Google Sheets con reintentos en caso de error 429"""
+    for intento in range(max_intentos):
+        try:
+            conn.update(spreadsheet=URL_HOJA, worksheet=worksheet, data=data)
+            # Limpiar caché de esta hoja después de escribir
+            cache.clear(f"sheet_{worksheet}")
+            return True
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                if intento < max_intentos - 1:
+                    wait_time = (intento + 1) * 2  # Esperar 2, 4, 6 segundos
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    st.error(f"❌ Error de límite de cuota después de {max_intentos} intentos")
+                    return False
+            else:
+                st.error(f"❌ Error al escribir en {worksheet}: {str(e)[:100]}")
+                return False
+    return False
+
+# --- SISTEMA DE PLANIFICACIÓN ACTIVA (OPTIMIZADO) ---
 def obtener_plan_activa_usuario(usuario_nombre):
-    """Obtiene la planificación activa actual del usuario desde la nube"""
+    """Obtiene la planificación activa actual del usuario desde la nube (con caché)"""
     try:
-        # Inicializar hoja primero
-        inicializar_hoja_plan_activa()
+        # Leer la hoja con caché
+        df_activa = leer_con_cache("PLAN_ACTIVA", ttl_seconds=60)
         
-        # Leer la hoja
-        df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=5)
-        
-        # Verificar si tiene datos
         if df_activa.empty:
             return None
         
-        # Asegurar que las columnas necesarias existen
-        columnas_necesarias = ['USUARIO', 'ACTIVO', 'FINALIZADA']
-        for col in columnas_necesarias:
-            if col not in df_activa.columns:
-                return None
+        if 'ACTIVO' not in df_activa.columns:
+            return None
         
-        # Convertir ACTIVO y FINALIZADA a string para comparación
+        # Convertir ACTIVO a string y buscar 'True' o 'TRUE'
         df_activa['ACTIVO_STR'] = df_activa['ACTIVO'].astype(str).str.upper()
-        df_activa['FINALIZADA_STR'] = df_activa['FINALIZADA'].astype(str).str.upper()
         
-        # Filtrar: usuario, activo=True, finalizada=False o vacío
+        # Filtrar
         plan_activa = df_activa[
             (df_activa['USUARIO'] == usuario_nombre) & 
-            (df_activa['ACTIVO_STR'] == 'TRUE') &
-            (df_activa['FINALIZADA_STR'].isin(['FALSE', 'NAN', '']))
+            (df_activa['ACTIVO_STR'] == 'TRUE')
         ]
         
         if not plan_activa.empty:
@@ -165,13 +159,19 @@ def obtener_plan_activa_usuario(usuario_nombre):
         return None
 
 def establecer_plan_activa(usuario_nombre, id_plan, contenido, rango, aula):
-    """Establece una planificación como la activa para el usuario"""
+    """Establece una planificación como la activa para el usuario (con reintentos)"""
     try:
-        # Inicializar hoja primero
-        inicializar_hoja_plan_activa()
+        # Pequeña pausa para reducir rate limits
+        time.sleep(0.5)
         
-        # Leer datos actuales
-        df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=0)
+        # Leer datos actuales con caché forzando refresco
+        df_activa = leer_con_cache("PLAN_ACTIVA", force_refresh=True)
+        
+        # Si el DataFrame está vacío o no tiene columnas, inicializarlo
+        if df_activa.empty or 'USUARIO' not in df_activa.columns:
+            columnas = ["USUARIO", "FECHA_ACTIVACION", "ID_PLAN", 
+                       "CONTENIDO_PLAN", "RANGO", "AULA", "ACTIVO"]
+            df_activa = pd.DataFrame(columns=columnas)
         
         # 1. Desactivar cualquier planificación activa previa del mismo usuario
         if not df_activa.empty:
@@ -184,59 +184,50 @@ def establecer_plan_activa(usuario_nombre, id_plan, contenido, rango, aula):
             "USUARIO": usuario_nombre,
             "FECHA_ACTIVACION": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
             "ID_PLAN": str(id_plan),
-            "CONTENIDO_PLAN": str(contenido),
+            "CONTENIDO_PLAN": str(contenido)[:5000],  # Limitar tamaño
             "RANGO": str(rango),
             "AULA": str(aula),
-            "ACTIVO": True,
-            "FINALIZADA": False
+            "ACTIVO": True
         }])
         
         # Combinar y actualizar
         df_actualizado = pd.concat([df_activa, nueva_activa], ignore_index=True)
-        conn.update(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", data=df_actualizado)
         
-        # Mostrar mensaje de éxito
-        st.success(f"✅ Planificación establecida como ACTIVA: {rango}")
-        return True
+        # Escribir con reintentos
+        if escribir_con_reintento("PLAN_ACTIVA", df_actualizado):
+            return True
+        else:
+            return False
+            
     except Exception as e:
-        st.error(f"❌ Error al establecer plan activa: {e}")
-        return False
-
-def finalizar_plan_activa(usuario_nombre):
-    """Marca la planificación activa como finalizada (completada)"""
-    try:
-        df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=0)
-        if not df_activa.empty:
-            # Encontrar la planificación activa del usuario
-            mask = (df_activa['USUARIO'] == usuario_nombre) & (df_activa['ACTIVO'].astype(str).str.upper() == 'TRUE')
-            if mask.any():
-                df_activa.loc[mask, 'FINALIZADA'] = True
-                df_activa.loc[mask, 'ACTIVO'] = False
-                conn.update(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", data=df_activa)
-                return True
-        return False
-    except:
+        st.error(f"Error al establecer plan activa: {str(e)[:200]}")
         return False
 
 def desactivar_plan_activa(usuario_nombre):
     """Desactiva cualquier planificación activa del usuario"""
     try:
-        df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=0)
+        df_activa = leer_con_cache("PLAN_ACTIVA", force_refresh=True)
         if not df_activa.empty:
             mask_usuario = df_activa['USUARIO'] == usuario_nombre
             if mask_usuario.any():
                 df_activa.loc[mask_usuario, 'ACTIVO'] = False
-                conn.update(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", data=df_activa)
+                escribir_con_reintento("PLAN_ACTIVA", df_activa)
         return True
     except:
         return False
+
+# =========================================================
+# ¡¡¡CRÍTICO: AUTO-LOGIN DEBE ESTAR ANTES DE CUALQUIER CACHÉ!!!
+# =========================================================
 
 # --- LÓGICA DE PERSISTENCIA DE SESIÓN (AUTO-LOGIN) ---
 query_params = st.query_params
 usuario_en_url = query_params.get("u", None)
 
+# AUTO-LOGIN: Si hay parámetro 'u' en la URL y no estamos autenticados
 if not st.session_state.auth and usuario_en_url:
     try:
+        # CRÍTICO: Para auto-login, LEER DIRECTAMENTE SIN CACHÉ
         df_u = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=0)
         df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
         match = df_u[df_u['C_L'] == usuario_en_url]
@@ -244,12 +235,28 @@ if not st.session_state.auth and usuario_en_url:
         if not match.empty:
             st.session_state.auth = True
             st.session_state.u = match.iloc[0].to_dict()
+            st.success(f"✅ Sesión restaurada para {st.session_state.u['NOMBRE']}")
+            time.sleep(1)
+            st.rerun()
         else:
             st.query_params.clear()
-    except:
-        pass 
+    except Exception as e:
+        # Si falla, intentar con caché como último recurso
+        try:
+            df_u = leer_con_cache("USUARIOS", ttl_seconds=0, force_refresh=True)
+            if not df_u.empty:
+                df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
+                match = df_u[df_u['C_L'] == usuario_en_url]
+                if not match.empty:
+                    st.session_state.auth = True
+                    st.session_state.u = match.iloc[0].to_dict()
+                    st.success(f"✅ Sesión restaurada desde caché")
+                    time.sleep(1)
+                    st.rerun()
+        except:
+            st.query_params.clear()
 
-# --- FORMULARIO DE LOGIN ---
+# --- FORMULARIO DE LOGIN (SOLO SI NO HAY AUTO-LOGIN) ---
 if not st.session_state.auth:
     st.title("🛡️ Acceso Legado Maestro")
     st.markdown("Ingrese sus credenciales para acceder a la plataforma.")
@@ -267,7 +274,8 @@ if not st.session_state.auth:
         
         if st.button("🔐 Iniciar Sesión"):
             try:
-                df_u = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=0)
+                # Para login inicial, podemos usar caché
+                df_u = leer_con_cache("USUARIOS", ttl_seconds=300, usar_cache=True)
                 df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
                 cedula_limpia = limpiar_id(c_in)
                 match = df_u[(df_u['C_L'] == cedula_limpia) & (df_u['CLAVE'] == p_in)]
@@ -275,16 +283,15 @@ if not st.session_state.auth:
                 if not match.empty:
                     st.session_state.auth = True
                     st.session_state.u = match.iloc[0].to_dict()
+                    # ESTO ES CLAVE: Anclar sesión en URL
                     st.query_params["u"] = cedula_limpia
-                    # Inicializar hoja y migrar si es necesario
-                    inicializar_hoja_plan_activa()
                     st.success("¡Bienvenido!")
                     time.sleep(1)
                     st.rerun()
                 else:
                     st.error("❌ Credenciales inválidas.")
             except Exception as e:
-                st.error(f"Error de conexión: {e}")
+                st.error(f"Error de conexión: {str(e)[:100]}")
     st.stop()
 
 # --- 2. ESTILOS CSS (MODO OSCURO + FORMATO) ---
@@ -315,7 +322,7 @@ hide_streamlit_style = """
                 font-weight: 700;
             }
 
-            /* CAJA DE EVALUACIÓN (NUEVO ESTILO) */
+            /* CAJA DE EVALUACIÓN */
             .eval-box {
                 background-color: #e8f5e9 !important;
                 color: #000000 !important;
@@ -365,11 +372,14 @@ hide_streamlit_style = """
                 margin-bottom: 10px;
             }
             
-            /* BOTÓN FINALIZAR */
-            .boton-finalizar {
-                background-color: #6c757d !important;
-                color: white !important;
-                border: 1px solid #495057 !important;
+            /* MENSAJE DE CACHÉ */
+            .cache-message {
+                background-color: #fff3cd !important;
+                border-left: 5px solid #ffc107 !important;
+                padding: 10px;
+                border-radius: 5px;
+                margin-bottom: 10px;
+                font-size: 0.9em;
             }
             </style>
             """
@@ -427,15 +437,12 @@ with st.sidebar:
     
     # --- INFORMACIÓN DEL USUARIO AUTENTICADO ---
     if st.session_state.u:
-        # Obtener nombre y rol del usuario actual
         nombre_usuario = st.session_state.u.get('NOMBRE', 'Usuario')
         rol_usuario = st.session_state.u.get('ROL', 'DOCENTE')
         
-        # Mostrar información dinámica
         st.caption(f"👤 **{nombre_usuario}**")
         st.caption(f"🔧 {rol_usuario}")
         
-        # Mostrar información adicional solo para Luis Atencio
         if nombre_usuario.upper() == "LUIS ATENCIO":
             st.caption("Bachiller Docente")
             st.caption("T.E.L E.R.A.C")
@@ -453,22 +460,26 @@ with st.sidebar:
         st.caption(f"Activada: {plan_activa.get('FECHA_ACTIVACION', 'Fecha no disponible').split()[0]}")
         
         with st.expander("Acciones", expanded=False):
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🔄 Cambiar", key="sidebar_cambiar"):
-                    st.session_state.redirigir_a_archivo = True
+            if st.button("Cambiar Planificación", key="sidebar_cambiar"):
+                st.session_state.redirigir_a_archivo = True
+                st.rerun()
+            if st.button("Desactivar", key="sidebar_desactivar"):
+                if desactivar_plan_activa(st.session_state.u['NOMBRE']):
+                    st.success("Planificación desactivada")
+                    time.sleep(1)
                     st.rerun()
-            with col2:
-                if st.button("🗓️ Finalizar", key="sidebar_finalizar"):
-                    if finalizar_plan_activa(st.session_state.u['NOMBRE']):
-                        st.success("✅ Planificación marcada como finalizada")
-                        time.sleep(1)
-                        st.rerun()
     else:
         st.warning("⚠️ **Sin planificación activa**")
         st.caption("Ve a 'Mi Archivo' para activar una")
     
     st.markdown("---")
+    
+    # Botón para limpiar caché manualmente
+    if st.button("🔄 Refrescar Datos", help="Forzar actualización de datos desde Google Sheets"):
+        cache.clear()
+        st.success("✅ Caché limpiado. Los datos se cargarán nuevamente.")
+        time.sleep(1)
+        st.rerun()
     
     if st.button("🗑️ Limpiar Memoria"):
         for key in list(st.session_state.keys()):
@@ -603,7 +614,7 @@ if opcion == "📝 Planificación Profesional":
             if st.button("💾 SÍ, GUARDAR EN MI CARPETA"):
                 try:
                     with st.spinner("Archivando en el expediente..."):
-                        df_act = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+                        df_act = leer_con_cache("Hoja1", ttl_seconds=30)
                         tema_guardar = st.session_state.get('temp_tema', notas)
                         nueva_fila = pd.DataFrame([{
                             "FECHA": datetime.now().strftime("%d/%m/%Y"),
@@ -614,12 +625,15 @@ if opcion == "📝 Planificación Profesional":
                             "HORA_INICIO": "--", "HORA_FIN": "--"
                         }])
                         datos_actualizados = pd.concat([df_act, nueva_fila], ignore_index=True)
-                        conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=datos_actualizados)
-                        st.success("✅ ¡Planificación archivada con éxito!")
-                        time.sleep(2)
-                        st.rerun()
+                        
+                        if escribir_con_reintento("Hoja1", datos_actualizados):
+                            st.success("✅ ¡Planificación archivada con éxito!")
+                            time.sleep(2)
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al guardar. Intenta nuevamente en unos segundos.")
                 except Exception as e:
-                    st.error(f"Error al guardar: {e}")
+                    st.error(f"Error al guardar: {str(e)[:100]}")
 
 # =========================================================
 # 2. EVALUAR ALUMNO (USANDO PLANIFICACIÓN ACTIVA)
@@ -628,6 +642,7 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
     st.subheader("Evaluación Diaria Inteligente")
     
     # --- CÁLCULO DE FECHA SEGURA (HORA VENEZUELA) ---
+    from datetime import timedelta
     fecha_segura_ve = datetime.utcnow() - timedelta(hours=4)
     fecha_hoy_str = fecha_segura_ve.strftime("%d/%m/%Y")
     dia_semana_hoy = fecha_segura_ve.strftime("%A")
@@ -674,7 +689,7 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
                     Eres un asistente pedagógico especializado en analizar planificaciones.
                     
                     **PLANIFICACIÓN OFICIAL DE LA SEMANA:**
-                    {contenido_planificacion[:10000]}
+                    {contenido_planificacion[:8000]}
                     
                     **INSTRUCCIÓN CRÍTICA:** 
                     Hoy es {fecha_hoy_str} ({dia_semana_hoy}). 
@@ -785,7 +800,7 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
         if st.button("💾 GUARDAR EN REGISTRO OFICIAL", type="secondary"):
             try:
                 # Leer evaluaciones existentes
-                df_evals = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
+                df_evals = leer_con_cache("EVALUACIONES", ttl_seconds=30)
                 
                 nueva_eval = pd.DataFrame([{
                     "FECHA": fecha_hoy_str,
@@ -800,30 +815,33 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
                 
                 # Guardar
                 df_actualizado = pd.concat([df_evals, nueva_eval], ignore_index=True)
-                conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_actualizado)
                 
-                st.success(f"✅ Evaluación de {st.session_state.estudiante_evaluado} guardada correctamente.")
-                
-                # Limpiar estado
-                del st.session_state.eval_resultado
-                del st.session_state.estudiante_evaluado
-                del st.session_state.anecdota_guardada
-                
-                time.sleep(2)
-                st.rerun()
+                if escribir_con_reintento("EVALUACIONES", df_actualizado):
+                    st.success(f"✅ Evaluación de {st.session_state.estudiante_evaluado} guardada correctamente.")
+                    
+                    # Limpiar estado
+                    del st.session_state.eval_resultado
+                    del st.session_state.estudiante_evaluado
+                    del st.session_state.anecdota_guardada
+                    
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.error("❌ Error al guardar. Intenta nuevamente en unos segundos.")
                 
             except Exception as e:
                 st.error(f"Error al guardar: {e}")
 
 # =========================================================
-# 3. REGISTRO DE EVALUACIONES (FIX: PERSISTENCIA DE INFORME IA)
+# 3. REGISTRO DE EVALUACIONES
 # =========================================================
 elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
     st.subheader("🎓 Expediente Estudiantil 360°")
     
     try:
-        # 1. Cargamos TODA la base de datos de evaluaciones
-        df_e = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
+        # 1. Cargamos TODA la base de datos de evaluaciones (con caché)
+        df_e = leer_con_cache("EVALUACIONES", ttl_seconds=60)
+        
         # Filtramos solo las de este docente (para privacidad)
         mis_evals = df_e[df_e['USUARIO'] == st.session_state.u['NOMBRE']]
         
@@ -896,7 +914,6 @@ elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
                             st.info(f"_{row['ANECDOTA']}_")
                             
                             st.markdown(f"**🤖 Análisis Técnico (Legado Maestro):**")
-                            # Casilla verde destacada
                             st.markdown(f'<div class="eval-box">{row["EVALUACION_IA"]}</div>', unsafe_allow_html=True)
             
             with tab_ia:
@@ -968,9 +985,9 @@ elif opcion == "📂 Mi Archivo Pedagógico":
     
     with col_accion:
         if plan_activa_actual:
-            if st.button("🗓️ Finalizar Esta Semana", help="Marcar esta planificación como completada"):
-                if finalizar_plan_activa(st.session_state.u['NOMBRE']):
-                    st.success("✅ Planificación marcada como finalizada.")
+            if st.button("❌ Desactivar", help="Dejar de usar esta planificación para evaluar"):
+                if desactivar_plan_activa(st.session_state.u['NOMBRE']):
+                    st.success("Planificación desactivada.")
                     time.sleep(1)
                     st.rerun()
     
@@ -978,7 +995,7 @@ elif opcion == "📂 Mi Archivo Pedagógico":
     st.info("Selecciona una planificación para **trabajar esta semana**. El sistema de evaluación usará **solo esta**.")
     
     try:
-        df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+        df = leer_con_cache("Hoja1", ttl_seconds=60)
         mis_planes = df[df['USUARIO'] == st.session_state.u['NOMBRE']]
         
         if mis_planes.empty:
@@ -1056,7 +1073,8 @@ elif opcion == "📂 Mi Archivo Pedagógico":
                                     rango=rango,
                                     aula=aula
                                 ):
-                                    # El mensaje de éxito ya se muestra en la función
+                                    st.success("✅ ¡Planificación establecida como ACTIVA!")
+                                    st.balloons()
                                     time.sleep(2)
                                     st.rerun()
                     
@@ -1078,11 +1096,13 @@ elif opcion == "📂 Mi Archivo Pedagógico":
                                 
                                 # Eliminar de la hoja principal
                                 df_actualizado = df.drop(index)
-                                conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_actualizado)
                                 
-                                st.success("🗑️ Planificación eliminada.")
-                                time.sleep(1)
-                                st.rerun()
+                                if escribir_con_reintento("Hoja1", df_actualizado):
+                                    st.success("🗑️ Planificación eliminada.")
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Error al eliminar. Intenta nuevamente.")
                             
                             if st.button("❌ No, conservar", key=f"cancel_{index}"):
                                 st.session_state[f"confirm_del_{index}"] = False
@@ -1129,4 +1149,4 @@ elif opcion == "❓ Consultas Técnicas":
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión: 2.4.3 (Con Migración y Deselección)")
+st.caption("Desarrollado por Luis Atencio | Versión: 2.4.4 (Sesión Persistente + Caché) | ✅ Sesión se mantiene al recargar")
