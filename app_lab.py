@@ -1,4 +1,4 @@
-# ---------------------------------------------------------
+## ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
 # VERSIÓN: 3.0 (SISTEMA SIMPLIFICADO Y MEJORADO)
 # FECHA: Enero 2026
@@ -362,6 +362,110 @@ TÚ ERES "LEGADO MAESTRO".
 4. FORMATO:
    - Usa Markdown estricto (Negritas, Títulos).
 """
+
+# --- FUNCIÓN AUXILIAR PARA CONTENIDO DEL EXPANDER ---
+def contenido_expander(index, row, es_activa, rango_display, df):
+    """Contenido del expander para planificaciones en Mi Archivo Pedagógico"""
+    # ENCABEZADO SI ES ACTIVA
+    if es_activa:
+        st.success("✅ **ESTA ES TU PLANIFICACIÓN ACTIVA PARA LA SEMANA**")
+        st.markdown("El sistema de evaluación buscará actividades **solo en esta planificación**.")
+    
+    # Mostrar información básica
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        st.caption(f"**Rango:** {rango_display}")
+        if 'AULA' in row and pd.notna(row['AULA']):
+            st.caption(f"**Aula:** {row['AULA']}")
+    
+    with col_info2:
+        st.caption(f"**Creada:** {row['FECHA']}")
+        st.caption(f"**Estado:** {row['ESTADO']}")
+    
+    # Extraer y mostrar descripción detallada
+    descripcion = extraer_descripcion_dias(row['CONTENIDO'])
+    st.info(f"**📝 Descripción de la semana:** {descripcion}")
+    
+    # CONTENIDO COMPLETO
+    with st.expander("📄 Ver contenido completo de la planificación", expanded=False):
+        st.markdown(f'<div class="plan-box" style="padding:10px; font-size:0.9em;">{row["CONTENIDO"]}</div>', unsafe_allow_html=True)
+    
+    # BOTONES DE ACCIÓN
+    col_acciones = st.columns([2, 1, 1])
+    
+    with col_acciones[0]:
+        # CONSULTOR INTELIGENTE
+        with st.expander("🤖 Consultar sobre este plan", expanded=False):
+            pregunta = st.text_input("Tu duda:", key=f"preg_{index}", placeholder="Ej: ¿Cómo evalúo esto?")
+            if st.button("Consultar", key=f"btn_{index}"):
+                if pregunta:
+                    with st.spinner("Analizando..."):
+                        prompt_contextual = f"""
+                        ACTÚA COMO ASESOR PEDAGÓGICO. CONTEXTO: {row['CONTENIDO']}. PREGUNTA: "{pregunta}".
+                        Responde directo y útil.
+                        """
+                        respuesta = generar_respuesta([
+                            {"role": "system", "content": INSTRUCCIONES_TECNICAS},
+                            {"role": "user", "content": prompt_contextual}
+                        ], temperatura=0.5)
+                        st.markdown(f'<div class="consultor-box">💡 **Respuesta:**<br>{respuesta}</div>', unsafe_allow_html=True)
+    
+    with col_acciones[1]:
+        # BOTÓN PARA ACTIVAR ESTA PLANIFICACIÓN
+        if not es_activa:
+            st.write("")  # Espacio
+            if st.button("⭐ Usar Esta Semana", key=f"activar_{index}", 
+                       help="Establece esta planificación como la oficial para evaluar esta semana",
+                       type="secondary"):
+                
+                # Extraer información básica
+                contenido = row['CONTENIDO']
+                rango = rango_display
+                aula = row['AULA'] if 'AULA' in row and pd.notna(row['AULA']) else "Taller Laboral"
+                
+                # Establecer como activa
+                if establecer_plan_activa(
+                    usuario_nombre=st.session_state.u['NOMBRE'],
+                    id_plan=str(index),
+                    contenido=contenido,
+                    rango=rango,
+                    aula=aula
+                ):
+                    st.success("✅ ¡Planificación establecida como ACTIVA!")
+                    st.balloons()
+                    time.sleep(2)
+                    st.rerun()
+    
+    with col_acciones[2]:
+        # BOTÓN DE ELIMINAR
+        esta_borrando = st.session_state.get(f"confirm_del_{index}", False)
+        
+        if not esta_borrando:
+            st.write("")  # Espacio
+            if st.button("🗑️", key=f"del_init_{index}", help="Eliminar esta planificación"):
+                st.session_state[f"confirm_del_{index}"] = True
+                st.rerun()
+        else:
+            st.error("⚠️ ¿Eliminar esta planificación?")
+            col_conf1, col_conf2 = st.columns(2)
+            with col_conf1:
+                if st.button("✅ Sí, eliminar", key=f"confirm_{index}"):
+                    # Si es la activa, desactivarla primero
+                    if es_activa:
+                        desactivar_plan_activa(st.session_state.u['NOMBRE'])
+                    
+                    # Eliminar de la hoja principal
+                    df_actualizado = df.drop(index)
+                    conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_actualizado)
+                    
+                    st.success("🗑️ Planificación eliminada.")
+                    time.sleep(1)
+                    st.rerun()
+            
+            with col_conf2:
+                if st.button("❌ No, conservar", key=f"cancel_{index}"):
+                    st.session_state[f"confirm_del_{index}"] = False
+                    st.rerun()
 
 # --- 4. BARRA LATERAL SIMPLIFICADA (SIN ACCESO RÁPIDO) ---
 with st.sidebar:
@@ -1034,7 +1138,7 @@ elif st.session_state.selected_option == "📊 Registro de Evaluaciones (NUEVO)"
                 🚨 **ALERTA DE DESERCIÓN ESCOLAR DETECTADA**
                 El estudiante {alumno_sel} tiene una asistencia del {porcentaje_asistencia:.1f}%, lo cual es crítico.
                 
-                👉 **ACCIÓN RECOMENDADA:** CITAR AL REPRESENTANTE DE INMEDIATO.
+                �👉 **ACCIÓN RECOMENDADA:** CITAR AL REPRESENTANTE DE INMEDIATO.
                 """)
             
             st.markdown("---")
@@ -1194,118 +1298,14 @@ elif st.session_state.selected_option == "📂 Mi Archivo Pedagógico":
                         pass
                     # Ahora mostrar el contenido real
                     with st.expander("", expanded=True):
-                        contenido_expander(index, row, es_activa, rango_display)
+                        contenido_expander(index, row, es_activa, rango_display, df)
                 else:
                     etiqueta = f"📅 {rango_display} | 📌 {tema_corto}"
                     with st.expander(etiqueta, expanded=False):
-                        contenido_expander(index, row, es_activa, rango_display)
+                        contenido_expander(index, row, es_activa, rango_display, df)
 
     except Exception as e:
         st.error(f"Error cargando archivo: {e}")
-
-# Función auxiliar para contenido del expander (evita duplicar código)
-def contenido_expander(index, row, es_activa, rango_display):
-    """Contenido del expander para planificaciones"""
-    # ENCABEZADO SI ES ACTIVA
-    if es_activa:
-        st.success("✅ **ESTA ES TU PLANIFICACIÓN ACTIVA PARA LA SEMANA**")
-        st.markdown("El sistema de evaluación buscará actividades **solo en esta planificación**.")
-    
-    # Mostrar información básica
-    col_info1, col_info2 = st.columns(2)
-    with col_info1:
-        st.caption(f"**Rango:** {rango_display}")
-        if 'AULA' in row and pd.notna(row['AULA']):
-            st.caption(f"**Aula:** {row['AULA']}")
-    
-    with col_info2:
-        st.caption(f"**Creada:** {row['FECHA']}")
-        st.caption(f"**Estado:** {row['ESTADO']}")
-    
-    # Extraer y mostrar descripción detallada
-    descripcion = extraer_descripcion_dias(row['CONTENIDO'])
-    st.info(f"**📝 Descripción de la semana:** {descripcion}")
-    
-    # CONTENIDO COMPLETO
-    with st.expander("📄 Ver contenido completo de la planificación", expanded=False):
-        st.markdown(f'<div class="plan-box" style="padding:10px; font-size:0.9em;">{row["CONTENIDO"]}</div>', unsafe_allow_html=True)
-    
-    # BOTONES DE ACCIÓN
-    col_acciones = st.columns([2, 1, 1])
-    
-    with col_acciones[0]:
-        # CONSULTOR INTELIGENTE
-        with st.expander("🤖 Consultar sobre este plan", expanded=False):
-            pregunta = st.text_input("Tu duda:", key=f"preg_{index}", placeholder="Ej: ¿Cómo evalúo esto?")
-            if st.button("Consultar", key=f"btn_{index}"):
-                if pregunta:
-                    with st.spinner("Analizando..."):
-                        prompt_contextual = f"""
-                        ACTÚA COMO ASESOR PEDAGÓGICO. CONTEXTO: {row['CONTENIDO']}. PREGUNTA: "{pregunta}".
-                        Responde directo y útil.
-                        """
-                        respuesta = generar_respuesta([
-                            {"role": "system", "content": INSTRUCCIONES_TECNICAS},
-                            {"role": "user", "content": prompt_contextual}
-                        ], temperatura=0.5)
-                        st.markdown(f'<div class="consultor-box">💡 **Respuesta:**<br>{respuesta}</div>', unsafe_allow_html=True)
-    
-    with col_acciones[1]:
-        # BOTÓN PARA ACTIVAR ESTA PLANIFICACIÓN
-        if not es_activa:
-            st.write("")  # Espacio
-            if st.button("⭐ Usar Esta Semana", key=f"activar_{index}", 
-                       help="Establece esta planificación como la oficial para evaluar esta semana",
-                       type="secondary"):
-                
-                # Extraer información básica
-                contenido = row['CONTENIDO']
-                rango = rango_display
-                aula = row['AULA'] if 'AULA' in row and pd.notna(row['AULA']) else "Taller Laboral"
-                
-                # Establecer como activa
-                if establecer_plan_activa(
-                    usuario_nombre=st.session_state.u['NOMBRE'],
-                    id_plan=str(index),
-                    contenido=contenido,
-                    rango=rango,
-                    aula=aula
-                ):
-                    st.success("✅ ¡Planificación establecida como ACTIVA!")
-                    st.balloons()
-                    time.sleep(2)
-                    st.rerun()
-    
-    with col_acciones[2]:
-        # BOTÓN DE ELIMINAR
-        esta_borrando = st.session_state.get(f"confirm_del_{index}", False)
-        
-        if not esta_borrando:
-            st.write("")  # Espacio
-            if st.button("🗑️", key=f"del_init_{index}", help="Eliminar esta planificación"):
-                st.session_state[f"confirm_del_{index}"] = True
-                st.rerun()
-        else:
-            st.error("⚠️ ¿Eliminar esta planificación?")
-            col_conf1, col_conf2 = st.columns(2)
-            with col_conf1:
-                if st.button("✅ Sí, eliminar", key=f"confirm_{index}"):
-                    # Si es la activa, desactivarla primero
-                    if es_activa:
-                        desactivar_plan_activa(st.session_state.u['NOMBRE'])
-                    
-                    # Eliminar de la hoja principal
-                    df_actualizado = df.drop(index)
-                    conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_actualizado)
-                    
-                    st.success("🗑️ Planificación eliminada.")
-                    time.sleep(1)
-                    st.rerun()
-            
-            with col_conf2:
-                if st.button("❌ No, conservar", key=f"cancel_{index}"):
-                    st.session_state[f"confirm_del_{index}"] = False
-                    st.rerun()
 
 # =========================================================
 # 5. OTROS MÓDULOS (EXTRAS)
