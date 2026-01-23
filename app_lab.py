@@ -1,6 +1,6 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
-# VERSIÓN: 2.6 (SISTEMA CON MEJORAS VISUALES Y DESCRIPCIÓN)
+# VERSIÓN: 2.7 (CORRECCIÓN NAVEGACIÓN ACCESO RÁPIDO)
 # FECHA: Enero 2026
 # AUTOR: Luis Atencio
 # ---------------------------------------------------------
@@ -517,6 +517,9 @@ if 'plan_actual' not in st.session_state: st.session_state.plan_actual = ""
 if 'actividad_detectada' not in st.session_state: st.session_state.actividad_detectada = ""
 if 'redirigir_a_archivo' not in st.session_state: st.session_state.redirigir_a_archivo = False
 if 'menu_directo' not in st.session_state: st.session_state.menu_directo = None
+# NUEVA VARIABLE PARA CONTROLAR LA SELECCIÓN DEL SELECTBOX
+if 'selected_option' not in st.session_state: 
+    st.session_state.selected_option = "📝 Planificación Profesional"
 
 # --- 6. FUNCIÓN GENERADORA GENÉRICA ---
 def generar_respuesta(mensajes_historial, temperatura=0.7):
@@ -533,38 +536,54 @@ def generar_respuesta(mensajes_historial, temperatura=0.7):
 # --- 7. CUERPO DE LA APP ---
 st.title("🍎 Asistente Educativo - Zulia")
 
-# SELECCIÓN DE HERRAMIENTA CON NAVEGACIÓN MEJORADA
-# Redirección automática si se solicita desde sidebar
+# --- CORRECCIÓN CRÍTICA: SISTEMA DE NAVEGACIÓN UNIFICADO ---
+# Lista de opciones disponibles
+opciones_disponibles = [
+    "📝 Planificación Profesional", 
+    "📝 Evaluar Alumno (NUEVO)",
+    "📊 Registro de Evaluaciones (NUEVO)",
+    "📂 Mi Archivo Pedagógico",
+    "🌟 Mensaje Motivacional", 
+    "💡 Ideas de Actividades", 
+    "❓ Consultas Técnicas"
+]
+
+# 1. PRIMERO manejar la redirección desde el sidebar
 if st.session_state.get('redirigir_a_archivo', False):
-    opcion = "📂 Mi Archivo Pedagógico"
+    st.session_state.selected_option = "📂 Mi Archivo Pedagógico"
     st.session_state.redirigir_a_archivo = False
-# Si hay navegación directa, usar esa opción
-elif st.session_state.menu_directo:
-    opcion = st.session_state.menu_directo
-    st.session_state.menu_directo = None  # Resetear después de usar
-else:
-    opcion = st.selectbox(
-        "Seleccione herramienta:",
-        [
-            "📝 Planificación Profesional", 
-            "📝 Evaluar Alumno (NUEVO)",
-            "📊 Registro de Evaluaciones (NUEVO)",
-            "📂 Mi Archivo Pedagógico",
-            "🌟 Mensaje Motivacional", 
-            "💡 Ideas de Actividades", 
-            "❓ Consultas Técnicas"
-        ]
-    )
+    st.session_state.menu_directo = None
+    st.rerun()
+
+# 2. SEGUNDO manejar la navegación directa desde los botones
+if st.session_state.menu_directo:
+    st.session_state.selected_option = st.session_state.menu_directo
+    st.session_state.menu_directo = None
+    st.rerun()
+
+# 3. TERCERO mostrar el selector y sincronizarlo con el estado
+# Crear el selectbox que se sincroniza con el estado
+opcion = st.selectbox(
+    "Seleccione herramienta:",
+    opciones_disponibles,
+    index=opciones_disponibles.index(st.session_state.selected_option),
+    key="selector_principal"
+)
+
+# Actualizar el estado cuando el usuario cambia manualmente el selectbox
+if opcion != st.session_state.selected_option:
+    st.session_state.selected_option = opcion
+    st.rerun()
 
 # =========================================================
 # 1. PLANIFICADOR (FLUJO: BORRADOR -> GUARDAR) - MODIFICADO
 # =========================================================
-if opcion == "📝 Planificación Profesional":
+if st.session_state.selected_option == "📝 Planificación Profesional":
     st.subheader("Planificación Técnica (Taller Laboral)")
     
     # BOTÓN PARA VOLVER
     if st.button("← Volver al Menú", key="volver_planif"):
-        st.session_state.menu_directo = None
+        st.session_state.selected_option = "📝 Planificación Profesional"
         st.rerun()
     
     st.markdown("---")
@@ -693,14 +712,14 @@ if opcion == "📝 Planificación Profesional":
                     st.error(f"Error al guardar: {e}")
 
 # =========================================================
-# 2. EVALUAR ALUMNO (USANDO PLANIFICACIÓN ACTIVA)
+# 2. EVALUAR ALUMNO (USANDO PLANIFICACIÓN ACTIVA) - CORREGIDO
 # =========================================================
-elif opcion == "📝 Evaluar Alumno (NUEVO)":
+elif st.session_state.selected_option == "📝 Evaluar Alumno (NUEVO)":
     st.subheader("Evaluación Diaria Inteligente")
     
     # BOTÓN PARA VOLVER
     if st.button("← Volver al Menú", key="volver_eval"):
-        st.session_state.menu_directo = None
+        st.session_state.selected_option = "📝 Planificación Profesional"
         st.rerun()
     
     st.markdown("---")
@@ -729,7 +748,7 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
         st.info("💡 **Consejo:** Activa la planificación que corresponde a **esta semana laboral**.")
         
         if st.button("📂 Ir a Mi Archivo Ahora"):
-            st.session_state.menu_directo = "📂 Mi Archivo Pedagógico"
+            st.session_state.selected_option = "📂 Mi Archivo Pedagógico"
             st.rerun()
         st.stop()
     
@@ -755,7 +774,7 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
     with col_btn:
         st.write("")
         st.write("")
-        if st.button("🔍 Buscar Actividad de HOY", type="primary"):
+        if st.button("🔍 Buscar Actividad de HOY", type="primary", key="buscar_actividad_hoy"):
             try:
                 with st.spinner(f"Analizando planificación activa ({dia_semana_hoy})..."):
                     # USAR EXCLUSIVAMENTE LA PLANIFICACIÓN ACTIVA
@@ -828,7 +847,7 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
                            placeholder="Describe específicamente qué hizo el estudiante hoy...")
     
     # --- GENERAR EVALUACIÓN ---
-    if st.button("⚡ Generar Evaluación Técnica", type="primary"):
+    if st.button("⚡ Generar Evaluación Técnica", type="primary", key="generar_evaluacion_tecnica"):
         if not estudiante or not anecdota:
             st.warning("⚠️ Completa todos los campos antes de generar.")
         elif "NO HAY ACTIVIDAD" in actividad_final:
@@ -874,7 +893,7 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
         st.markdown(f'<div class="eval-box">{st.session_state.eval_resultado}</div>', unsafe_allow_html=True)
         
         # BOTÓN PARA GUARDAR
-        if st.button("💾 GUARDAR EN REGISTRO OFICIAL", type="secondary"):
+        if st.button("💾 GUARDAR EN REGISTRO OFICIAL", type="secondary", key="guardar_evaluacion"):
             try:
                 # Leer evaluaciones existentes
                 df_evals = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
@@ -908,14 +927,14 @@ elif opcion == "📝 Evaluar Alumno (NUEVO)":
                 st.error(f"Error al guardar: {e}")
 
 # =========================================================
-# 3. REGISTRO DE EVALUACIONES
+# 3. REGISTRO DE EVALUACIONES - CORREGIDO
 # =========================================================
-elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
+elif st.session_state.selected_option == "📊 Registro de Evaluaciones (NUEVO)":
     st.subheader("🎓 Expediente Estudiantil 360°")
     
     # BOTÓN PARA VOLVER
     if st.button("← Volver al Menú", key="volver_registros"):
-        st.session_state.menu_directo = None
+        st.session_state.selected_option = "📝 Planificación Profesional"
         st.rerun()
     
     st.markdown("---")
@@ -928,15 +947,15 @@ elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
         
         if mis_evals.empty:
             st.info("📭 Aún no has registrado evaluaciones. Ve a la opción 'Evaluar Alumno' para empezar.")
-            if st.button("📝 Ir a Evaluar Alumno"):
-                st.session_state.menu_directo = "📝 Evaluar Alumno (NUEVO)"
+            if st.button("📝 Ir a Evaluar Alumno", key="ir_a_evaluar_desde_registros"):
+                st.session_state.selected_option = "📝 Evaluar Alumno (NUEVO)"
                 st.rerun()
         else:
             # 2. SELECTOR DE ALUMNO (El centro de todo)
             lista_alumnos = sorted(mis_evals['ESTUDIANTE'].unique().tolist())
             col_sel, col_vacio = st.columns([2,1])
             with col_sel:
-                alumno_sel = st.selectbox("📂 Seleccionar Expediente del Estudiante:", lista_alumnos)
+                alumno_sel = st.selectbox("📂 Seleccionar Expediente del Estudiante:", lista_alumnos, key="selector_alumno_registros")
             
             st.markdown("---")
             
@@ -1008,7 +1027,7 @@ elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
                 key_informe = f"informe_guardado_{alumno_sel}"
                 
                 # Botón para generar (o regenerar)
-                if st.button(f"⚡ Generar Informe de Progreso para {alumno_sel}"):
+                if st.button(f"⚡ Generar Informe de Progreso para {alumno_sel}", key=f"generar_informe_{alumno_sel}"):
                     with st.spinner("Leyendo todas las evaluaciones del estudiante..."):
                         # Recopilamos todo el texto de las IAs previas
                         historial_texto = datos_alumno[['FECHA', 'ACTIVIDAD', 'EVALUACION_IA']].to_string()
@@ -1052,12 +1071,12 @@ elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
 # =========================================================
 # 4. MI ARCHIVO PEDAGÓGICO (COMPLETAMENTE MODIFICADO)
 # =========================================================
-elif opcion == "📂 Mi Archivo Pedagógico":
+elif st.session_state.selected_option == "📂 Mi Archivo Pedagógico":
     st.subheader(f"📂 Expediente de: {st.session_state.u['NOMBRE']}")
     
     # BOTÓN PARA VOLVER
     if st.button("← Volver al Menú", key="volver_archivo"):
-        st.session_state.menu_directo = None
+        st.session_state.selected_option = "📝 Planificación Profesional"
         st.rerun()
     
     st.markdown("---")
@@ -1085,7 +1104,8 @@ elif opcion == "📂 Mi Archivo Pedagógico":
             st.write("")  # Espacio
             if st.button("❌ Desactivar", 
                         help="Dejar de usar esta planificación para evaluar",
-                        type="secondary"):
+                        type="secondary",
+                        key="desactivar_plan_activa_archivo"):
                 if desactivar_plan_activa(st.session_state.u['NOMBRE']):
                     st.success("✅ Planificación desactivada.")
                     time.sleep(1)
@@ -1105,8 +1125,8 @@ elif opcion == "📂 Mi Archivo Pedagógico":
         
         if mis_planes.empty:
             st.warning("Aún no tienes planificaciones guardadas.")
-            if st.button("📝 Crear primera planificación"):
-                st.session_state.menu_directo = "📝 Planificación Profesional"
+            if st.button("📝 Crear primera planificación", key="crear_primera_planificacion"):
+                st.session_state.selected_option = "📝 Planificación Profesional"
                 st.rerun()
         else:
             # IDENTIFICAR CUÁL ES LA ACTIVA ACTUAL (por contenido)
@@ -1241,17 +1261,17 @@ elif opcion == "📂 Mi Archivo Pedagógico":
 # =========================================================
 # OTROS MÓDULOS (EXTRAS)
 # =========================================================
-elif opcion == "🌟 Mensaje Motivacional":
+elif st.session_state.selected_option == "🌟 Mensaje Motivacional":
     st.subheader("Dosis de Ánimo Express ⚡")
     
     # BOTÓN PARA VOLVER
     if st.button("← Volver al Menú", key="volver_mensaje"):
-        st.session_state.menu_directo = None
+        st.session_state.selected_option = "📝 Planificación Profesional"
         st.rerun()
     
     st.markdown("---")
     
-    if st.button("❤️ Recibir Dosis", use_container_width=True):
+    if st.button("❤️ Recibir Dosis", use_container_width=True, key="recibir_dosis"):
         estilos_posibles = [
             {"rol": "El Colega Realista", "instruccion": "Dile algo crudo pero esperanzador sobre enseñar. Humor venezolano. NO SALUDES."},
             {"rol": "El Sabio Espiritual", "instruccion": "Cita bíblica de fortaleza y frase docente. NO SALUDES."},
@@ -1264,18 +1284,18 @@ elif opcion == "🌟 Mensaje Motivacional":
             res = generar_respuesta([{"role": "system", "content": f"ERES LEGADO MAESTRO. ROL: {estilo['rol']}. TAREA: {estilo['instruccion']}"}, {"role": "user", "content": prompt}], 1.0)
             st.markdown(f'<div class="plan-box" style="border-left: 5px solid #ff4b4b;"><h3>❤️ {estilo["rol"]}</h3><div class="mensaje-texto">"{res}"</div></div>', unsafe_allow_html=True)
 
-elif opcion == "💡 Ideas de Actividades":
+elif st.session_state.selected_option == "💡 Ideas de Actividades":
     st.subheader("💡 Generador de Actividades DUA")
     
     # BOTÓN PARA VOLVER
     if st.button("← Volver al Menú", key="volver_ideas"):
-        st.session_state.menu_directo = None
+        st.session_state.selected_option = "📝 Planificación Profesional"
         st.rerun()
     
     st.markdown("---")
     
     tema = st.text_input("Tema a trabajar:", placeholder="Ej: Herramientas de limpieza")
-    if st.button("✨ Sugerir Actividades", use_container_width=True):
+    if st.button("✨ Sugerir Actividades", use_container_width=True, key="sugerir_actividades"):
         if tema:
             res = generar_respuesta([
                 {"role": "system", "content": INSTRUCCIONES_TECNICAS}, 
@@ -1285,12 +1305,12 @@ elif opcion == "💡 Ideas de Actividades":
         else:
             st.warning("Por favor, ingresa un tema primero.")
 
-elif opcion == "❓ Consultas Técnicas":
+elif st.session_state.selected_option == "❓ Consultas Técnicas":
     st.subheader("❓ Consultas Pedagógicas y Legales")
     
     # BOTÓN PARA VOLVER
     if st.button("← Volver al Menú", key="volver_consultas"):
-        st.session_state.menu_directo = None
+        st.session_state.selected_option = "📝 Planificación Profesional"
         st.rerun()
     
     st.markdown("---")
@@ -1298,7 +1318,7 @@ elif opcion == "❓ Consultas Técnicas":
     duda = st.text_area("Consulta Legal/Técnica:", 
                        placeholder="Ej: ¿Qué artículo de la LOE respalda la evaluación cualitativa en Educación Especial?",
                        height=150)
-    if st.button("🔍 Buscar Respuesta", use_container_width=True):
+    if st.button("🔍 Buscar Respuesta", use_container_width=True, key="buscar_respuesta"):
         if duda:
             res = generar_respuesta([
                 {"role": "system", "content": INSTRUCCIONES_TECNICAS}, 
@@ -1310,4 +1330,4 @@ elif opcion == "❓ Consultas Técnicas":
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión: 2.6 (Sistema con Mejoras Visuales y Descripción) | 🍎 Legado Maestro")
+st.caption("Desarrollado por Luis Atencio | Versión: 2.7 (Corrección Navegación Acceso Rápido) | 🍎 Legado Maestro")
