@@ -1,6 +1,6 @@
 # ---------------------------------------------------------
 # PROYECTO: LEGADO MAESTRO
-# VERSIÓN: 2.1 (SISTEMA INTEGRAL: PLANIFICACIÓN + EVALUACIÓN)
+# VERSIÓN: 2.4 (SISTEMA CON PLANIFICACIÓN ACTIVA)
 # FECHA: Enero 2026
 # AUTOR: Luis Atencio
 # ---------------------------------------------------------
@@ -37,6 +37,73 @@ try:
 except:
     st.error("⚠️ Error conectando con la Base de Datos.")
     st.stop()
+
+# --- SISTEMA DE PLANIFICACIÓN ACTIVA ---
+def obtener_plan_activa_usuario(usuario_nombre):
+    """Obtiene la planificación activa actual del usuario desde la nube"""
+    try:
+        df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=5)
+        plan_activa = df_activa[
+            (df_activa['USUARIO'] == usuario_nombre) & 
+            (df_activa['ACTIVO'] == True)
+        ]
+        
+        if not plan_activa.empty:
+            # Retornar la más reciente
+            return plan_activa.sort_values('FECHA_ACTIVACION', ascending=False).iloc[0].to_dict()
+        return None
+    except Exception as e:
+        # Si la hoja no existe, retornar None (se creará al activar primera planificación)
+        return None
+
+def establecer_plan_activa(usuario_nombre, id_plan, contenido, rango, aula):
+    """Establece una planificación como la activa para el usuario"""
+    try:
+        # Leer datos actuales
+        try:
+            df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=0)
+        except:
+            # Crear DataFrame vacío si la hoja no existe
+            df_activa = pd.DataFrame(columns=[
+                "USUARIO", "FECHA_ACTIVACION", "ID_PLAN", 
+                "CONTENIDO_PLAN", "RANGO", "AULA", "ACTIVO"
+            ])
+        
+        # 1. Desactivar cualquier planificación activa previa del mismo usuario
+        mask_usuario = df_activa['USUARIO'] == usuario_nombre
+        if not df_activa[mask_usuario].empty:
+            df_activa.loc[mask_usuario, 'ACTIVO'] = False
+        
+        # 2. Agregar la nueva planificación activa
+        nueva_activa = pd.DataFrame([{
+            "USUARIO": usuario_nombre,
+            "FECHA_ACTIVACION": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "ID_PLAN": id_plan,
+            "CONTENIDO_PLAN": contenido,
+            "RANGO": rango,
+            "AULA": aula,
+            "ACTIVO": True
+        }])
+        
+        # Combinar y actualizar
+        df_actualizado = pd.concat([df_activa, nueva_activa], ignore_index=True)
+        conn.update(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", data=df_actualizado)
+        return True
+    except Exception as e:
+        st.error(f"Error al establecer plan activa: {e}")
+        return False
+
+def desactivar_plan_activa(usuario_nombre):
+    """Desactiva cualquier planificación activa del usuario"""
+    try:
+        df_activa = conn.read(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", ttl=0)
+        mask_usuario = df_activa['USUARIO'] == usuario_nombre
+        if not df_activa[mask_usuario].empty:
+            df_activa.loc[mask_usuario, 'ACTIVO'] = False
+            conn.update(spreadsheet=URL_HOJA, worksheet="PLAN_ACTIVA", data=df_activa)
+        return True
+    except:
+        return False
 
 # --- LÓGICA DE PERSISTENCIA DE SESIÓN (AUTO-LOGIN) ---
 query_params = st.query_params
@@ -153,6 +220,13 @@ hide_streamlit_style = """
             .consultor-box p, .consultor-box li, .consultor-box strong {
                 color: #000000 !important;
             }
+
+            /* ESTILO PARA BOTÓN ACTIVO */
+            .boton-activo {
+                background-color: #ffd700 !important;
+                color: #000000 !important;
+                border: 2px solid #ffa500 !important;
+            }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -210,8 +284,27 @@ with st.sidebar:
     st.caption("Bachiller Docente")
     st.caption("T.E.L E.R.A.C")
     
+    # --- INDICADOR DE PLANIFICACIÓN ACTIVA ---
+    st.markdown("---")
+    plan_activa = obtener_plan_activa_usuario(st.session_state.u['NOMBRE'])
+    if plan_activa:
+        st.success("📌 **Planificación Activa**")
+        with st.expander("Ver detalles", expanded=False):
+            st.caption(f"**Rango:** {plan_activa['RANGO']}")
+            st.caption(f"**Aula:** {plan_activa['AULA']}")
+            st.caption(f"Activada: {plan_activa['FECHA_ACTIVACION'].split()[0]}")
+            if st.button("Cambiar Planificación", key="sidebar_cambiar"):
+                st.session_state.redirigir_a_archivo = True
+                st.rerun()
+    else:
+        st.warning("⚠️ **Sin planificación activa**")
+        st.caption("Ve a 'Mi Archivo' para activar una")
+    
+    st.markdown("---")
+    
     if st.button("🗑️ Limpiar Memoria"):
         st.session_state.plan_actual = ""
+        st.session_state.actividad_detectada = ""
         st.rerun()
     
     if st.button("🔒 Cerrar Sesión"):
@@ -222,7 +315,8 @@ with st.sidebar:
 
 # --- 5. GESTIÓN DE MEMORIA ---
 if 'plan_actual' not in st.session_state: st.session_state.plan_actual = ""
-if 'actividad_detectada' not in st.session_state: st.session_state.actividad_detectada = "" # PARA EVALUACIÓN
+if 'actividad_detectada' not in st.session_state: st.session_state.actividad_detectada = ""
+if 'redirigir_a_archivo' not in st.session_state: st.session_state.redirigir_a_archivo = False
 
 # --- 6. FUNCIÓN GENERADORA GENÉRICA ---
 def generar_respuesta(mensajes_historial, temperatura=0.7):
@@ -239,18 +333,23 @@ def generar_respuesta(mensajes_historial, temperatura=0.7):
 # --- 7. CUERPO DE LA APP ---
 st.title("🍎 Asistente Educativo - Zulia")
 
-opcion = st.selectbox(
-    "Seleccione herramienta:",
-    [
-        "📝 Planificación Profesional", 
-        "📝 Evaluar Alumno (NUEVO)",
-        "📊 Registro de Evaluaciones (NUEVO)",
-        "📂 Mi Archivo Pedagógico",
-        "🌟 Mensaje Motivacional", 
-        "💡 Ideas de Actividades", 
-        "❓ Consultas Técnicas"
-    ]
-)
+# Redirección automática si se solicita desde sidebar
+if st.session_state.get('redirigir_a_archivo', False):
+    opcion = "📂 Mi Archivo Pedagógico"
+    st.session_state.redirigir_a_archivo = False
+else:
+    opcion = st.selectbox(
+        "Seleccione herramienta:",
+        [
+            "📝 Planificación Profesional", 
+            "📝 Evaluar Alumno (NUEVO)",
+            "📊 Registro de Evaluaciones (NUEVO)",
+            "📂 Mi Archivo Pedagógico",
+            "🌟 Mensaje Motivacional", 
+            "💡 Ideas de Actividades", 
+            "❓ Consultas Técnicas"
+        ]
+    )
 
 # =========================================================
 # 1. PLANIFICADOR (FLUJO: BORRADOR -> GUARDAR)
@@ -354,125 +453,199 @@ if opcion == "📝 Planificación Profesional":
                     st.error(f"Error al guardar: {e}")
 
 # =========================================================
-# 2. EVALUAR ALUMNO (FECHA BLINDADA ANTI-TRAMPA)
+# 2. EVALUAR ALUMNO (USANDO PLANIFICACIÓN ACTIVA)
 # =========================================================
 elif opcion == "📝 Evaluar Alumno (NUEVO)":
     st.subheader("Evaluación Diaria Inteligente")
     
     # --- CÁLCULO DE FECHA SEGURA (HORA VENEZUELA) ---
     from datetime import timedelta
-    # UTC menos 4 horas = Hora Venezuela
     fecha_segura_ve = datetime.utcnow() - timedelta(hours=4)
     fecha_hoy_str = fecha_segura_ve.strftime("%d/%m/%Y")
     dia_semana_hoy = fecha_segura_ve.strftime("%A")
     
-    # ALERTA DE SEGURIDAD VISUAL
-    st.warning(f"📅 FECHA DE HOY (Bloqueada por Sistema): **{fecha_hoy_str}**")
-    st.caption("🔒 *Por seguridad académica, solo se permite evaluar actividades correspondientes al día en curso.*")
-
-    col_btn, col_info = st.columns([1,2])
+    # --- VERIFICACIÓN CRÍTICA: ¿HAY PLANIFICACIÓN ACTIVA? ---
+    plan_activa = obtener_plan_activa_usuario(st.session_state.u['NOMBRE'])
+    
+    if not plan_activa:
+        st.error("""
+        🚨 **NO TIENES UNA PLANIFICACIÓN ACTIVA PARA ESTA SEMANA**
+        
+        **Para poder evaluar, necesitas:**
+        
+        1. Ir a **📂 Mi Archivo Pedagógico**
+        2. Revisar tus planificaciones guardadas
+        3. Seleccionar una y hacer clic en **"⭐ Usar Esta Semana"**
+        
+        Esto le indica al sistema **qué planificación usar para buscar actividades**.
+        """)
+        st.info("💡 **Consejo:** Activa la planificación que corresponde a **esta semana laboral**.")
+        st.stop()
+    
+    # --- MOSTRAR PLANIFICACIÓN ACTIVA ---
+    with st.container():
+        st.success(f"**📌 EVALUANDO CONTRA:** {plan_activa['RANGO']}")
+        st.caption(f"Aula: {plan_activa['AULA']} | Activada: {plan_activa['FECHA_ACTIVACION']}")
+    
+    st.markdown("---")
+    
+    # --- BOTÓN PARA BUSCAR ACTIVIDAD DE HOY ---
+    col_btn, col_info = st.columns([1, 2])
     
     with col_btn:
-        st.write("") # Espacio
-        if st.button("🔄 Buscar Actividad de HOY"):
+        st.write("")
+        st.write("")
+        if st.button("🔍 Buscar Actividad de HOY", type="primary"):
             try:
-                with st.spinner(f"Buscando qué toca hoy ({dia_semana_hoy})..."):
-                    df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
-                    mis_planes = df[df['USUARIO'] == st.session_state.u['NOMBRE']]
+                with st.spinner(f"Analizando planificación activa ({dia_semana_hoy})..."):
+                    # USAR EXCLUSIVAMENTE LA PLANIFICACIÓN ACTIVA
+                    contenido_planificacion = plan_activa['CONTENIDO_PLAN']
                     
-                    if mis_planes.empty:
-                        st.warning("No tienes planes guardados para buscar.")
+                    # PROMPT MEJORADO PARA IDENTIFICAR ACTIVIDADES
+                    prompt_busqueda = f"""
+                    Eres un asistente pedagógico especializado en analizar planificaciones.
+                    
+                    **PLANIFICACIÓN OFICIAL DE LA SEMANA:**
+                    {contenido_planificacion[:10000]}
+                    
+                    **INSTRUCCIÓN CRÍTICA:** 
+                    Hoy es {fecha_hoy_str} ({dia_semana_hoy}). 
+                    
+                    **TU TAREA:** 
+                    1. Revisa la planificación anterior
+                    2. Identifica EXACTAMENTE qué actividad está programada para HOY
+                    3. Si encuentras una actividad para hoy, responde SOLO con el NOMBRE/TÍTULO de esa actividad
+                    4. Si NO hay actividad programada para hoy, responde: "NO_HAY_ACTIVIDAD_PARA_HOY"
+                    
+                    **EJEMPLO DE RESPUESTA CORRECTA:**
+                    "Identificación de herramientas básicas de limpieza"
+                    
+                    **NO INCLUYAS:** Fechas, explicaciones, días de la semana, ni texto adicional.
+                    """
+                    
+                    resultado = generar_respuesta([
+                        {"role": "system", "content": "Eres un analista de planificaciones preciso y conciso."},
+                        {"role": "user", "content": prompt_busqueda}
+                    ], temperatura=0.1)
+                    
+                    resultado_limpio = resultado.strip().replace('"', '').replace("'", "")
+                    
+                    # VERIFICAR RESULTADO
+                    if "NO_HAY_ACTIVIDAD" in resultado_limpio.upper() or len(resultado_limpio) < 5:
+                        st.session_state.actividad_detectada = "NO HAY ACTIVIDAD PROGRAMADA PARA HOY"
+                        st.error("❌ No hay actividades programadas para hoy en tu planificación activa.")
                     else:
-                        contexto_planes = "\n\n".join(mis_planes['CONTENIDO'].astype(str).tolist())
+                        st.session_state.actividad_detectada = resultado_limpio
+                        st.success(f"✅ **Actividad encontrada:** {resultado_limpio}")
                         
-                        prompt_busqueda = f"""
-                        ACTÚA COMO UN AUDITOR ACADÉMICO RIGUROSO.
-                        Tengo estos planes guardados:
-                        {contexto_planes[:15000]} 
-                        
-                        TAREA: Identifica estrictamente qué actividad toca HOY: {fecha_hoy_str} (Día: {dia_semana_hoy}).
-                        
-                        REGLAS:
-                        1. Si encuentras la actividad exacta de HOY, responde SOLO con el nombre de la actividad.
-                        2. Si NO hay actividad para hoy, responde: "NO HAY ACTIVIDAD PLANIFICADA PARA HOY".
-                        """
-                        resultado = generar_respuesta([{"role": "system", "content": "Eres un auditor de fechas."}, {"role": "user", "content": prompt_busqueda}], 0.1)
-                        st.session_state.actividad_detectada = resultado.replace('"', '')
-                        
-                        if "NO HAY ACTIVIDAD" in resultado:
-                            st.error("❌ El sistema no detectó planificación para hoy. No puedes evaluar.")
-                        else:
-                            st.success("¡Actividad del día encontrada!")
             except Exception as e:
-                st.error(f"Error buscando: {e}")
+                st.error(f"Error en la búsqueda: {e}")
     
     with col_info:
-        st.info("El sistema verifica automáticamente tu planificación guardada.")
-
-    # 2. DATOS DEL ALUMNO
-    actividad_final = st.text_input("Actividad Detectada:", value=st.session_state.actividad_detectada, disabled=True) # Bloqueado para que no lo cambien
-    estudiante = st.text_input("Nombre del Estudiante:")
-    anecdota = st.text_area("Descripción Anecdótica (¿Qué observaste hoy?):", height=100, placeholder="Ej: Juan se mostró participativo...")
+        st.info("""
+        **🔒 Sistema Blindado:**
+        - Solo busca en tu **planificación activa actual**
+        - No revisa otras planificaciones guardadas
+        - Fecha bloqueada por el servidor
+        """)
     
-    # 3. GENERACIÓN IA
-    # Solo permitimos el botón si hay actividad detectada válida
-    boton_habilitado = "NO HAY ACTIVIDAD" not in st.session_state.actividad_detectada and st.session_state.actividad_detectada != ""
+    # --- FORMULARIO DE EVALUACIÓN ---
+    st.markdown("---")
+    st.subheader("Registro de Evaluación")
     
-    if st.button("⚡ Generar Evaluación Técnica", disabled=not boton_habilitado):
-        if estudiante and anecdota:
+    # Campo de actividad (bloqueado - viene de la planificación activa)
+    actividad_final = st.text_input(
+        "**Actividad Programada (Extraída de tu Planificación Activa):**",
+        value=st.session_state.get('actividad_detectada', ''),
+        disabled=True,
+        help="Esta actividad viene de tu planificación oficial de la semana"
+    )
+    
+    # Resto del formulario
+    estudiante = st.text_input("**Nombre del Estudiante:**", placeholder="Ej: Juan Pérez")
+    anecdota = st.text_area("**Observación del Desempeño:**", 
+                           height=100, 
+                           placeholder="Describe específicamente qué hizo el estudiante hoy...")
+    
+    # --- GENERAR EVALUACIÓN ---
+    if st.button("⚡ Generar Evaluación Técnica", type="primary"):
+        if not estudiante or not anecdota:
+            st.warning("⚠️ Completa todos los campos antes de generar.")
+        elif "NO HAY ACTIVIDAD" in actividad_final:
+            st.error("❌ No puedes evaluar sin una actividad programada para hoy.")
+        else:
             with st.spinner("Analizando desempeño pedagógico..."):
                 prompt_eval = f"""
                 ACTÚA COMO EXPERTO EN EVALUACIÓN DE EDUCACIÓN ESPECIAL (VENEZUELA).
                 
-                DATOS:
-                - Fecha Real: {fecha_hoy_str}
+                DATOS DE EVALUACIÓN:
+                - Fecha: {fecha_hoy_str}
                 - Estudiante: {estudiante}
-                - Actividad: {actividad_final}
-                - Observación: "{anecdota}"
+                - Actividad Programada: {actividad_final}
+                - Observación del Docente: "{anecdota}"
                 
-                TAREA:
-                1. Redacta una evaluación técnica.
-                2. Determina el nivel de logro: (Consolidado, En Proceso, Iniciado).
+                GENERA UNA EVALUACIÓN TÉCNICA que incluya:
+                1. **Análisis del Desempeño:** Basado en la observación
+                2. **Nivel de Logro:** (Consolidado / En Proceso / Iniciado)
+                3. **Recomendación Pedagógica:** Breve sugerencia para seguir trabajando
                 
-                FORMATO MARKDOWN:
-                **Evaluación Técnica:** [Texto]
+                FORMATO ESTRICTO (Markdown):
+                **Evaluación Técnica:**
+                [Tu análisis aquí]
                 
-                **Nivel de Logro:** [Nivel]
+                **Nivel de Logro:** [Consolidado/En Proceso/Iniciado]
+                
+                **Recomendación:** [Tu recomendación aquí]
                 """
-                res_ia = generar_respuesta([{"role": "system", "content": INSTRUCCIONES_TECNICAS}, {"role": "user", "content": prompt_eval}], 0.5)
-                st.session_state.eval_resultado = res_ia
-        else:
-            st.warning("Faltan datos.")
-
-    # 4. VISUALIZACIÓN Y GUARDADO
+                
+                evaluacion_generada = generar_respuesta([
+                    {"role": "system", "content": INSTRUCCIONES_TECNICAS},
+                    {"role": "user", "content": prompt_eval}
+                ], temperatura=0.5)
+                
+                st.session_state.eval_resultado = evaluacion_generada
+                st.session_state.estudiante_evaluado = estudiante
+                st.session_state.anecdota_guardada = anecdota
+    
+    # --- MOSTRAR Y GUARDAR RESULTADO ---
     if 'eval_resultado' in st.session_state:
-        st.markdown(f'<div class="eval-box"><h4>🤖 Resultado ({fecha_hoy_str}):</h4>{st.session_state.eval_resultado}</div>', unsafe_allow_html=True)
+        st.markdown("---")
+        st.subheader("📋 Evaluación Generada")
+        st.markdown(f'<div class="eval-box">{st.session_state.eval_resultado}</div>', unsafe_allow_html=True)
         
-        if st.button("💾 GUARDAR EN REGISTRO OFICIAL"):
+        # BOTÓN PARA GUARDAR
+        if st.button("💾 GUARDAR EN REGISTRO OFICIAL", type="secondary"):
             try:
-                try:
-                    df_evals = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
-                except:
-                    st.error("⚠️ Falta hoja EVALUACIONES.")
-                    st.stop()
+                # Leer evaluaciones existentes
+                df_evals = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
                 
                 nueva_eval = pd.DataFrame([{
-                    "FECHA": fecha_hoy_str, # FECHA DEL SISTEMA (NO EDITABLE)
+                    "FECHA": fecha_hoy_str,
                     "USUARIO": st.session_state.u['NOMBRE'],
-                    "ESTUDIANTE": estudiante,
+                    "ESTUDIANTE": st.session_state.estudiante_evaluado,
                     "ACTIVIDAD": actividad_final,
-                    "ANECDOTA": anecdota,
+                    "ANECDOTA": st.session_state.anecdota_guardada,
                     "EVALUACION_IA": st.session_state.eval_resultado,
+                    "PLANIFICACION_ACTIVA": plan_activa['RANGO'],
                     "RESULTADO": "Registrado"
                 }])
                 
-                conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=pd.concat([df_evals, nueva_eval], ignore_index=True))
-                st.success(f"✅ Asistencia y Evaluación de {estudiante} registrada con fecha {fecha_hoy_str}.")
-                del st.session_state.eval_resultado 
+                # Guardar
+                df_actualizado = pd.concat([df_evals, nueva_eval], ignore_index=True)
+                conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_actualizado)
+                
+                st.success(f"✅ Evaluación de {st.session_state.estudiante_evaluado} guardada correctamente.")
+                
+                # Limpiar estado
+                del st.session_state.eval_resultado
+                del st.session_state.estudiante_evaluado
+                del st.session_state.anecdota_guardada
+                
                 time.sleep(2)
                 st.rerun()
+                
             except Exception as e:
-                st.error(f"Error guardando: {e}")
+                st.error(f"Error al guardar: {e}")
 
 # =========================================================
 # 3. REGISTRO DE EVALUACIONES (FIX: PERSISTENCIA DE INFORME IA)
@@ -607,11 +780,34 @@ elif opcion == "📊 Registro de Evaluaciones (NUEVO)":
         st.error(f"⚠️ Error conectando con la base de datos. Detalle: {e}")
 
 # =========================================================
-# 4. MI ARCHIVO PEDAGÓGICO (UI EXPANDER + BORRADO SEGURO)
+# 4. MI ARCHIVO PEDAGÓGICO (CON SISTEMA DE PLANIFICACIÓN ACTIVA)
 # =========================================================
 elif opcion == "📂 Mi Archivo Pedagógico":
     st.subheader(f"📂 Expediente de: {st.session_state.u['NOMBRE']}")
-    st.info("Aquí están tus planificaciones guardadas.")
+    
+    # OBTENER PLANIFICACIÓN ACTIVA ACTUAL
+    plan_activa_actual = obtener_plan_activa_usuario(st.session_state.u['NOMBRE'])
+    
+    # PANEL INFORMATIVO SUPERIOR
+    col_info, col_accion = st.columns([3, 1])
+    with col_info:
+        if plan_activa_actual:
+            st.success(f"**📌 PLANIFICACIÓN ACTIVA ACTUAL:** {plan_activa_actual['RANGO']}")
+            st.caption(f"Aula: {plan_activa_actual['AULA']} | Activada: {plan_activa_actual['FECHA_ACTIVACION'].split()[0]}")
+        else:
+            st.warning("⚠️ **No tienes una planificación activa para esta semana.**")
+            st.caption("Selecciona una planificación y haz clic en '⭐ Usar Esta Semana'")
+    
+    with col_accion:
+        if plan_activa_actual:
+            if st.button("❌ Desactivar", help="Dejar de usar esta planificación para evaluar"):
+                if desactivar_plan_activa(st.session_state.u['NOMBRE']):
+                    st.success("Planificación desactivada.")
+                    time.sleep(1)
+                    st.rerun()
+    
+    st.markdown("---")
+    st.info("Selecciona una planificación para **trabajar esta semana**. El sistema de evaluación usará **solo esta**.")
     
     try:
         df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
@@ -620,55 +816,111 @@ elif opcion == "📂 Mi Archivo Pedagógico":
         if mis_planes.empty:
             st.warning("Aún no tienes planificaciones guardadas.")
         else:
+            # IDENTIFICAR CUÁL ES LA ACTIVA ACTUAL (por contenido)
+            contenido_activo_actual = plan_activa_actual['CONTENIDO_PLAN'] if plan_activa_actual else None
+            
             for index, row in mis_planes.iloc[::-1].iterrows():
-                etiqueta = f"📅 {row['FECHA']} | 📌 {str(row['TEMA'])[:40]}..."
-                esta_borrando = st.session_state.get(f"confirm_del_{index}", False)
+                # DETERMINAR SI ESTA ES LA ACTIVA
+                es_activa = (contenido_activo_actual == row['CONTENIDO'])
                 
-                with st.expander(etiqueta, expanded=esta_borrando):
-                    contenido_plan = st.text_area("Contenido:", value=row['CONTENIDO'], height=300, key=f"txt_{index}")
+                # CREAR ETIQUETA CON INDICADOR
+                etiqueta_base = f"📅 {row['FECHA']} | 📌 {str(row['TEMA'])[:40]}..."
+                if es_activa:
+                    etiqueta = f"⭐ **ACTIVA** | {etiqueta_base}"
+                else:
+                    etiqueta = etiqueta_base
+                
+                # EXPANDER PARA CADA PLANIFICACIÓN
+                with st.expander(etiqueta, expanded=es_activa):
+                    # ENCABEZADO SI ES ACTIVA
+                    if es_activa:
+                        st.success("✅ **ESTA ES TU PLANIFICACIÓN ACTIVA PARA LA SEMANA**")
+                        st.markdown("El sistema de evaluación buscará actividades **solo en esta planificación**.")
                     
-                    col_izq, col_der = st.columns([4, 1])
+                    # CONTENIDO (solo lectura para mantener integridad)
+                    st.markdown(f"**Contenido de la planificación:**")
+                    st.markdown(f'<div class="plan-box" style="padding:10px; font-size:0.9em;">{row["CONTENIDO"]}</div>', unsafe_allow_html=True)
                     
-                    with col_izq:
-                        st.markdown("#### 🤖 Consultor Inteligente")
-                        pregunta = st.text_input("Duda sobre este plan:", key=f"preg_{index}", placeholder="Ej: ¿Cómo evalúo esto?")
-                        if st.button("Consultar Plan", key=f"btn_{index}") and pregunta:
-                            with st.spinner("Analizando..."):
-                                prompt_contextual = f"""
-                                ACTÚA COMO ASESOR PEDAGÓGICO. CONTEXTO: {contenido_plan}. PREGUNTA: "{pregunta}".
-                                Responde directo y útil.
-                                """
-                                respuesta_contextual = generar_respuesta([
-                                    {"role": "system", "content": INSTRUCCIONES_TECNICAS},
-                                    {"role": "user", "content": prompt_contextual}
-                                ], temperatura=0.5)
-                                st.markdown(f'<div class="consultor-box">💡 <strong>Respuesta:</strong><br>{respuesta_contextual}</div>', unsafe_allow_html=True)
-
-                    with col_der:
-                        st.write("") 
-                        st.write("")
-                        st.write("")
-                        if st.button("🗑️", key=f"del_init_{index}", help="Borrar planificación"):
-                            st.session_state[f"confirm_del_{index}"] = True
-                            st.rerun() 
+                    # BOTONES DE ACCIÓN
+                    col_acciones = st.columns([2, 1, 1])
                     
-                    if st.session_state.get(f"confirm_del_{index}", False):
-                        st.error("⚠️ ¿Estás seguro?")
-                        col_si, col_no = st.columns(2)
+                    with col_acciones[0]:
+                        # CONSULTOR INTELIGENTE
+                        with st.expander("🤖 Consultar sobre este plan", expanded=False):
+                            pregunta = st.text_input("Tu duda:", key=f"preg_{index}", placeholder="Ej: ¿Cómo evalúo esto?")
+                            if st.button("Consultar", key=f"btn_{index}"):
+                                if pregunta:
+                                    with st.spinner("Analizando..."):
+                                        prompt_contextual = f"""
+                                        ACTÚA COMO ASESOR PEDAGÓGICO. CONTEXTO: {row['CONTENIDO']}. PREGUNTA: "{pregunta}".
+                                        Responde directo y útil.
+                                        """
+                                        respuesta = generar_respuesta([
+                                            {"role": "system", "content": INSTRUCCIONES_TECNICAS},
+                                            {"role": "user", "content": prompt_contextual}
+                                        ], temperatura=0.5)
+                                        st.markdown(f'<div class="consultor-box">💡 **Respuesta:**<br>{respuesta}</div>', unsafe_allow_html=True)
+                    
+                    with col_acciones[1]:
+                        # BOTÓN PARA ACTIVAR ESTA PLANIFICACIÓN
+                        if not es_activa:
+                            st.write("")  # Espacio
+                            if st.button("⭐ Usar Esta Semana", key=f"activar_{index}", 
+                                       help="Establece esta planificación como la oficial para evaluar esta semana",
+                                       type="secondary"):
+                                
+                                # Extraer información básica (intento automático)
+                                contenido = row['CONTENIDO']
+                                rango = "Semana Actual"
+                                aula = "Taller Laboral"
+                                
+                                # Intentar extraer rango del contenido
+                                import re
+                                patron_rango = r'Planificación para:\s*(.*?)(?:\n|$)'
+                                match_rango = re.search(patron_rango, contenido, re.IGNORECASE)
+                                if match_rango:
+                                    rango = match_rango.group(1)
+                                
+                                # Establecer como activa
+                                if establecer_plan_activa(
+                                    usuario_nombre=st.session_state.u['NOMBRE'],
+                                    id_plan=str(index),
+                                    contenido=contenido,
+                                    rango=rango,
+                                    aula=aula
+                                ):
+                                    st.success("✅ ¡Planificación establecida como ACTIVA!")
+                                    st.balloons()
+                                    time.sleep(2)
+                                    st.rerun()
+                    
+                    with col_acciones[2]:
+                        # BOTÓN DE ELIMINAR
+                        esta_borrando = st.session_state.get(f"confirm_del_{index}", False)
                         
-                        if col_si.button("✅ SÍ", key=f"yes_{index}"):
-                            with st.spinner("Eliminando..."):
-                                df_root = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
-                                df_root = df_root.drop(index)
-                                conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_root)
-                                del st.session_state[f"confirm_del_{index}"]
-                                st.success("Eliminado.")
+                        if not esta_borrando:
+                            st.write("")  # Espacio
+                            if st.button("🗑️", key=f"del_init_{index}", help="Eliminar esta planificación"):
+                                st.session_state[f"confirm_del_{index}"] = True
+                                st.rerun()
+                        else:
+                            st.error("⚠️ ¿Eliminar esta planificación?")
+                            if st.button("✅ Sí, eliminar", key=f"confirm_{index}"):
+                                # Si es la activa, desactivarla primero
+                                if es_activa:
+                                    desactivar_plan_activa(st.session_state.u['NOMBRE'])
+                                
+                                # Eliminar de la hoja principal
+                                df_actualizado = df.drop(index)
+                                conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_actualizado)
+                                
+                                st.success("🗑️ Planificación eliminada.")
                                 time.sleep(1)
                                 st.rerun()
-                        
-                        if col_no.button("❌ NO", key=f"no_{index}"):
-                            st.session_state[f"confirm_del_{index}"] = False
-                            st.rerun()
+                            
+                            if st.button("❌ No, conservar", key=f"cancel_{index}"):
+                                st.session_state[f"confirm_del_{index}"] = False
+                                st.rerun()
 
     except Exception as e:
         st.error(f"Error cargando archivo: {e}")
@@ -711,4 +963,4 @@ elif opcion == "❓ Consultas Técnicas":
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
-st.caption("Desarrollado por Luis Atencio | Versión: 2.3 (Sistema Blindado Anti-Trampa)")
+st.caption("Desarrollado por Luis Atencio | Versión: 2.4 (Sistema de Planificación Activa)")
