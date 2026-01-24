@@ -630,88 +630,76 @@ else:
     # VISTA: CONTROL DE ASISTENCIA (VERSIÓN 5.0 - INTEGRADA CON IMGBB)
     # -------------------------------------------------------------------------
     if opcion == "⏱️ Control de Asistencia":
-        st.info("ℹ️ Este reporte se enviará a **Legado Director** con verificación fotográfica.")
-        
-        # FECHA CORRECTA (VENEZUELA)
-        fecha_ve = ahora_ve()
-        hoy_str = fecha_ve.strftime("%d/%m/%Y")
+        st.info("ℹ️ Registro con verificación fotográfica para Legado Director.")
+        hoy_str = ahora_ve().strftime("%d/%m/%Y")
         st.markdown(f"### 📅 Fecha: **{hoy_str}**")
 
-        # Verificar estado actual en la base de datos
-        df_as = conn.read(spreadsheet=URL_HOJA, worksheet="ASISTENCIA", ttl=0)
-        reg_hoy = df_as[(df_as['USUARIO'] == st.session_state.u['NOMBRE']) & (df_as['FECHA'] == hoy_str)]
+        # Intentar leer la base de datos con manejo de error por si Google está saturado
+        try:
+            df_as = conn.read(spreadsheet=URL_HOJA, worksheet="ASISTENCIA", ttl=2) # ttl=2 da un respiro de 2 seg
+            reg_hoy = df_as[(df_as['USUARIO'] == st.session_state.u['NOMBRE']) & (df_as['FECHA'] == hoy_str)]
+        except:
+            st.error("🔄 La conexión con la base de datos está ocupada. Reintentando...")
+            time.sleep(2)
+            st.rerun()
 
         # --- ESCENARIO A: NO HA REGISTRADO NADA ---
         if reg_hoy.empty:
-            estado_asistencia = st.radio(
-                "¿Cuál es tu estatus hoy?",
-                ["(Seleccionar)", "✅ Asistí al Plantel", "❌ No Asistí"],
-                index=0
-            )
-            
-            if estado_asistencia == "✅ Asistí al Plantel":
-                st.warning("📸 Se requiere una foto en vivo en la institución para validar tu llegada.")
-                foto_ent = st.camera_input("Capturar Entrada")
-                
-                if foto_ent:
-                    if st.button("🚀 Registrar Entrada Oficial"):
-                        with st.spinner("Subiendo evidencia visual a ImgBB..."):
-                            # CAMBIO AQUÍ: Usamos la función de ImgBB que es directa
-                            link_imgbb = subir_a_imgbb(foto_ent)
-                            
-                            if link_imgbb:
-                                h_ent = ahora_ve().strftime('%I:%M %p')
+            status = st.radio("¿Cuál es tu estatus hoy?", ["(Seleccionar)", "✅ Asistí al Plantel", "❌ No Asistí"])
+            if status == "✅ Asistí al Plantel":
+                foto_e = st.camera_input("📸 Tomar Foto de Entrada")
+                if foto_e:
+                    if st.button("🚀 Confirmar Entrada"):
+                        with st.spinner("Subiendo foto y notificando..."):
+                            url_foto = subir_a_imgbb(foto_e)
+                            if url_foto:
                                 res = registrar_asistencia_biometrica(
-                                    usuario=st.session_state.u['NOMBRE'], tipo="ASISTENCIA",
-                                    hora_e=h_ent, hora_s="-", foto_e=link_imgbb,
-                                    foto_s="-", motivo="Cumplimiento", alerta_ia="-"
+                                    st.session_state.u['NOMBRE'], "ASISTENCIA", 
+                                    ahora_ve().strftime('%I:%M %p'), "-", url_foto, "-", "Cumplimiento", "-"
                                 )
-                                st.success(f"✅ Entrada validada a las {h_ent}")
-                                time.sleep(2); st.rerun()
+                                if "OK" in res:
+                                    st.success("✅ Entrada registrada exitosamente.")
+                                    time.sleep(2)
+                                    # REDIRECCIÓN AL HOME
+                                    st.session_state.pagina_actual = "HOME"
+                                    st.rerun()
             
-            elif estado_asistencia == "❌ No Asistí":
-                motivo_inasistencia = st.text_area("Motivo de la inasistencia:")
-                if st.button("📤 Enviar Justificativo"):
-                    if motivo_inasistencia:
-                        with st.spinner("Analizando normativa..."):
-                            p_an = f'Analiza: "{motivo_inasistencia}". ¿Es salud? Responde "ALERTA_SALUD" o "OK".'
-                            an = generar_respuesta([{"role":"user","content":p_an}], 0.1)
-                            alerta = "⚠️ Presentar justificativo en 48h." if "ALERTA_SALUD" in an else "-"
-                            res = registrar_asistencia_biometrica(
-                                usuario=st.session_state.u['NOMBRE'], tipo="INASISTENCIA",
-                                hora_e="-", hora_s="-", foto_e="-", foto_s="-",
-                                motivo=motivo_inasistencia, alerta_ia=alerta
-                            )
-                            st.success("✅ Inasistencia reportada."); time.sleep(2); st.rerun()
+            elif status == "❌ No Asistí":
+                motivo = st.text_area("Justificativo:")
+                if st.button("📤 Enviar Reporte"):
+                    an = generar_respuesta([{"role":"user","content":f"¿Es salud? '{motivo}'. Responde ALERTA_SALUD o OK"}], 0.1)
+                    alerta = "⚠️ Presentar justificativo médico en 48h." if "ALERTA_SALUD" in an else "-"
+                    registrar_asistencia_biometrica(st.session_state.u['NOMBRE'], "INASISTENCIA", "-", "-", "-", "-", motivo, alerta)
+                    st.warning("✅ Inasistencia reportada.")
+                    time.sleep(2)
+                    st.session_state.pagina_actual = "HOME"
+                    st.rerun()
 
         # --- ESCENARIO B: YA MARCÓ ENTRADA, FALTA SALIDA ---
         elif reg_hoy.iloc[0]['HORA_SALIDA'] == "-":
-            st.success(f"🟢 Entrada registrada a las: {reg_hoy.iloc[0]['HORA_LLEGADA']}")
-            st.markdown("### 🚪 Registro de Salida")
-            tipo_s = st.selectbox("Estatus de salida:", ["Salida Normal", "Salida con Trabajo Extra (Suma de Méritos)"])
-            
-            st.warning("📸 Captura una foto de salida para cerrar tu jornada.")
-            foto_sal = st.camera_input("Capturar Salida")
-            
-            if foto_sal:
+            st.success(f"🟢 Entrada marcada a las: {reg_hoy.iloc[0]['HORA_LLEGADA']}")
+            tipo_s = st.selectbox("Estatus de salida:", ["Salida Normal", "Trabajo Extra (Suma de Méritos)"])
+            foto_s = st.camera_input("📸 Tomar Foto de Salida")
+            if foto_s:
                 if st.button("🏁 Finalizar Jornada"):
-                    with st.spinner("Procesando salida a ImgBB..."):
-                        # CAMBIO AQUÍ: Usamos la función de ImgBB
-                        link_imgbb_s = subir_a_imgbb(foto_sal)
-                        
-                        if link_imgbb_s:
-                            h_sal = ahora_ve().strftime('%I:%M %p')
+                    with st.spinner("Subiendo foto de salida..."):
+                        url_sal = subir_a_imgbb(foto_s)
+                        if url_sal:
                             res = registrar_asistencia_biometrica(
-                                usuario=st.session_state.u['NOMBRE'], tipo="ASISTENCIA",
-                                hora_e="-", hora_s=h_sal, foto_e="-",
-                                foto_s=link_imgbb_s, motivo=tipo_s, alerta_ia="-"
+                                st.session_state.u['NOMBRE'], "ASISTENCIA", "-", 
+                                ahora_ve().strftime('%I:%M %p'), "-", url_sal, tipo_s, "-"
                             )
                             st.balloons()
-                            st.success(f"✅ Jornada cerrada a las {h_sal}. ¡Feliz tarde!"); time.sleep(2); st.rerun()
-
-        # --- ESCENARIO C: JORNADA COMPLETADA ---
+                            st.success("✅ Jornada cerrada. ¡Feliz tarde!")
+                            time.sleep(3)
+                            # REDIRECCIÓN AL HOME
+                            st.session_state.pagina_actual = "HOME"
+                            st.rerun()
         else:
-            st.info("✅ Ya has completado tu registro de asistencia y salida por el día de hoy.")
+            st.info("✅ Ya has completado tu asistencia y salida por hoy.")
+            if st.button("⬅️ Volver al Inicio"):
+                st.session_state.pagina_actual = "HOME"
+                st.rerun()
 
     # -------------------------------------------------------------------------
     # VISTA: PLANIFICADOR INTELIGENTE (ORIGINAL PRESERVADA)
