@@ -546,7 +546,15 @@ with st.sidebar:
 # =============================================================================
 # 9. SISTEMA DE NAVEGACIÓN Y VISTAS (INTEGRACIÓN TOTAL)
 # =============================================================================
-
+# --- CARGA DE DATOS GLOBALES v7.0 (Anti-Typos y Suplencias) ---
+try:
+    # 1. Cargar lista de todos los docentes
+    df_profes_global = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=300)
+    LISTA_DOCENTES = sorted(df_profes_global['NOMBRE'].dropna().unique().tolist())
+    # 2. Cargar Matrícula de Alumnos
+    df_mat_global = conn.read(spreadsheet=URL_HOJA, worksheet="MATRICULA_GLOBAL", ttl=300)
+except:
+    st.error("⚠️ Error al conectar con las listas maestras.")
 # Redirección interna automática
 if st.session_state.redirigir_a_archivo:
     st.session_state.pagina_actual = "📂 Mi Archivo Pedagógico"
