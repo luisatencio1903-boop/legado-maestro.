@@ -641,7 +641,7 @@ if st.session_state.pagina_actual == "HOME":
         "Herramientas de Planificación:",
         [
             "(Seleccionar)",
-            "🦸‍♂️ AULA VIRTUAL (Ejecución Hoy)", # <--- Nueva Opción
+          "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)",
             "🧠 PLANIFICADOR INTELIGENTE",
             "📜 PLANIFICADOR MINISTERIAL",
             "📊 Registro de Evaluaciones",
