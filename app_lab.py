@@ -486,7 +486,7 @@ if not st.session_state.auth and usuario_en_url:
 
 # 2. Pantalla de Login Manual (Si no está logueado)
 if not st.session_state.auth:
-   st.title("🛡️ Acceso SUPER DOCENTE 1.0")
+    st.title("🛡️ Acceso SUPER DOCENTE 1.0")
     
     col_logo, col_form = st.columns([1,2])
     with col_logo:
