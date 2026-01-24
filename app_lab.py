@@ -923,77 +923,74 @@ else:
             except Exception as e:
                 st.error(f"Error al guardar: {e}")
 
-    # -------------------------------------------------------------------------
-    # VISTA: EVALUAR ALUMNO (ORIGINAL PRESERVADA)
+  # -------------------------------------------------------------------------
+    # VISTA: EVALUAR ALUMNO (v7.0 MATRÍCULA GLOBAL Y MODO SUPLENCIA)
     # -------------------------------------------------------------------------
     elif opcion == "📝 Evaluar Alumno":
-        st.subheader("Evaluación Diaria")
-        
         pa = obtener_plan_activa_usuario(st.session_state.u['NOMBRE'])
-        
-        if not pa:
-            st.error("🚨 No tienes planificación activa.")
-            st.info("Ve a 'Mi Archivo' para activar una.")
+        if not pa: 
+            st.error("🚨 No tienes una planificación activa. Ve a 'Mi Archivo' y activa una para poder evaluar.")
         else:
-            st.success(f"Evaluando sobre: {pa['RANGO']}")
+            st.success(f"📋 Evaluando sobre el Plan: {pa['RANGO']}")
             
-            if st.button("🔍 Buscar Actividad de Hoy"):
-                with st.spinner("Buscando en tu plan..."):
-                    # USAMOS AHORA_VE() PARA DIA CORRECTO
-                    dia_semana = ahora_ve().strftime("%A")
-                    
-                    prompt_bus = f"""
-                    PLAN: {pa['CONTENIDO_PLAN'][:10000]}
-                    HOY ES: {dia_semana} (En Venezuela).
-                    ¿Qué actividad toca hoy? Responde SOLO el título o 'NO HAY ACTIVIDAD'.
-                    """
-                    res = generar_respuesta([{"role":"user","content":prompt_bus}], 0.1)
-                    st.session_state.actividad_detectada = res.strip().replace('"', '')
+            # 1. INTERRUPTOR DE SUPLENCIA
+            es_suplente = st.checkbox("🦸 ¿Es una Suplencia? (Evaluar alumno de otro colega)")
             
-            actividad_final = st.text_input("Actividad:", value=st.session_state.actividad_detectada, disabled=True)
-            estudiante = st.text_input("Estudiante:")
-            observacion = st.text_area("Observación:")
+            if es_suplente:
+                # El suplente elige al titular y el sistema busca sus alumnos
+                titular_del_alumno = st.selectbox("Seleccione al Docente Titular:", LISTA_DOCENTES)
+                alumnos_visibles = df_mat_global[df_mat_global['DOCENTE_TITULAR'] == titular_del_alumno]['NOMBRE_ALUMNO'].tolist()
+            else:
+                # El docente ve solo sus propios alumnos
+                titular_del_alumno = st.session_state.u['NOMBRE']
+                alumnos_visibles = df_mat_global[df_mat_global['DOCENTE_TITULAR'] == titular_del_alumno]['NOMBRE_ALUMNO'].tolist()
             
-            if st.button("⚡ Generar Evaluación Técnica"):
-                if estudiante and observacion:
-                    with st.spinner("Analizando..."):
-                        p_eval = f"""
-                        Evalúa a {estudiante}. Actividad: {actividad_final}. Obs: {observacion}.
-                        Genera Análisis Técnico Cualitativo, Nivel de Logro y Recomendación.
-                        """
-                        st.session_state.eval_resultado = generar_respuesta([
-                            {"role":"system","content":INSTRUCCIONES_TECNICAS},
-                            {"role":"user","content":p_eval}
-                        ], 0.5)
-                        st.session_state.est_temp = estudiante
-                        st.session_state.obs_temp = observacion
-                else:
-                    st.warning("Faltan datos.")
-            
+            if not alumnos_visibles:
+                st.warning(f"No se encontraron alumnos registrados para el docente: {titular_del_alumno}")
+            else:
+                estudiante_sel = st.selectbox("Seleccione el Estudiante:", sorted(alumnos_visibles))
+                
+                # Buscar actividad sugerida en el plan
+                if st.button("🔍 Buscar Actividad de Hoy"):
+                    with st.spinner("Consultando tu planificación..."):
+                        dia_hoy = ahora_ve().strftime("%A")
+                        res_act = generar_respuesta([{"role":"user","content":f"Plan: {pa['CONTENIDO_PLAN'][:5000]}. Hoy: {dia_hoy}. ¿Qué actividad toca? SOLO el título."}], 0.1)
+                        st.session_state.actividad_detectada = res_act.strip().replace('"', '')
+                
+                actividad_final = st.text_input("Actividad:", value=st.session_state.actividad_detectada)
+                observacion = st.text_area("Observación Anecdótica (¿Qué hizo el alumno?):")
+                
+                if st.button("⚡ Generar Evaluación Técnica"):
+                    if estudiante_sel and observacion:
+                        with st.spinner("IA Analizando desempeño..."):
+                            p_eval = f"Evalúa a {estudiante_sel}. Actividad: {actividad_final}. Obs: {observacion}. Plan: {pa['CONTENIDO_PLAN'][:1000]}."
+                            st.session_state.eval_resultado = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":p_eval}], 0.5)
+                            st.session_state.est_temp = estudiante_sel
+                            st.session_state.obs_temp = observacion
+                            st.session_state.titular_temp = titular_del_alumno # Guardamos quién es el dueño
+
             if st.session_state.eval_resultado:
                 st.markdown(f'<div class="eval-box">{st.session_state.eval_resultado}</div>', unsafe_allow_html=True)
                 
-                if st.button("💾 Guardar Registro"):
+                if st.button("💾 Guardar en Expediente"):
                     try:
                         df_ev = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
-                        
-                        # USAMOS AHORA_VE()
-                        fecha_registro = ahora_ve().strftime("%d/%m/%Y")
-                        
-                        n_ev = pd.DataFrame([{
-                            "FECHA": fecha_registro,
-                            "USUARIO": st.session_state.u['NOMBRE'],
+                        nueva_ev = pd.DataFrame([{
+                            "FECHA": ahora_ve().strftime("%d/%m/%Y"),
+                            "USUARIO": st.session_state.u['NOMBRE'], # El que escribe (Suplente o Titular)
+                            "DOCENTE_TITULAR": st.session_state.titular_temp, # El dueño del alumno
                             "ESTUDIANTE": st.session_state.est_temp,
                             "ACTIVIDAD": actividad_final,
                             "ANECDOTA": st.session_state.obs_temp,
                             "EVALUACION_IA": st.session_state.eval_resultado,
-                            "PLANIFICACION_ACTIVA": pa['RANGO'],
-                            "RESULTADO": "Registrado"
+                            "PLANIFICACION_ACTIVA": pa['RANGO']
                         }])
-                        conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=pd.concat([df_ev, n_ev], ignore_index=True))
-                        st.success("Guardado."); st.session_state.eval_resultado = ""; time.sleep(1); st.rerun()
+                        conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=pd.concat([df_ev, nueva_ev], ignore_index=True))
+                        st.success(f"✅ Evaluación guardada en el expediente de {st.session_state.est_temp}")
+                        st.session_state.eval_resultado = ""
+                        time.sleep(2); st.rerun()
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Error al guardar: {e}")
 
     # -------------------------------------------------------------------------
     # VISTA: REGISTRO DE EVALUACIONES (ORIGINAL PRESERVADA)
