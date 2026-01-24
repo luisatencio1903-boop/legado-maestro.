@@ -218,66 +218,67 @@ except Exception as e:
 
 # --- 4.3 Conexión a Google Drive API (v5.0) ---
 def subir_evidencia_drive(archivo_foto, nombre_archivo):
-    """Sube la foto a Drive reconstruyendo las credenciales para evitar errores."""
+    """Sube la foto a Drive con configuración de alta compatibilidad."""
     try:
-        # 1. RECONSTRUCCIÓN MANUAL DEL DICCIONARIO (Para eliminar 'ruido' de los secrets)
-        # Esto asegura que Google reciba solo los campos oficiales
+        # 1. Reconstruir credenciales desde secrets
         gs = st.secrets["connections"]["gsheets"]
         
+        # Limpieza profunda de la llave
+        pk = gs["private_key"].replace("\\n", "\n") if "\\n" in gs["private_key"] else gs["private_key"]
+        
         creds_info = {
-            "type": gs["type"],
+            "type": "service_account",
             "project_id": gs["project_id"],
             "private_key_id": gs["private_key_id"],
-            "private_key": gs["private_key"].replace("\\n", "\n"), # Limpieza de saltos de línea
+            "private_key": pk,
             "client_email": gs["client_email"],
             "client_id": gs["client_id"],
-            "auth_uri": gs["auth_uri"],
-            "token_uri": gs["token_uri"],
-            "auth_provider_x509_cert_url": gs["auth_provider_x509_cert_url"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
             "client_x509_cert_url": gs["client_x509_cert_url"]
         }
 
-        # 2. DEFINIR ALCANCE
+        # 2. Scope total de Drive
         SCOPES = ['https://www.googleapis.com/auth/drive']
-        
-        # 3. CREAR CREDENCIALES LIMPIAS
         creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         service = build('drive', 'v3', credentials=creds)
         
-        # 4. PREPARAR LA IMAGEN (Compresión Luis Atencio)
+        # 3. Preparar imagen (Compresión Luis Atencio)
         foto_preparada = comprimir_imagen(archivo_foto)
         
-        # 5. LIMPIEZA DEL ID DE CARPETA 
-        # Si por error pegaste la URL completa, esto extrae solo el ID
-        folder_id = ID_CARPETA_DRIVE.strip().split('/')[-1]
-        
-        # 6. METADATOS SIMPLIFICADOS
+        # 4. Metadatos MINIMALISTAS (Solo nombre y carpeta)
+        # El error 400 suele ser por enviar campos que la API v3 no espera
         file_metadata = {
-            'name': nombre_archivo,
-            'parents': [folder_id]
+            'name': str(nombre_archivo),
+            'parents': [ID_CARPETA_DRIVE.strip()]
         }
         
-        # 7. CARGA DE ARCHIVO
+        # 5. Carga simple (MediaIoBaseUpload)
         media = MediaIoBaseUpload(foto_preparada, mimetype='image/jpeg', resumable=False)
         
-        # Ejecutar creación
-        archivo_drive = service.files().create(
+        # 6. Crear el archivo (Sin pedir el webViewLink en la creación inicial para evitar el 400)
+        file = service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id, webViewLink'
+            fields='id' # Solo pedimos el ID al principio
         ).execute()
         
-        # 8. PERMISOS DE VISIBILIDAD
+        file_id = file.get('id')
+        
+        # 7. Hacerlo público y obtener el Link en pasos separados
         service.permissions().create(
-            fileId=archivo_drive.get('id'),
+            fileId=file_id,
             body={'type': 'anyone', 'role': 'viewer'}
         ).execute()
         
-        return archivo_drive.get('webViewLink')
+        # Obtener el link final
+        file_info = service.files().get(fileId=file_id, fields='webViewLink').execute()
+        
+        return file_info.get('webViewLink')
         
     except Exception as e:
-        # Este mensaje nos dirá exactamente qué campo está fallando
-        st.error(f"Error Crítico en Drive: {str(e)}")
+        st.error(f"Error detallado: {str(e)}")
         return None
 
 # =============================================================================
