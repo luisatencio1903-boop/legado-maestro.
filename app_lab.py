@@ -606,12 +606,13 @@ if st.session_state.pagina_actual == "HOME":
         st.session_state.pagina_actual = "⏱️ Control de Asistencia"
         st.rerun()
     
-    # 2. HERRAMIENTAS DE GESTIÓN
+  # 2. HERRAMIENTAS DE GESTIÓN (Home)
     st.markdown("### 🛠️ GESTIÓN DOCENTE")
     sel_principal = st.selectbox(
         "Herramientas de Planificación:",
         [
             "(Seleccionar)",
+            "🦸‍♂️ AULA VIRTUAL (Ejecución Hoy)", # <--- Nueva Opción
             "🧠 PLANIFICADOR INTELIGENTE",
             "📜 PLANIFICADOR MINISTERIAL",
             "📝 Evaluar Alumno",
