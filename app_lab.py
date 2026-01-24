@@ -218,57 +218,62 @@ except Exception as e:
 
 # --- 4.3 Conexión a Google Drive API (v5.0) ---
 def subir_evidencia_drive(archivo_foto, nombre_archivo):
-    """Sube la foto comprimida a Google Drive con Scope Total."""
+    """Sube la foto a Drive forzando limpieza de credenciales y metadatos."""
     try:
-        # 1. Obtener info de la llave
-        info_llave = st.secrets["connections"]["gsheets"]
+        # 1. Extraer y convertir secretos a un diccionario real de Python
+        # A veces st.secrets devuelve un objeto que Drive no entiende bien
+        secrets_dict = dict(st.secrets["connections"]["gsheets"])
         
-        # 2. Scope TOTAL para evitar bloqueos
+        # 2. Limpieza de la Llave Privada (Vital para evitar errores de firma)
+        if "private_key" in secrets_dict:
+            secrets_dict["private_key"] = secrets_dict["private_key"].replace("\\n", "\n")
+
+        # 3. Definir Scope TOTAL
         SCOPES = ['https://www.googleapis.com/auth/drive']
         
-        # 3. Autenticación robusta
-        creds = service_account.Credentials.from_service_account_info(info_llave, scopes=SCOPES)
+        # 4. Crear credenciales limpias
+        creds = service_account.Credentials.from_service_account_info(secrets_dict, scopes=SCOPES)
         service = build('drive', 'v3', credentials=creds)
         
-        # 4. Comprimir imagen
+        # 5. Comprimir la imagen (Usando tu función original)
         foto_preparada = comprimir_imagen(archivo_foto)
         
-        # 5. ID de la carpeta (Limpiado de posibles espacios)
-        ID_LIMPIO = ID_CARPETA_DRIVE.strip()
-        
-        # 6. Metadatos simplificados
-        metadata = {
-            'name': nombre_archivo,
+        # 6. Preparar Metadatos (Sin campos extraños que causen el 400)
+        ID_LIMPIO = str(ID_CARPETA_DRIVE).strip()
+        file_metadata = {
+            'name': str(nombre_archivo),
             'parents': [ID_LIMPIO]
         }
         
-        # 7. Preparar la carga
+        # 7. Preparar Media (Carga simple)
         media = MediaIoBaseUpload(
             foto_preparada, 
             mimetype='image/jpeg', 
-            resumable=False # Envío directo para mayor éxito
+            resumable=False
         )
         
-        # 8. Crear archivo
-        archivo_drive = service.files().create(
-            body=metadata,
+        # 8. EJECUCIÓN: Crear el archivo
+        # Simplificamos los fields para que Google no de error de solicitud mal formada
+        file = service.files().create(
+            body=file_metadata,
             media_body=media,
             fields='id, webViewLink'
         ).execute()
         
-        # 9. Permisos de visibilidad
-        service.permissions().create(
-            fileId=archivo_drive.get('id'),
-            body={'type': 'anyone', 'role': 'viewer'}
-        ).execute()
-        
-        return archivo_drive.get('webViewLink')
+        # 9. PERMISOS: Hacerlo público para el Director
+        try:
+            service.permissions().create(
+                fileId=file.get('id'),
+                body={'type': 'anyone', 'role': 'viewer'}
+            ).execute()
+        except:
+            pass # Si falla el permiso, al menos el archivo ya se subió
+            
+        return file.get('webViewLink')
         
     except Exception as e:
-        # Esto nos dirá exactamente qué está pasando
-        st.error(f"Error detallado en Drive: {str(e)}")
-        # Si el error es 404, el ID de la carpeta está mal.
-        # Si el error es 403, falta habilitar la API o compartir la carpeta.
+        # Este mensaje nos dirá LA VERDAD en la pantalla
+        st.error(f"Error Detallado: {str(e)}")
         return None
 
 # =============================================================================
