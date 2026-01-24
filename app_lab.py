@@ -992,50 +992,41 @@ else:
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
 
-    # -------------------------------------------------------------------------
-    # VISTA: REGISTRO DE EVALUACIONES (ORIGINAL PRESERVADA)
+   # -------------------------------------------------------------------------
+    # VISTA: REGISTRO DE EVALUACIONES (v7.0 EXPEDIENTE COMPARTIDO)
     # -------------------------------------------------------------------------
     elif opcion == "📊 Registro de Evaluaciones":
         try:
-            df = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
-            mis_ev = df[df['USUARIO'] == st.session_state.u['NOMBRE']]
+            df_historial = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
             
-            if mis_ev.empty:
-                st.info("Sin registros.")
+            # FILTRO CRÍTICO: El docente solo ve los alumnos de los que es TITULAR
+            mis_alumnos_data = df_historial[df_historial['DOCENTE_TITULAR'] == st.session_state.u['NOMBRE']]
+            
+            if mis_alumnos_data.empty:
+                st.info("Aún no hay evaluaciones registradas para tus alumnos.")
             else:
-                alumnos = sorted(mis_ev['ESTUDIANTE'].unique())
-                alum_sel = st.selectbox("Estudiante:", alumnos)
-                dat_alum = mis_ev[mis_ev['ESTUDIANTE'] == alum_sel]
+                lista_alumnos_hist = sorted(mis_alumnos_data['ESTUDIANTE'].unique())
+                alumno_sel = st.selectbox("Seleccione Alumno para ver su historial:", lista_alumnos_hist)
                 
-                # Métricas
-                total = len(df['FECHA'].unique()) 
-                asist = len(dat_alum['FECHA'].unique())
-                if total > 0:
-                    pct = (asist / total) * 100 
-                else:
-                    pct = 0
+                registros_alumno = mis_alumnos_data[mis_alumnos_data['ESTUDIANTE'] == alumno_sel]
                 
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Asistencias", f"{asist}")
-                c2.metric("% Asistencia", f"{pct:.1f}%")
-                if pct < 60: c3.error("ALERTA")
-                else: c3.success("OK")
-                
+                st.metric("Total de Evaluaciones", len(registros_alumno))
                 st.markdown("---")
                 
-                # Historial
-                for _, r in dat_alum.iloc[::-1].iterrows():
-                    with st.expander(f"📅 {r['FECHA']} | {r['ACTIVIDAD']}"):
-                        st.write(r['EVALUACION_IA'])
-                
-                # Informe
-                if st.button("Generar Informe de Lapso"):
-                    with st.spinner("Redactando informe..."):
-                        txt_hist = dat_alum['EVALUACION_IA'].to_string()
-                        inf = generar_respuesta([{"role":"user","content":f"Genera informe de progreso para {alum_sel}. Datos: {txt_hist}"}])
-                        st.markdown(f'<div class="plan-box">{inf}</div>', unsafe_allow_html=True)
+                # Mostrar registros del más reciente al más antiguo
+                for _, fila in registros_alumno.iloc[::-1].iterrows():
+                    with st.expander(f"📅 {fila['FECHA']} | Evalúa: {fila['USUARIO']}"):
+                        if fila['USUARIO'] != st.session_state.u['NOMBRE']:
+                            st.caption(f"ℹ️ Esta nota fue cargada por un docente suplente ({fila['USUARIO']})")
+                        st.write(fila['EVALUACION_IA'])
+                        
+                if st.button("📝 Generar Informe de Progreso"):
+                    with st.spinner("Consolidando información..."):
+                        historico_txt = registros_alumno['EVALUACION_IA'].str.cat(sep='\n\n')
+                        informe = generar_respuesta([{"role":"user","content":f"Genera un informe técnico de progreso para {alumno_sel} basado en estas evaluaciones: {historico_txt}"}])
+                        st.markdown(f'<div class="plan-box">{informe}</div>', unsafe_allow_html=True)
         except Exception as e:
-            st.error(f"Error BD: {e}")
+            st.error(f"Error al cargar el historial: {e}")
 
     # -------------------------------------------------------------------------
     # VISTA: MI ARCHIVO (ORIGINAL PRESERVADA)
