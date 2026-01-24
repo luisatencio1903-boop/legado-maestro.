@@ -1028,42 +1028,79 @@ else:
         except Exception as e:
             st.error(f"Error al cargar el historial: {e}")
 
-    # -------------------------------------------------------------------------
-    # VISTA: MI ARCHIVO (ORIGINAL PRESERVADA)
+   # -------------------------------------------------------------------------
+    # VISTA: MI ARCHIVO (v7.2 - ACTIVACIÓN DE PLANES PARA SUPLENCIAS)
     # -------------------------------------------------------------------------
     elif opcion == "📂 Mi Archivo Pedagógico":
-        pa = obtener_plan_activa_usuario(st.session_state.u['NOMBRE'])
-        if pa:
-            st.success(f"ACTIVA: {pa['RANGO']}")
-            if st.button("Desactivar"):
-                desactivar_plan_activa(st.session_state.u['NOMBRE']); st.rerun()
+        st.markdown("### 📂 Gestión de Archivo y Planificaciones")
         
+        # 1. Selector de contexto (¿Mi archivo o el de un colega?)
+        modo_suplencia_arch = st.checkbox("🦸 **Activar Modo Suplencia** (Gestionar archivo de un colega)")
+        
+        if modo_suplencia_arch:
+            usuario_a_consultar = st.selectbox("Seleccione Docente Ausente:", LISTA_DOCENTES)
+            st.warning(f"Estás gestionando el archivo de: **{usuario_a_consultar}**")
+        else:
+            usuario_a_consultar = st.session_state.u['NOMBRE']
+            st.info("Viendo tus planificaciones guardadas.")
+
+        # 2. MOSTRAR ESTADO ACTUAL DEL PLAN SELECCIONADO
+        pa = obtener_plan_activa_usuario(usuario_a_consultar)
+        if pa:
+            st.success(f"📌 **PLAN ACTIVO de {usuario_a_consultar}:** {pa['RANGO']}")
+            if st.button(f"Desactivar Plan de {usuario_a_consultar}"):
+                desactivar_plan_activa(usuario_a_consultar)
+                st.rerun()
+        else:
+            st.warning(f"⚠️ {usuario_a_consultar} no tiene ninguna planificación activa ahora.")
+
+        st.divider()
+
+        # 3. CARGAR Y MOSTRAR HISTORIAL DE PLANES GUARDADOS
         try:
-            df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
-            mis_planes = df[df['USUARIO'] == st.session_state.u['NOMBRE']]
+            # Leemos la Hoja1 donde están todos los planes
+            df_total_planes = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+            # Filtramos por el usuario seleccionado (sea yo o el colega)
+            planes_visibles = df_total_planes[df_total_planes['USUARIO'] == usuario_a_consultar]
             
-            if mis_planes.empty:
-                st.warning("Carpeta vacía.")
+            if planes_visibles.empty:
+                st.warning(f"No se encontraron planes guardados para {usuario_a_consultar}.")
             else:
-                cont_activo = pa['CONTENIDO_PLAN'] if pa else None
-                
-                for i, r in mis_planes.iloc[::-1].iterrows():
-                    es_act = (cont_activo == r['CONTENIDO'])
-                    lbl = f"{'⭐ ACTIVA | ' if es_act else ''}📅 {r['FECHA']} | {str(r['TEMA'])[:30]}..."
+                st.write(f"Planes disponibles de {usuario_a_consultar}:")
+                for i, fila in planes_visibles.iloc[::-1].iterrows():
+                    # Marcamos visualmente si este es el que está activo
+                    es_este_activo = (pa['CONTENIDO_PLAN'] == fila['CONTENIDO']) if pa else False
                     
-                    with st.expander(lbl, expanded=es_act):
-                        st.markdown(f'<div class="plan-box" style="font-size:0.9em">{r["CONTENIDO"]}</div>', unsafe_allow_html=True)
-                        c1, c2 = st.columns(2)
+                    titulo_expander = f"{'⭐ ACTIVO | ' if es_este_activo else ''}📅 {fila['FECHA']} | {str(fila['TEMA'])[:35]}..."
+                    
+                    with st.expander(titulo_expander):
+                        st.markdown(f'<div class="plan-box">{fila["CONTENIDO"]}</div>', unsafe_allow_html=True)
                         
-                        if not es_act:
-                            if c1.button("Usar", key=f"a_{i}"):
-                                establecer_plan_activa(st.session_state.u['NOMBRE'], str(i), r['CONTENIDO'], r['FECHA'], "Taller")
+                        # Solo mostramos el botón de activar si NO es el plan que ya está activo
+                        if not es_este_activo:
+                            if st.button(f"📌 Activar para {usuario_a_consultar}", key=f"btn_act_{i}"):
+                                # Aquí la clave: Establecemos el plan PARA EL COLEGA
+                                establecer_plan_activa(
+                                    usuario_nombre=usuario_a_consultar, 
+                                    id_plan=str(i), 
+                                    contenido=fila['CONTENIDO'], 
+                                    rango=fila['FECHA'], 
+                                    aula="Taller/Aula"
+                                )
+                                st.success(f"✅ ¡Plan de {usuario_a_consultar} activado!")
+                                time.sleep(1)
                                 st.rerun()
                         
-                        if c2.button("Borrar", key=f"d_{i}"):
-                            conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df.drop(i)); st.rerun()
-        except:
-            st.error("Error cargando archivos.")
+                        # El botón borrar solo lo mostramos si NO estamos en modo suplencia 
+                        # (Para que un suplente no borre accidentalmente el trabajo de otro)
+                        if not modo_suplencia_arch:
+                            if st.button(f"🗑️ Borrar mi plan", key=f"btn_del_{i}"):
+                                # Lógica para borrar (df_total_planes.drop...)
+                                df_actualizado = df_total_planes.drop(i)
+                                conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_actualizado)
+                                st.rerun()
+        except Exception as e:
+            st.error(f"Error al cargar el archivo de planificaciones: {e}")
 
     # -------------------------------------------------------------------------
     # VISTAS: EXTRAS (ORIGINALES PRESERVADAS)
