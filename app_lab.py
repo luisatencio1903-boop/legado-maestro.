@@ -756,14 +756,14 @@ else:
             st.info("✅ Registro del día completado.")
             if st.button("⬅️ Volver"): st.session_state.pagina_actual = "HOME"; st.rerun()
  # -------------------------------------------------------------------------
-    # VISTA: PLANIFICADOR INTELIGENTE (VERSIÓN 6.2 - ESTRUCTURA NACIONAL BOLIVARIANA)
+    # VISTA: PLANIFICADOR INTELIGENTE (VERSIÓN 6.3 - ESTRUCTURA "LUNES DE HIERRO")
     # -------------------------------------------------------------------------
     elif opcion == "🧠 PLANIFICADOR INTELIGENTE":
         st.markdown("**Generación de Planificación Pedagógica Especializada**")
         
         col1, col2 = st.columns(2)
         with col1:
-            rango = st.text_input("Lapso (Fechas):", placeholder="Ej: 19 al 23 de Enero")
+            rango = st.text_input("Lapso (Fechas):", placeholder="Ej: 26 al 30 de Enero")
         with col2:
             modalidad = st.selectbox("Modalidad / Servicio:", [
                 "Taller de Educación Laboral (T.E.L.)",
@@ -802,43 +802,44 @@ else:
                         tipo_plan = "P.E.I. (Individualizada)" if is_pei else "Grupal"
                         
                         prompt = f"""
-                        ERES UN EXPERTO PEDAGOGO.
-                        Genera una: 📝 **Planificación Sugerida (Currículo Nacional Bolivariano)**
-                        MODALIDAD: {modalidad}{contexto_aula}.
-                        TIPO: {tipo_plan}.
-                        LAPSO: {rango}.
-                        TEMA: {notas}.
-                        {f'PERFIL ALUMNO: {perfil_alumno}' if is_pei else ''}
+                        ERES UN EXPERTO PEDAGOGO VENEZOLANO.
+                        ENCABEZADO OBLIGATORIO: 
+                        📝 **Planificación Sugerida (Currículo Nacional Bolivariano)**
+                        *Adaptada para la Modalidad de: {modalidad}{contexto_aula}*
+                        ---
 
-                        REGLAS CRÍTICAS DE FORMATO:
-                        1. CADA PUNTO (1 AL 7) DEBE EMPEZAR EN UNA LÍNEA NUEVA. 
-                        2. PROHIBIDO ESCRIBIR LOS PUNTOS SEGUIDOS EN EL MISMO PÁRRAFO.
-                        3. USA UN SALTO DE LÍNEA DOBLE ENTRE CADA SECCIÓN.
-                        
-                        PARA CADA DÍA SIGUE ESTE MODELO EXACTO:
-                        
+                        INSTRUCCIÓN DE TIEMPO:
+                        Ignora que hoy es sábado. La planificación DEBE comenzar obligatoriamente por el día **LUNES** y terminar el **VIERNES** del lapso {rango}.
+
+                        ESTRUCTURA TÉCNICA (OBLIGATORIA PARA CADA DÍA):
+                        Usa una lista vertical rígida. No amontones los puntos. 
+                        Deja un doble salto de línea antes de empezar cada número.
+
                         ### [DÍA Y FECHA]
-                        **1. TÍTULO LÚDICO:** (Nombre creativo de la actividad)
                         
-                        **2. COMPETENCIA TÉCNICA:** (Acción + Objeto + Condición)
+                        **1. TÍTULO LÚDICO:** (Nombre creativo)
                         
-                        **3. EXPLORACIÓN (Inicio):** (Actividad vivencial)
+                        **2. COMPETENCIA TÉCNICA:** (Verbo + Objeto + Condición)
                         
-                        **4. DESARROLLO (Proceso):** (Manos a la obra)
+                        **3. EXPLORACIÓN (Inicio):** (Dinámica inicial)
+                        
+                        **4. DESARROLLO (Proceso):** (Actividad vivencial central)
                         
                         **5. REFLEXIÓN (Cierre):** (Intercambio de saberes)
                         
-                        **6. ESTRATEGIAS:** (Cómo se enseñará)
+                        **6. ESTRATEGIAS:** (Mediación docente)
                         
                         **7. RECURSOS:** (Materiales concretos)
                         
                         ---------------------------------------------------
+                        
+                        REPETIR ESTA ESTRUCTURA PARA LUNES, MARTES, MIÉRCOLES, JUEVES Y VIERNES.
                         """
                         
                         st.session_state.plan_actual = generar_respuesta([
                             {"role":"system","content":INSTRUCCIONES_TECNICAS},
                             {"role":"user","content":prompt}
-                        ], 0.5) # Temperatura más baja para ser más preciso y menos "emocionado"
+                        ], 0.4) # Temperatura más baja para máxima precisión estructural
                         st.rerun()
 
     # -------------------------------------------------------------------------
