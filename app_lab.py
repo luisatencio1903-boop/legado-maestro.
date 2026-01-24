@@ -636,8 +636,8 @@ else:
     st.divider()
     opcion = st.session_state.pagina_actual
 
-    # -------------------------------------------------------------------------
-    # VISTA: CONTROL DE ASISTENCIA (VERSIÓN 5.0 - BIOMÉTRICA COMPLETA)
+   # -------------------------------------------------------------------------
+    # VISTA: CONTROL DE ASISTENCIA (VERSIÓN 5.0 - INTEGRADA CON IMGBB)
     # -------------------------------------------------------------------------
     if opcion == "⏱️ Control de Asistencia":
         st.info("ℹ️ Este reporte se enviará a **Legado Director** con verificación fotográfica.")
@@ -665,20 +665,19 @@ else:
                 
                 if foto_ent:
                     if st.button("🚀 Registrar Entrada Oficial"):
-                        with st.spinner("Subiendo evidencia a Drive..."):
-                            h_ent = ahora_ve().strftime('%I:%M %p')
-                            nombre_f = f"ENT_{st.session_state.u['NOMBRE']}_{hoy_str.replace('/','')}.jpg"
-                            link_drive = subir_evidencia_drive(foto_ent, nombre_f)
+                        with st.spinner("Subiendo evidencia visual a ImgBB..."):
+                            # CAMBIO AQUÍ: Usamos la función de ImgBB que es directa
+                            link_imgbb = subir_a_imgbb(foto_ent)
                             
-                            if link_drive:
+                            if link_imgbb:
+                                h_ent = ahora_ve().strftime('%I:%M %p')
                                 res = registrar_asistencia_biometrica(
                                     usuario=st.session_state.u['NOMBRE'], tipo="ASISTENCIA",
-                                    hora_e=h_ent, hora_s="-", foto_e=link_drive,
+                                    hora_e=h_ent, hora_s="-", foto_e=link_imgbb,
                                     foto_s="-", motivo="Cumplimiento", alerta_ia="-"
                                 )
-                                if "OK" in res:
-                                    st.success(f"✅ Entrada validada a las {h_ent}")
-                                    time.sleep(2); st.rerun()
+                                st.success(f"✅ Entrada validada a las {h_ent}")
+                                time.sleep(2); st.rerun()
             
             elif estado_asistencia == "❌ No Asistí":
                 motivo_inasistencia = st.text_area("Motivo de la inasistencia:")
@@ -706,16 +705,16 @@ else:
             
             if foto_sal:
                 if st.button("🏁 Finalizar Jornada"):
-                    with st.spinner("Procesando salida..."):
-                        h_sal = ahora_ve().strftime('%I:%M %p')
-                        nombre_fs = f"SAL_{st.session_state.u['NOMBRE']}_{hoy_str.replace('/','')}.jpg"
-                        link_drive_s = subir_evidencia_drive(foto_sal, nombre_fs)
+                    with st.spinner("Procesando salida a ImgBB..."):
+                        # CAMBIO AQUÍ: Usamos la función de ImgBB
+                        link_imgbb_s = subir_a_imgbb(foto_sal)
                         
-                        if link_drive_s:
+                        if link_imgbb_s:
+                            h_sal = ahora_ve().strftime('%I:%M %p')
                             res = registrar_asistencia_biometrica(
                                 usuario=st.session_state.u['NOMBRE'], tipo="ASISTENCIA",
                                 hora_e="-", hora_s=h_sal, foto_e="-",
-                                foto_s=link_drive_s, motivo=tipo_s, alerta_ia="-"
+                                foto_s=link_imgbb_s, motivo=tipo_s, alerta_ia="-"
                             )
                             st.balloons()
                             st.success(f"✅ Jornada cerrada a las {h_sal}. ¡Feliz tarde!"); time.sleep(2); st.rerun()
