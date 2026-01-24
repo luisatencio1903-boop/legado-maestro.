@@ -21,10 +21,9 @@ import pandas as pd
 import random
 import re
 import io
-from PIL import Image # Librería para compresión de imagen (v5.0)
-from googleapiclient.discovery import build # Para Drive (v5.0)
-from google.oauth2 import service_account # Para Drive (v5.0)
-from googleapiclient.http import MediaIoBaseUpload # Para Drive (v5.0)
+import json # Para procesar la respuesta de ImgBB
+import requests # Librería principal para subir la foto a ImgBB
+from PIL import Image # Para la compresión tipo WhatsApp
 
 # =============================================================================
 # 1. CONFIGURACIÓN INICIAL DE LA PÁGINA
