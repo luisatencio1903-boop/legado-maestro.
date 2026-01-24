@@ -365,45 +365,35 @@ def desactivar_plan_activa(usuario_nombre):
 # --- 6.2 Función de Asistencia (VERSIÓN 5.0 - BIOMÉTRICA INTEGRAL) ---
 
 def registrar_asistencia_biometrica(usuario, tipo, hora_e, hora_s, foto_e, foto_s, motivo, alerta_ia):
-    """
-    Registra o actualiza la asistencia en la hoja 'ASISTENCIA'.
-    Maneja el flujo de entrada y luego el de salida sobre el mismo registro.
-    """
+    """Registra la asistencia con un margen de espera para evitar errores de API."""
     try:
+        # Le damos un respiro a la API de 1 segundo
+        time.sleep(1)
         df_asistencia = conn.read(spreadsheet=URL_HOJA, worksheet="ASISTENCIA", ttl=0)
         hoy_str = ahora_ve().strftime("%d/%m/%Y")
-        
-        # Buscar registro de hoy para este usuario
         registro_hoy = df_asistencia[(df_asistencia['USUARIO'] == usuario) & (df_asistencia['FECHA'] == hoy_str)]
         
         if registro_hoy.empty:
-            # REGISTRO NUEVO (Entrada o Inasistencia)
+            # ENTRADA
             nuevo_registro = pd.DataFrame([{
-                "FECHA": hoy_str,
-                "USUARIO": usuario,
-                "TIPO": tipo,
-                "HORA_LLEGADA": hora_e, # Mantenemos nombre de columna original por compatibilidad
-                "FOTO_ENTRADA": foto_e,
-                "HORA_SALIDA": "-",
-                "FOTO_SALIDA": "-",
-                "MOTIVO": motivo,
-                "ALERTA_IA": alerta_ia,
-                "ESTADO_DIRECTOR": "PENDIENTE"
+                "FECHA": hoy_str, "USUARIO": usuario, "TIPO": tipo,
+                "HORA_LLEGADA": hora_e, "FOTO_ENTRADA": foto_e,
+                "HORA_SALIDA": "-", "FOTO_SALIDA": "-",
+                "MOTIVO": motivo, "ALERTA_IA": alerta_ia, "ESTADO_DIRECTOR": "PENDIENTE"
             }])
             df_final = pd.concat([df_asistencia, nuevo_registro], ignore_index=True)
             conn.update(spreadsheet=URL_HOJA, worksheet="ASISTENCIA", data=df_final)
-            return "OK_NEW"
+            return "OK"
         else:
-            # ACTUALIZACIÓN (Salida)
+            # SALIDA
             idx = registro_hoy.index[0]
             if hora_s != "-":
                 df_asistencia.at[idx, 'HORA_SALIDA'] = hora_s
                 df_asistencia.at[idx, 'FOTO_SALIDA'] = foto_s
                 df_asistencia.at[idx, 'MOTIVO'] = motivo
                 conn.update(spreadsheet=URL_HOJA, worksheet="ASISTENCIA", data=df_asistencia)
-                return "OK_UPDATED"
+                return "OK"
             return "DUPLICADO"
-            
     except Exception as e:
         return f"ERROR: {e}"
 
