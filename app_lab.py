@@ -635,80 +635,106 @@ else:
     opcion = st.session_state.pagina_actual
 
    # -------------------------------------------------------------------------
-    # VISTA: CONTROL DE ASISTENCIA (VERSIÓN 5.0 - INTEGRADA CON IMGBB)
+    # -------------------------------------------------------------------------
+    # VISTA: CONTROL DE ASISTENCIA (VERSIÓN 5.1 - RESILIENTE A FALLAS ELÉCTRICAS)
     # -------------------------------------------------------------------------
     if opcion == "⏱️ Control de Asistencia":
-        st.info("ℹ️ Registro con verificación fotográfica para Legado Director.")
+        st.info("ℹ️ Reporte de asistencia con respaldo por incidencias técnicas (Luz/Datos).")
         hoy_str = ahora_ve().strftime("%d/%m/%Y")
         st.markdown(f"### 📅 Fecha: **{hoy_str}**")
 
-        # Intentar leer la base de datos con manejo de error por si Google está saturado
         try:
-            df_as = conn.read(spreadsheet=URL_HOJA, worksheet="ASISTENCIA", ttl=2) # ttl=2 da un respiro de 2 seg
+            df_as = conn.read(spreadsheet=URL_HOJA, worksheet="ASISTENCIA", ttl=2)
             reg_hoy = df_as[(df_as['USUARIO'] == st.session_state.u['NOMBRE']) & (df_as['FECHA'] == hoy_str)]
         except:
-            st.error("🔄 La conexión con la base de datos está ocupada. Reintentando...")
-            time.sleep(2)
-            st.rerun()
+            st.error("🔄 Conexión lenta. Reintentando...")
+            time.sleep(2); st.rerun()
 
-        # --- ESCENARIO A: NO HA REGISTRADO NADA ---
+        hora_actual = ahora_ve()
+
+        # --- ESCENARIO A: REGISTRO DE ENTRADA ---
         if reg_hoy.empty:
-            status = st.radio("¿Cuál es tu estatus hoy?", ["(Seleccionar)", "✅ Asistí al Plantel", "❌ No Asistí"])
-            if status == "✅ Asistí al Plantel":
-                foto_e = st.camera_input("📸 Tomar Foto de Entrada")
-                if foto_e:
-                    if st.button("🚀 Confirmar Entrada"):
-                        with st.spinner("Subiendo foto y notificando..."):
-                            url_foto = subir_a_imgbb(foto_e)
-                            if url_foto:
-                                res = registrar_asistencia_biometrica(
-                                    st.session_state.u['NOMBRE'], "ASISTENCIA", 
-                                    ahora_ve().strftime('%I:%M %p'), "-", url_foto, "-", "Cumplimiento", "-"
-                                )
-                                if "OK" in res:
-                                    st.success("✅ Entrada registrada exitosamente.")
-                                    time.sleep(2)
-                                    # REDIRECCIÓN AL HOME
-                                    st.session_state.pagina_actual = "HOME"
-                                    st.rerun()
+            status = st.radio("¿Estatus hoy?", ["(Seleccionar)", "✅ Asistí al Plantel", "❌ No Asistí"], index=0)
             
-            elif status == "❌ No Asistí":
-                motivo = st.text_area("Justificativo:")
-                if st.button("📤 Enviar Reporte"):
-                    an = generar_respuesta([{"role":"user","content":f"¿Es salud? '{motivo}'. Responde ALERTA_SALUD o OK"}], 0.1)
-                    alerta = "⚠️ Presentar justificativo médico en 48h." if "ALERTA_SALUD" in an else "-"
-                    registrar_asistencia_biometrica(st.session_state.u['NOMBRE'], "INASISTENCIA", "-", "-", "-", "-", motivo, alerta)
-                    st.warning("✅ Inasistencia reportada.")
-                    time.sleep(2)
-                    st.session_state.pagina_actual = "HOME"
-                    st.rerun()
+            if status == "✅ Asistí al Plantel":
+                # Detectar si es entrada tardía (ejemplo: después de las 8:15 AM)
+                es_entrada_tardia = hora_actual.hour > 8 or (hora_actual.hour == 8 and hora_actual.minute > 15)
+                
+                motivo_entrada = "Cumplimiento"
+                if es_entrada_tardia:
+                    st.warning("⚠️ **Entrada fuera de horario:** ¿Hubo algún inconveniente técnico?")
+                    incidencia_e = st.selectbox("Indique la razón del retraso en el registro:", [
+                        "Sin inconvenientes (Llegada tardía)",
+                        "Corte Eléctrico en la Institución/Sector",
+                        "Sin señal de Datos Móviles / Internet",
+                        "Problemas de Transporte",
+                        "Otro (Explicar en observación)"
+                    ])
+                    if incidencia_e != "Sin inconvenientes (Llegada tardía)":
+                        obs_e = st.text_input("Breve observación (Ej: Hora real de llegada):")
+                        motivo_entrada = f"INCIDENCIA: {incidencia_e} | {obs_e}"
+                    else:
+                        motivo_entrada = "Llegada Tardía"
 
-        # --- ESCENARIO B: YA MARCÓ ENTRADA, FALTA SALIDA ---
-        elif reg_hoy.iloc[0]['HORA_SALIDA'] == "-":
-            st.success(f"🟢 Entrada marcada a las: {reg_hoy.iloc[0]['HORA_LLEGADA']}")
-            tipo_s = st.selectbox("Estatus de salida:", ["Salida Normal", "Trabajo Extra (Suma de Méritos)"])
-            foto_s = st.camera_input("📸 Tomar Foto de Salida")
-            if foto_s:
-                if st.button("🏁 Finalizar Jornada"):
-                    with st.spinner("Subiendo foto de salida..."):
-                        url_sal = subir_a_imgbb(foto_s)
-                        if url_sal:
+                foto_ent = st.camera_input("📸 Foto de Entrada (Presencia)")
+                if foto_ent and st.button("🚀 Confirmar Entrada"):
+                    with st.spinner("Subiendo evidencia..."):
+                        url_e = subir_a_imgbb(foto_ent)
+                        if url_e:
+                            h_ent_sistema = ahora_ve().strftime('%I:%M %p')
                             res = registrar_asistencia_biometrica(
-                                st.session_state.u['NOMBRE'], "ASISTENCIA", "-", 
-                                ahora_ve().strftime('%I:%M %p'), "-", url_sal, tipo_s, "-"
+                                st.session_state.u['NOMBRE'], "ASISTENCIA", h_ent_sistema, "-", 
+                                url_e, "-", motivo_entrada, "ENTRADA_REVISAR" if es_entrada_tardia else "-"
                             )
-                            st.balloons()
-                            st.success("✅ Jornada cerrada. ¡Feliz tarde!")
-                            time.sleep(3)
-                            # REDIRECCIÓN AL HOME
-                            st.session_state.pagina_actual = "HOME"
-                            st.rerun()
-        else:
-            st.info("✅ Ya has completado tu asistencia y salida por hoy.")
-            if st.button("⬅️ Volver al Inicio"):
-                st.session_state.pagina_actual = "HOME"
-                st.rerun()
+                            st.success(f"✅ Entrada enviada. Marcado: {h_ent_sistema}")
+                            time.sleep(3); st.session_state.pagina_actual = "HOME"; st.rerun()
 
+            elif status == "❌ No Asistí":
+                motivo_i = st.text_area("Justificativo:")
+                if st.button("📤 Enviar Reporte"):
+                    an = generar_respuesta([{"role":"user","content":f"¿Es salud? '{motivo_i}'"}], 0.1)
+                    alerta = "⚠️ Presentar justificativo médico." if "ALERTA_SALUD" in an else "-"
+                    registrar_asistencia_biometrica(st.session_state.u['NOMBRE'], "INASISTENCIA", "-", "-", "-", "-", motivo_i, alerta)
+                    st.warning("✅ Inasistencia reportada."); time.sleep(2); st.session_state.pagina_actual = "HOME"; st.rerun()
+
+        # --- ESCENARIO B: REGISTRO DE SALIDA ---
+        elif reg_hoy.iloc[0]['HORA_SALIDA'] == "-":
+            st.success(f"🟢 Entrada registrada a las: {reg_hoy.iloc[0]['HORA_ENTRADA']}")
+            
+            # Detectar si es salida fuera de tiempo (ejemplo: después de la 1:45 PM)
+            es_salida_fuera_hora = hora_actual.hour >= 14
+            
+            motivo_salida = ""
+            if es_salida_fuera_hora:
+                st.warning("⚠️ **Registro de Salida fuera de hora:**")
+                incidencia_s = st.selectbox("Motivo del retraso en el registro:", [
+                    "Corte Eléctrico / Sin Luz",
+                    "Sin Datos Móviles / Falla de Red",
+                    "Olvidé marcar al salir",
+                    "Actividad Extra-Cátedra prolongada"
+                ])
+                obs_s = st.text_input("Hora real de salida (según libro físico):")
+                motivo_salida = f"SALIDA TARDÍA: {incidencia_s} | Hora Real: {obs_s}"
+            else:
+                tipo_s = st.selectbox("Estatus jornada:", ["Salida Normal", "Trabajo Extra (Mérito)"])
+                motivo_salida = tipo_s
+
+            foto_sal = st.camera_input("📸 Foto de Salida (Evidencia)")
+            if foto_sal and st.button("🏁 Finalizar Jornada"):
+                with st.spinner("Subiendo evidencia..."):
+                    url_s = subir_a_imgbb(foto_sal)
+                    if url_s:
+                        h_sal_sistema = ahora_ve().strftime('%I:%M %p')
+                        res = registrar_asistencia_biometrica(
+                            st.session_state.u['NOMBRE'], "ASISTENCIA", "-", h_sal_sistema, 
+                            "-", url_s, motivo_salida, "SALIDA_REVISAR" if es_salida_fuera_hora else "-"
+                        )
+                        st.balloons()
+                        st.success(f"✅ Jornada cerrada a las {h_sal_sistema}")
+                        time.sleep(3); st.session_state.pagina_actual = "HOME"; st.rerun()
+        else:
+            st.info("✅ Registro del día completado.")
+            if st.button("⬅️ Volver"): st.session_state.pagina_actual = "HOME"; st.rerun()
     # -------------------------------------------------------------------------
     # VISTA: PLANIFICADOR INTELIGENTE (ORIGINAL PRESERVADA)
     # -------------------------------------------------------------------------
