@@ -756,7 +756,7 @@ else:
             st.info("✅ Registro del día completado.")
             if st.button("⬅️ Volver"): st.session_state.pagina_actual = "HOME"; st.rerun()
  # -------------------------------------------------------------------------
-    # VISTA: PLANIFICADOR INTELIGENTE (VERSIÓN 6.1 - ESPECIALIDAD TALLER + P.E.I.)
+    # VISTA: PLANIFICADOR INTELIGENTE (VERSIÓN 6.2 - ESTRUCTURA NACIONAL BOLIVARIANA)
     # -------------------------------------------------------------------------
     elif opcion == "🧠 PLANIFICADOR INTELIGENTE":
         st.markdown("**Generación de Planificación Pedagógica Especializada**")
@@ -774,69 +774,71 @@ else:
                 "Educación Inicial (Preescolar)"
             ])
         
-        # CAMBIO: Si es TALLER, se pide el área específica
         aula_especifica = ""
         if modalidad == "Taller de Educación Laboral (T.E.L.)":
             aula_especifica = st.text_input("Especifique el Taller / Aula:", 
-                                            placeholder="Ej: Carpintería, Mantenimiento, Cocina, Jardinería...")
+                                            placeholder="Ej: Carpintería, Cocina, Jardinería...")
         
         is_pei = st.checkbox("🎯 ¿Planificación Individualizada (P.E.I.)?")
         
         perfil_alumno = ""
         if is_pei:
-            perfil_alumno = st.text_area("Descripción del Alumno (Fortalezas, Retos y Diagnóstico):", 
-                                        placeholder="Indique perfil detallado para la atención individualizada...")
+            perfil_alumno = st.text_area("Perfil del Alumno (Potencialidades y Necesidades):", 
+                                        placeholder="Describa brevemente al estudiante...")
         
-        notas = st.text_area("Tema Generador / Proyecto / Notas del Día:", height=100)
+        notas = st.text_area("Tema Generador / Referente Ético / Notas:", height=100)
 
-        if st.button("🚀 Generar Planificación", type="primary"):
+        if st.button("🚀 Generar Planificación Estructurada", type="primary"):
             if rango and notas:
-                # Validaciones de campos obligatorios según elección
                 if is_pei and not perfil_alumno:
-                    st.error("⚠️ Para una planificación P.E.I. es obligatorio describir el perfil del alumno.")
+                    st.error("⚠️ Para P.E.I. debe describir el perfil.")
                 elif modalidad == "Taller de Educación Laboral (T.E.L.)" and not aula_especifica:
-                    st.error("⚠️ Por favor, especifique el nombre del Taller (Ej: Carpintería).")
+                    st.error("⚠️ Especifique el área del Taller.")
                 else:
-                    with st.spinner('Construyendo planificación técnica...'):
-                        # Ajuste de contexto pedagógico
-                        contexto_oficio = f" del área de {aula_especifica}" if aula_especifica else ""
-                        st.session_state.temp_tema = f"{modalidad}{contexto_oficio} - {notas}"
+                    with st.spinner('Estructurando planificación bajo lineamientos del MPPE...'):
+                        contexto_aula = f" del área de {aula_especifica}" if aula_especifica else ""
+                        st.session_state.temp_tema = f"{modalidad}{contexto_aula} - {notas}"
                         
-                        if is_pei:
-                            rol_contexto = f"Actúa como Especialista de {modalidad}{contexto_oficio}. Diseña una intervención individualizada (P.E.I.) para este perfil: {perfil_alumno}."
-                        else:
-                            rol_contexto = f"Actúa como docente de {modalidad}{contexto_oficio}. Diseña una planificación grupal acorde a la modalidad."
+                        tipo_plan = "P.E.I. (Individualizada)" if is_pei else "Grupal"
                         
                         prompt = f"""
-                        CONTEXTO: {rol_contexto}
+                        ERES UN EXPERTO PEDAGOGO.
+                        Genera una: 📝 **Planificación Sugerida (Currículo Nacional Bolivariano)**
+                        MODALIDAD: {modalidad}{contexto_aula}.
+                        TIPO: {tipo_plan}.
+                        LAPSO: {rango}.
                         TEMA: {notas}.
-                        FECHA: {rango}.
+                        {f'PERFIL ALUMNO: {perfil_alumno}' if is_pei else ''}
+
+                        REGLAS CRÍTICAS DE FORMATO:
+                        1. CADA PUNTO (1 AL 7) DEBE EMPEZAR EN UNA LÍNEA NUEVA. 
+                        2. PROHIBIDO ESCRIBIR LOS PUNTOS SEGUIDOS EN EL MISMO PÁRRAFO.
+                        3. USA UN SALTO DE LÍNEA DOBLE ENTRE CADA SECCIÓN.
                         
-                        INSTRUCCIÓN: Genera la planificación siguiendo el Currículo Nacional Bolivariano.
+                        PARA CADA DÍA SIGUE ESTE MODELO EXACTO:
                         
-                        REGLAS DE ORO:
-                        1. Competencias Técnicas completas (VERBO + OBJETO + CONDICIÓN).
-                        2. Actividades 100% vivenciales y prácticas relacionadas estrictamente con {modalidad}{contexto_oficio}.
+                        ### [DÍA Y FECHA]
+                        **1. TÍTULO LÚDICO:** (Nombre creativo de la actividad)
                         
-                        REGLAS DE FORMATO VISUAL (OBLIGATORIO):
-                        - Usa **Negritas** exclusivamente para los títulos de cada sección.
-                        - Deja doble espacio (doble salto de línea) entre cada uno de los 7 puntos.
+                        **2. COMPETENCIA TÉCNICA:** (Acción + Objeto + Condición)
                         
-                        ESTRUCTURA VERTICAL:
-                        ### [DÍA]
-                        **1. TÍTULO LÚDICO**
-                        **2. COMPETENCIA TÉCNICA**
-                        **3. EXPLORACIÓN (Inicio)**
-                        **4. DESARROLLO (Proceso)**
-                        **5. REFLEXIÓN (Cierre)**
-                        **6. ESTRATEGIAS**
-                        **7. RECURSOS**
+                        **3. EXPLORACIÓN (Inicio):** (Actividad vivencial)
+                        
+                        **4. DESARROLLO (Proceso):** (Manos a la obra)
+                        
+                        **5. REFLEXIÓN (Cierre):** (Intercambio de saberes)
+                        
+                        **6. ESTRATEGIAS:** (Cómo se enseñará)
+                        
+                        **7. RECURSOS:** (Materiales concretos)
+                        
+                        ---------------------------------------------------
                         """
                         
                         st.session_state.plan_actual = generar_respuesta([
                             {"role":"system","content":INSTRUCCIONES_TECNICAS},
                             {"role":"user","content":prompt}
-                        ], 0.6)
+                        ], 0.5) # Temperatura más baja para ser más preciso y menos "emocionado"
                         st.rerun()
 
     # -------------------------------------------------------------------------
