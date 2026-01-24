@@ -220,62 +220,63 @@ import requests
 import json
 
 def subir_evidencia_drive(archivo_foto, nombre_archivo):
-    """Sube la foto a Drive usando Token directo y Requests para evitar errores 400."""
+    """Sube la foto a Drive en dos pasos atómicos para garantizar éxito."""
     try:
-        # 1. Obtener Token de Acceso (Usando lo que ya funciona en tu App)
+        # 1. Obtener Token de Acceso
         from google.auth.transport.requests import Request
         from google.oauth2 import service_account
         
         info_gs = st.secrets["connections"]["gsheets"]
-        # Limpiar llave privada
         pk = info_gs["private_key"].replace("\\n", "\n") if "\\n" in info_gs["private_key"] else info_gs["private_key"]
         
-        # Crear credenciales solo para el archivo
         creds = service_account.Credentials.from_service_account_info(
             info_gs, 
-            scopes=['https://www.googleapis.com/auth/drive.file']
+            scopes=['https://www.googleapis.com/auth/drive']
         )
-        
-        # Forzar la generación del Token
         creds.refresh(Request())
         token = creds.token
+        headers = {"Authorization": f"Bearer {token}"}
 
-        # 2. Preparar la imagen comprimida
+        # 2. Comprimir imagen
         foto_ready = comprimir_imagen(archivo_foto).getvalue()
 
-        # 3. Metadatos del archivo
-        metadata = {
-            "name": nombre_archivo,
-            "parents": [ID_CARPETA_DRIVE.strip()]
+        # 3. PASO 1: SUBIDA SIMPLE (Solo el contenido de la imagen)
+        # Usamos 'uploadType=media' que es el método más básico y menos propenso a errores 400
+        url_media = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media"
+        headers_media = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "image/jpeg"
         }
         
-        # 4. Construir la petición MULTIPART manualmente (Esto es lo que evita el error 400)
-        files = {
-            'data': ('metadata', json.dumps(metadata), 'application/json; charset=UTF-8'),
-            'file': ('image/jpeg', foto_ready)
-        }
-
-        headers = {"Authorization": f"Bearer {token}"}
+        res_subida = requests.post(url_media, headers=headers_media, data=foto_ready)
         
-        # 5. Envío a Google
-        url_upload = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
-        response = requests.post(url_upload, headers=headers, files=files)
-        
-        if response.status_code == 200:
-            file_id = response.json().get("id")
+        if res_subida.status_code == 200:
+            file_id = res_subida.json().get("id")
             
-            # 6. Dar permisos de lectura (Para que el Director vea la foto)
-            url_permisos = f"https://www.googleapis.com/drive/v3/files/{file_id}/permissions"
-            requests.post(url_permisos, headers=headers, json={"type": "anyone", "role": "viewer"})
+            # 4. PASO 2: ACTUALIZAR METADATOS (Poner nombre y mover a carpeta)
+            # Ahora que el archivo ya existe, le decimos cómo se llama y dónde va
+            url_meta = f"https://www.googleapis.com/drive/v3/files/{file_id}?addParents={ID_CARPETA_DRIVE.strip()}"
+            metadata = {
+                "name": nombre_archivo
+            }
+            requests.patch(url_meta, headers=headers, json=metadata)
             
-            # 7. Obtener el link final
+            # 5. PASO 3: PERMISOS (Hacerlo público)
+            url_perm = f"https://www.googleapis.com/drive/v3/files/{file_id}/permissions"
+            requests.post(url_perm, headers=headers, json={"type": "anyone", "role": "viewer"})
+            
+            # 6. OBTENER LINK
             url_info = f"https://www.googleapis.com/drive/v3/files/{file_id}?fields=webViewLink"
             res_info = requests.get(url_info, headers=headers)
             
             return res_info.json().get("webViewLink")
         else:
-            st.error(f"Google rechazó la foto: {response.text}")
+            st.error(f"Falla en subida simple: {res_subida.text}")
             return None
+
+    except Exception as e:
+        st.error(f"Error en el proceso Drive: {e}")
+        return None
 
     except Exception as e:
         st.error(f"Error en el proceso de Drive: {e}")
