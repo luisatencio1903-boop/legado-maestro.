@@ -810,7 +810,7 @@ else:
             st.info("✅ Registro completo.")
             if st.button("Volver"): st.session_state.pagina_actual="HOME"; st.rerun()
 # -------------------------------------------------------------------------
-    # VISTA: PLANIFICADOR INTELIGENTE (ESTRUCTURA ORIGINAL + CORRECCIÓN DE FLUJO)
+    # VISTA: PLANIFICADOR INTELIGENTE (MODALIDADES + PEI + SINÓNIMOS)
     # -------------------------------------------------------------------------
     elif opcion == "🧠 PLANIFICADOR INTELIGENTE":
         st.markdown("**Generación de Planificación Pedagógica Especializada**")
@@ -819,7 +819,7 @@ else:
         with col1:
             rango = st.text_input("Lapso (Fechas):", placeholder="Ej: 26 al 30 de Enero")
         with col2:
-            # TU SELECTOR DE MODALIDADES ORIGINAL
+            # TU SELECTOR DE MODALIDADES (ESTRUCTURA ORIGINAL)
             modalidad = st.selectbox("Modalidad / Servicio:", [
                 "Taller de Educación Laboral (T.E.L.)",
                 "Instituto de Educación Especial (I.E.E.B.)",
@@ -839,7 +839,7 @@ else:
         perfil_alumno = ""
         if is_pei:
             perfil_alumno = st.text_area("Perfil del Alumno (Potencialidades y Necesidades):", 
-                                        placeholder="Describa brevemente al estudiante...")
+                                        placeholder="Ej: Estudiante con autismo, aprendizaje visual, requiere apoyo físico...")
         
         notas = st.text_area("Tema Generador / Referente Ético / Notas:", height=100)
 
@@ -852,13 +852,13 @@ else:
                 elif modalidad == "Taller de Educación Laboral (T.E.L.)" and not aula_especifica:
                     st.error("⚠️ Especifique el área del Taller.")
                 else:
-                    with st.spinner('Estructurando planificación bajo lineamientos del MPPE...'):
+                    with st.spinner('Redactando estrategias con variedad léxica...'):
                         contexto_aula = f" del área de {aula_especifica}" if aula_especifica else ""
                         st.session_state.temp_tema = f"{modalidad}{contexto_aula} - {notas}"
                         
                         tipo_plan = "P.E.I. (Individualizada)" if is_pei else "Grupal"
                         
-                        # TU PROMPT ORIGINAL "LUNES DE HIERRO"
+                        # PROMPT CON LA REGLA DE SINÓNIMOS AÑADIDA
                         prompt = f"""
                         ERES UN EXPERTO PEDAGOGO VENEZOLANO.
                         ENCABEZADO OBLIGATORIO: 
@@ -868,12 +868,18 @@ else:
                         {(f"PERFIL ALUMNO: {perfil_alumno}" if is_pei else "")}
                         ---
 
+                        REGLAS DE REDACCIÓN (ANTI-ROBOT):
+                        1. **VARIEDAD LÉXICA (OBLIGATORIO):** NO empieces todos los días igual.
+                           - NO uses siempre "Invitamos a".
+                           - USA SINÓNIMOS: "Damos inicio", "Exploramos hoy", "Manos a la obra", "Nos reunimos para", "Jugamos a", "Descubrimos".
+                        2. **ACTIVIDADES VIVENCIALES:** Nada abstracto. Todo debe ser práctico (Recortar, limpiar, pintar, ordenar).
+                        3. **COMPETENCIAS TÉCNICAS:** Usa la estructura (Acción + Objeto + Condición).
+
                         INSTRUCCIÓN DE TIEMPO:
-                        Ignora que hoy es sábado o domingo. La planificación DEBE comenzar obligatoriamente por el día **LUNES** y terminar el **VIERNES** del lapso {rango}.
+                        La planificación DEBE comenzar por el día **LUNES** y terminar el **VIERNES** del lapso {rango}.
 
                         ESTRUCTURA TÉCNICA (OBLIGATORIA PARA CADA DÍA):
-                        Usa una lista vertical rígida. No amontones los puntos. 
-                        Deja un doble salto de línea antes de empezar cada número.
+                        Usa una lista vertical rígida. Deja doble salto de línea entre puntos.
 
                         ### [DÍA Y FECHA]
                         
@@ -881,7 +887,7 @@ else:
                         
                         **2. COMPETENCIA TÉCNICA:** (Verbo + Objeto + Condición)
                         
-                        **3. EXPLORACIÓN (Inicio):** (Dinámica inicial)
+                        **3. EXPLORACIÓN (Inicio):** (Dinámica inicial variada)
                         
                         **4. DESARROLLO (Proceso):** (Actividad vivencial central)
                         
@@ -896,16 +902,16 @@ else:
                         REPETIR ESTA ESTRUCTURA PARA LUNES, MARTES, MIÉRCOLES, JUEVES Y VIERNES.
                         """
                         
-                        # Generamos y guardamos en memoria (SIN RERUN AQUI)
+                        # Generamos y guardamos (SIN RERUN)
                         st.session_state.plan_actual = generar_respuesta([
                             {"role":"system","content":INSTRUCCIONES_TECNICAS},
                             {"role":"user","content":prompt}
-                        ], 0.4)
+                        ], 0.5)
                         
             else:
                 st.error("⚠️ Por favor ingrese el Lapso y el Tema.")
 
-    # --- VISUALIZACIÓN Y GUARDADO (FUERA DEL BOTÓN PARA QUE NO DESAPAREZCA) ---
+    # --- VISUALIZACIÓN Y GUARDADO ---
     if st.session_state.plan_actual and opcion == "🧠 PLANIFICADOR INTELIGENTE":
         st.divider()
         st.success("✅ **Planificación Generada**")
@@ -917,7 +923,7 @@ else:
                 try:
                     df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
                     t = st.session_state.get('temp_tema', 'Planificación')
-                    # Usamos ahora_ve()
+                    
                     row = pd.DataFrame([{
                         "FECHA": ahora_ve().strftime("%d/%m/%Y"), 
                         "USUARIO": st.session_state.u['NOMBRE'], 
