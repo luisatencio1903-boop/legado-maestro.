@@ -1064,61 +1064,7 @@ else:
                     st.session_state.plan_actual = ""
                     st.rerun()
 
-        # =============================================================================
-        # 5. BLOQUE DE VISUALIZACIÓN (ESTO VA AFUERA DEL BOTÓN, AL FINAL)
-        # =============================================================================
-        # Este bloque verifica si hay un plan en la memoria y lo muestra
-        if st.session_state.plan_actual:
-            st.divider()
-            st.success("✅ **Planificación Generada Exitosamente**")
-            
-            # Caja visual del plan
-            st.markdown(f"""
-            <div style="border: 1px solid #ddd; padding: 20px; border-radius: 10px; background-color: #f9f9f9;">
-                {st.session_state.plan_actual}
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.divider()
-            
-            # --- BOTONES DE ACCIÓN FINAL ---
-            col_guardar, col_borrar = st.columns([1, 1])
-            
-            with col_guardar:
-                if st.button("💾 Guardar en Mi Archivo Pedagógico", key="btn_guardar_final"):
-                    try:
-                        with st.spinner("Guardando en tu portafolio..."):
-                            # Leemos historial
-                            df_historia = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
-                            
-                            # Recuperamos el tema temporal o usamos uno por defecto
-                            tema_guardar = st.session_state.get('temp_tema', notas)
-                            
-                            # Creamos el registro
-                            nuevo_registro = pd.DataFrame([{
-                                "FECHA": pd.Timestamp.now().strftime("%d/%m/%Y"), 
-                                "USUARIO": st.session_state.u['NOMBRE'], 
-                                "TEMA": tema_guardar[:50] + "...", 
-                                "CONTENIDO": st.session_state.plan_actual, 
-                                "ESTADO": "GUARDADO", 
-                                "HORA_INICIO": "--", "HORA_FIN": "--"
-                            }])
-                            
-                            # Guardamos
-                            conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=pd.concat([df_historia, nuevo_registro], ignore_index=True))
-                            
-                            st.success("¡Guardado en tu Archivo!")
-                            time.sleep(1.5)
-                            # Limpiamos la memoria para una nueva planificación
-                            st.session_state.plan_actual = ""
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al guardar: {e}")
-
-            with col_borrar:
-                if st.button("🗑️ Descartar y Crear Nueva", type="secondary", key="btn_descartar"):
-                    st.session_state.plan_actual = ""
-                    st.rerun()
+      
 # -------------------------------------------------------------------------
     # VISTA: AULA VIRTUAL (v11.2 - SINCRONIZACIÓN DE NOMBRES)
     # -------------------------------------------------------------------------
