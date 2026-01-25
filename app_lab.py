@@ -812,7 +812,7 @@ elif status == "❌ No Asistí":
 
             foto_sal = st.camera_input("📸 Foto de Verificación (Evidencia de Salida)")
             
-      if foto_sal:
+if foto_sal:
                 if st.button("🏁 Finalizar Jornada"):
                     with st.spinner("Procesando registro..."):
                         h_sistema = ahora_ve().strftime('%I:%M %p')
@@ -838,7 +838,7 @@ elif status == "❌ No Asistí":
                         time.sleep(3)
                         st.session_state.pagina_actual = "HOME"
                         st.rerun()
-        else:
+else:
             st.info("✅ Registro del día completado.")
             if st.button("⬅️ Volver"):
                 st.session_state.pagina_actual = "HOME"
