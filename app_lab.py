@@ -1190,7 +1190,7 @@ else:
 
         # 1. LEER LA HOJA DE GOOGLE SHEETS
         try:
-            df_proy = conn.read(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", ttl=0)
+            df_proy = conn.read(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", ttl=60)
             mi_proy = df_proy[df_proy['USUARIO'] == st.session_state.u['NOMBRE']]
         except Exception as e:
             st.error(f"Error de conexión con la Base de Datos: {e}")
