@@ -875,94 +875,119 @@ else:
         
         notas = st.text_area("Tema Generador / Referente Ético / Notas:", height=100)
 
-       # BOTÓN DE GENERACIÓN (FUSIÓN: ADAPTACIÓN MODAL + FORMATO ESTRICTO)
+      # =============================================================================
+        # BOTÓN MAESTRO: GENERACIÓN HÍBRIDA (PROYECTO + MANUAL + VALIDACIONES)
+        # =============================================================================
         if st.button("🚀 Generar Planificación Estructurada", type="primary"):
-            # Validaciones
-            if rango and notas:
-                if is_pei and not perfil_alumno:
-                    st.error("⚠️ Para P.E.I. debe describir el perfil.")
-                elif modalidad == "Taller de Educación Laboral (T.E.L.)" and not aula_especifica:
-                    st.error("⚠️ Especifique el área del Taller.")
-                else:
-                    with st.spinner('Analizando modalidad y adaptando vocabulario técnico...'):
-                        
-                        # 1. CEREBRO DE ADAPTACIÓN MODAL (Vocabulario específico)
-                        vocabulario_sugerido = ""
-                        tono_redaccion = ""
-                        
-                        if "Inicial" in modalidad:
-                            tono_redaccion = "AFECTIVO, LÚDICO Y MATERNAL. Todo es a través del juego."
-                            vocabulario_sugerido = "- INICIO: Cantamos, La ronda, La caja mágica, Títeres.\n- DESARROLLO: Rasgamos, Pintamos, Exploramos texturas.\n- CIERRE: Canción de guardar, Abrazos."
-                        elif "Taller" in modalidad:
-                            tono_redaccion = "TÉCNICO, PRE-PROFESIONAL Y PRODUCTIVO. Enfoque en el oficio."
-                            vocabulario_sugerido = "- INICIO: Normas de seguridad, Organización del puesto.\n- DESARROLLO: Lijamos, Medimos, Ensamblamos, Sembramos, Reparamos.\n- CIERRE: Limpieza del taller, Control de calidad."
-                        elif "Aula Integrada" in modalidad or "U.P.E." in modalidad:
-                            tono_redaccion = "PSICO-EDUCATIVO Y REMEDIAL."
-                            vocabulario_sugerido = "- INICIO: Gimnasia cerebral, Lectura motivadora.\n- DESARROLLO: Leemos, Escribimos, Calculamos, Asociamos.\n- CIERRE: Autocorrección, Refuerzo positivo."
-                        elif "Autismo" in modalidad or "C.A.I.P.A." in modalidad:
-                            tono_redaccion = "ESTRUCTURADO, VISUAL Y ANTICIPADO."
-                            vocabulario_sugerido = "- INICIO: Agenda visual, Anticipación.\n- DESARROLLO: Clasificamos, Seriamos, Encajamos, Trabajamos en mesa.\n- CIERRE: Guardado estructurado."
-                        else: 
-                            tono_redaccion = "SENSORIAL, HÁBITOS Y VIDA DIARIA."
-                            vocabulario_sugerido = "- INICIO: Rutina de saludo, Reconocimiento del cuerpo.\n- DESARROLLO: Estimulación sensorial, Higiene, Vestido.\n- CIERRE: Aseo, Merienda compartida."
-
-                        # 2. PREPARACIÓN DE VARIABLES
-                        contexto_aula = f" del área de {aula_especifica}" if aula_especifica else ""
-                        st.session_state.temp_tema = f"{modalidad}{contexto_aula} - {notas}"
-                        tipo_plan = "P.E.I. (Individualizada)" if is_pei else "Grupal"
-                        
-                        # 3. EL PROMPT MAESTRO (INTEGRADO)
-                        prompt = f"""
-                        ERES UN EXPERTO EN EL CURRÍCULO NACIONAL BOLIVARIANO (VENEZUELA).
-                        
-                        CONTEXTO: {modalidad}{contexto_aula}.
-                        TEMA: {notas}.
-                        TIPO: {tipo_plan}. {(f"PERFIL ALUMNO: {perfil_alumno}" if is_pei else "")}
-                        
-                        INSTRUCCIONES DE ADAPTACIÓN (CRÍTICO):
-                        - Tono: {tono_redaccion}
-                        - Vocabulario Sugerido: {vocabulario_sugerido}
-                        
-                        🚨 **CORRECCIONES OBLIGATORIAS DE FORMATO Y PEDAGOGÍA:**
-                        
-                        1. **TÍTULO LÚDICO:** Escribe SOLO el nombre corto y llamativo. (Ej: "LOS COLORES MÁGICOS"). NO escribas la descripción al lado.
-                        2. **COMPETENCIA TÉCNICA:** Usa la estructura (Verbo Infinitivo + Contenido + Condición).
-                        3. **ESTRATEGIAS (IMPORTANTE):** Debes usar TÉCNICAS DOCENTES REALES.
-                           - Ejemplos válidos: Lluvia de ideas, Preguntas generadoras, Discusión socializada, Modelado docente, Práctica guiada, Dramatización, Trabajo cooperativo.
-                           - NO describas la actividad en este punto. Solo nombra la técnica.
-                        
-                        ESTRUCTURA DE SALIDA (Usa doble espacio entre líneas):
-
-                        ### [DÍA Y FECHA]
-                        
-                        **1. TÍTULO LÚDICO:** [Solo el Nombre]
-                        
-                        **2. COMPETENCIA TÉCNICA:** [Redacción completa]
-                        
-                        **3. EXPLORACIÓN (Inicio):** [Dinámica de motivación usando el vocabulario sugerido]
-                        
-                        **4. DESARROLLO (Proceso):** [Actividad central práctica paso a paso]
-                        
-                        **5. REFLEXIÓN (Cierre):** [Socialización de lo aprendido]
-                        
-                        **6. ESTRATEGIAS:** [Técnicas usadas]
-                        
-                        **7. RECURSOS:** [Materiales físicos]
-                        
-                        ---------------------------------------------------
-                        
-                        Genera la planificación para LUNES, MARTES, MIÉRCOLES, JUEVES Y VIERNES del lapso {rango}.
-                        """
-                        
-                        # 4. GENERACIÓN
-                        st.session_state.plan_actual = generar_respuesta([
-                            {"role":"system","content":INSTRUCCIONES_TECNICAS},
-                            {"role":"user","content":prompt}
-                        ], 0.6)
-                        st.rerun()
-                        
-            else:
+            
+            # 1. VALIDACIONES DE SEGURIDAD (CONSERVANDO TU LÓGICA ANTIGUA)
+            if not rango or not notas:
                 st.error("⚠️ Por favor ingrese el Lapso y el Tema.")
+            elif is_pei and not perfil_alumno:
+                st.error("⚠️ Para P.E.I. debe describir el perfil del alumno.")
+            elif modalidad == "Taller de Educación Laboral (T.E.L.)" and not aula_especifica:
+                st.error("⚠️ Especifique el área del Taller.")
+            else:
+                with st.spinner('Conectando con el Cerebro Pedagógico y la Base de Datos...'):
+                    
+                    # 2. RECUPERAR DATOS DEL PROYECTO (NUEVA LÓGICA)
+                    texto_instruccion_proyecto = ""
+                    etiqueta_titulo_dinamica = "TÍTULO DE LA ACTIVIDAD" # Default
+                    
+                    try:
+                        # Leemos la hoja de configuración
+                        df_p = conn.read(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", ttl=60)
+                        # Buscamos al usuario actual
+                        user_p = df_p[df_p['USUARIO'] == st.session_state.u['NOMBRE']]
+                        
+                        if not user_p.empty and str(user_p.iloc[0]['ACTIVO']) == "TRUE":
+                            # ¡HAY PROYECTO ACTIVO!
+                            fila = user_p.iloc[0]
+                            servicio = fila['SERVICIO']
+                            pa = fila['NOMBRE_PA']
+                            psp = fila['NOMBRE_PSP']
+                            fase = fila['FASE_ACTUAL']
+                            dias_prod = str(fila['DIAS_PSP'])
+                            
+                            # Lógica de Etiquetas según Servicio
+                            if "Taller" in servicio:
+                                etiqueta_titulo_dinamica = "TÍTULO (P.A. o P.S.P.)"
+                                texto_instruccion_proyecto = f"""
+                                🚨 **MODO TALLER LABORAL ACTIVO:**
+                                - P.A. (Aula): "{pa}" | P.S.P. (Taller): "{psp}"
+                                - FASE: {fase} | DÍAS PRÁCTICOS: {dias_prod}
+                                INSTRUCCIÓN: Si el día es {dias_prod}, planifica PRÁCTICA DEL P.S.P. Si no, planifica TEORÍA DEL P.A. o TEMA MANUAL.
+                                """
+                            elif "Aula Integrada" in servicio or "U.P.E." in servicio:
+                                etiqueta_titulo_dinamica = "LÍNEA DE ACCIÓN"
+                                texto_instruccion_proyecto = f"""
+                                🚨 **MODO ATENCIÓN ESPECIALIZADA:**
+                                - LÍNEA: "{pa}" | FASE: {fase}
+                                INSTRUCCIÓN: Centra todo en esta línea de acción correctiva.
+                                """
+                            else: # Inicial / IEEB
+                                etiqueta_titulo_dinamica = "TÍTULO LÚDICO DEL PROYECTO"
+                                texto_instruccion_proyecto = f"""
+                                🚨 **MODO PROYECTO DE APRENDIZAJE:**
+                                - PROYECTO: "{pa}" | MOMENTO: {fase}
+                                INSTRUCCIÓN: Planifica en base a este proyecto lúdico.
+                                """
+                        else:
+                            # MODO MANUAL PURO
+                            texto_instruccion_proyecto = "NO HAY PROYECTO ACTIVO. Planifica EXCLUSIVAMENTE basado en el TEMA MANUAL."
+                            etiqueta_titulo_dinamica = "TÍTULO DE LA CLASE"
+
+                    except Exception as e:
+                        texto_instruccion_proyecto = "Planifica basado en TEMA MANUAL (Sin conexión a proyectos)."
+
+                    # 3. CONSTRUCCIÓN DEL PROMPT (CONSERVANDO TUS REGLAS DE FORMATO)
+                    tipo_plan = "Individualizado (P.E.I.)" if is_pei else "Grupal"
+                    perfil_txt = f"PERFIL DEL ALUMNO: {perfil_alumno}" if is_pei else ""
+                    contexto_aula = f" del área de {aula_especifica}" if aula_especifica else ""
+                    
+                    prompt = f"""
+                    ERES UN EXPERTO EN PLANIFICACIÓN EDUCATIVA VENEZOLANA.
+                    
+                    CONTEXTO: {modalidad}{contexto_aula}.
+                    TEMA MANUAL: {notas}.
+                    TIPO: {tipo_plan} {perfil_txt}
+                    
+                    {texto_instruccion_proyecto}
+                    
+                    🚨 **REGLAS OBLIGATORIAS DE FORMATO Y PEDAGOGÍA (TU ESTÁNDAR DE CALIDAD):**
+                    
+                    1. **{etiqueta_titulo_dinamica}:** Escribe SOLO el nombre corto.
+                    2. **COMPETENCIA TÉCNICA:** Estructura OBLIGATORIA: Verbo Infinitivo + Contenido + Condición.
+                    3. **ESTRATEGIAS:** Usa SOLO TÉCNICAS REALES (Lluvia de ideas, Modelado docente, Práctica guiada, Trabajo cooperativo). NO describas la actividad aquí.
+                    
+                    ESTRUCTURA DE SALIDA (Doble espacio, Lunes a Viernes):
+
+                    ### [DÍA Y FECHA]
+                    
+                    **1. {etiqueta_titulo_dinamica}:** [Nombre]
+                    
+                    **2. COMPETENCIA TÉCNICA:** [Redacción Experta]
+                    
+                    **3. EXPLORACIÓN (Inicio):** [Dinámica motivadora / Revisión de conocimientos]
+                    
+                    **4. DESARROLLO (Proceso):** [Actividad central. Si es día de Taller Práctico, detalla el uso de herramientas con el Instructor. Si es Aula, detalla la mediación.]
+                    
+                    **5. REFLEXIÓN (Cierre):** [Socialización / Valoración del trabajo]
+                    
+                    **6. ESTRATEGIAS:** [Listado de técnicas]
+                    
+                    **7. RECURSOS:** [Materiales físicos y de provecho]
+                    
+                    ---------------------------------------------------
+                    Genera la planificación para el lapso: {rango}.
+                    """
+                    
+                    # 4. GENERACIÓN
+                    st.session_state.plan_actual = generar_respuesta([
+                        {"role":"system","content":INSTRUCCIONES_TECNICAS}, 
+                        {"role":"user","content":prompt}
+                    ], 0.6)
+                    st.rerun()
   # --- VISUALIZACIÓN Y GUARDADO (ESTO DEBE APARECER UNA SOLA VEZ) ---
     if st.session_state.plan_actual and opcion == "🧠 PLANIFICADOR INTELIGENTE":
         st.divider()
