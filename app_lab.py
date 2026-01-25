@@ -812,33 +812,32 @@ elif status == "❌ No Asistí":
 
             foto_sal = st.camera_input("📸 Foto de Verificación (Evidencia de Salida)")
             
-            if foto_sal:
+           if foto_sal:
                 if st.button("🏁 Finalizar Jornada"):
                     with st.spinner("Procesando registro..."):
-                        url_s = subir_a_imgbb(foto_sal)
-                        if url_s:
-                            h_sistema = ahora_ve().strftime('%I:%M %p')
-                           res = registrar_asistencia_v7(
-                                usuario=st.session_state.u['NOMBRE'], 
-                                tipo="ASISTENCIA", 
-                                hora_e="-", 
-                                hora_s=h_sistema, 
-                                foto_e="-", 
-                                foto_s=url_s, 
-                                motivo=motivo_salida, 
-                                alerta_ia="SALIDA_REVISAR" if es_fuera_de_horario else "-",
-                                puntos=10,      # <--- Nuevo: Puntos base de salida
-                                suplencia_a="-"  # <--- Nuevo: Espacio para suplencia
-                            )
-                            
-                            st.balloons()
-                            st.success(f"✅ Salida registrada a las {h_sistema}")
-                            if es_fuera_de_horario:
-                                st.info("📢 Su reporte fue enviado con alerta para validación del Director.")
-                            
-                            time.sleep(3)
-                            st.session_state.pagina_actual = "HOME"
-                            st.rerun()
+                        h_sistema = ahora_ve().strftime('%I:%M %p')
+                        # REGISTRO ACTUALIZADO v7.0
+                        res = registrar_asistencia_v7(
+                            usuario=st.session_state.u['NOMBRE'], 
+                            tipo="ASISTENCIA", 
+                            h_e="-", 
+                            h_s=h_sistema, 
+                            f_e="-", 
+                            f_s=url_s, 
+                            motivo=motivo_salida, 
+                            alerta_ia="SALIDA_REVISAR" if es_fuera_de_horario else "-",
+                            puntos=10,
+                            suplencia_a="-"
+                        )
+                        
+                        st.balloons()
+                        st.success(f"✅ Salida registrada a las {h_sistema}")
+                        if es_fuera_de_horario:
+                            st.info("📢 Su reporte fue enviado con alerta para validación del Director.")
+                        
+                        time.sleep(3)
+                        st.session_state.pagina_actual = "HOME"
+                        st.rerun()
         else:
             st.info("✅ Registro del día completado.")
             if st.button("⬅️ Volver"): 
