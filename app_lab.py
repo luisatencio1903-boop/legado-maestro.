@@ -1262,44 +1262,61 @@ else:
                 else:
                     st.caption("Estado: **PAUSADO**. Solo planificará por tema manual.")
 
-           # BOTÓN DE GUARDAR (CON ESPEJO LOCAL)
+          # BOTÓN DE GUARDAR (CON SEGURIDAD DE VARIABLES REFORZADA)
             if st.form_submit_button("💾 Guardar Configuración"):
                 
+                # 1. PREPARACIÓN DE DATOS
+                # Concatenamos Selector + Detalle para guardar un solo string robusto
                 fase_final_guardar = f"{fase_select} || Detalle: {detalle_fase}"
                 str_dias = ",".join(dias_psp) if es_taller else ""
                 str_activo = "TRUE" if activo else "FALSE"
                 
-                # 1. CREAR EL REGISTRO PARA SHEETS
-                nuevo_reg = pd.DataFrame([{
-                    "USUARIO": st.session_state.u['NOMBRE'],
-                    "SERVICIO": servicio_seleccionado,
-                    "NOMBRE_PA": nombre_pa,
-                    "NOMBRE_PSP": nombre_psp,
-                    "FASE_ACTUAL": fase_final_guardar,
-                    "DIAS_PSP": str_dias,
-                    "ACTIVO": str_activo
-                }])
-                
                 try:
-                    # 2. GUARDAR EN LA NUBE (Google Sheets)
-                    conn.update(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", data=pd.concat([df_clean, nuevo_reg], ignore_index=True))
-                    
-                    # 3. GUARDAR EN EL BOLSILLO (Session State) - ¡ESTA ES LA CLAVE!
-                    st.session_state['PROYECTO_LOCAL'] = {
-                        'ACTIVO': str_activo,
-                        'SERVICIO': servicio_seleccionado,
-                        'NOMBRE_PA': nombre_pa,
-                        'NOMBRE_PSP': nombre_psp,
-                        'FASE_ACTUAL': fase_final_guardar,
-                        'DIAS_PSP': str_dias
-                    }
-                    
-                    st.success("✅ ¡Configuración Guardada! (Sincronizada en Nube y Local)")
-                    time.sleep(1.5)
-                    st.rerun()
-                    
+                    with st.spinner("Guardando en la nube..."):
+                        # A. LECTURA DE SEGURIDAD (SOLUCIÓN AL ERROR ROJO)
+                        # Leemos de nuevo para asegurar que la variable exista dentro del botón
+                        df_seguridad = conn.read(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", ttl=0)
+                        
+                        # B. DEFINICIÓN SEGURA DE DF_CLEAN
+                        # Si la lectura falló o está vacía, creamos un marco vacío para no romper el código
+                        if df_seguridad is None or df_seguridad.empty:
+                            df_clean = pd.DataFrame(columns=["USUARIO", "SERVICIO", "NOMBRE_PA", "NOMBRE_PSP", "FASE_ACTUAL", "DIAS_PSP", "ACTIVO"])
+                        else:
+                            # Si hay datos, filtramos tu usuario para actualizarlo
+                            df_clean = df_seguridad[df_seguridad['USUARIO'] != st.session_state.u['NOMBRE']]
+                        
+                        # C. CREACIÓN DEL NUEVO REGISTRO
+                        nuevo_reg = pd.DataFrame([{
+                            "USUARIO": st.session_state.u['NOMBRE'],
+                            "SERVICIO": servicio_seleccionado,
+                            "NOMBRE_PA": nombre_pa,
+                            "NOMBRE_PSP": nombre_psp,
+                            "FASE_ACTUAL": fase_final_guardar,
+                            "DIAS_PSP": str_dias,
+                            "ACTIVO": str_activo
+                        }])
+                        
+                        # D. GUARDADO EN NUBE
+                        datos_finales = pd.concat([df_clean, nuevo_reg], ignore_index=True)
+                        conn.update(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", data=datos_finales)
+                        
+                        # E. GUARDADO EN BOLSILLO (SESSION STATE - Optimistic Update)
+                        # Esto mantiene el "check" activo aunque cambies de página
+                        st.session_state['PROYECTO_LOCAL'] = {
+                            'ACTIVO': str_activo,
+                            'SERVICIO': servicio_seleccionado,
+                            'NOMBRE_PA': nombre_pa,
+                            'NOMBRE_PSP': nombre_psp,
+                            'FASE_ACTUAL': fase_final_guardar,
+                            'DIAS_PSP': str_dias
+                        }
+                        
+                        st.success("✅ ¡Proyecto Guardado y Sincronizado!")
+                        time.sleep(1.5)
+                        st.rerun()
+                        
                 except Exception as e:
-                    st.error(f"Error al guardar: {e}")
+                    st.error(f"Error técnico al guardar: {e}")
    # -------------------------------------------------------------------------
     # VISTA: REGISTRO DE EVALUACIONES (v7.0 EXPEDIENTE COMPARTIDO)
     # -------------------------------------------------------------------------
