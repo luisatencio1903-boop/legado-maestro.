@@ -1,4 +1,4 @@
-# =============================================================================
+# ============================================================================
 # PROYECTO: LEGADO MAESTRO
 # VERSIÓN: 5.0 (EDICIÓN MAESTRA EXPANDIDA - HORA VENEZUELA + BIOMETRÍA)
 # FECHA: Enero 2026
@@ -1558,7 +1558,7 @@ else:
                                     conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_total_planes.drop(i)); st.rerun()
 
             # =================================================================
-            # PESTAÑA 2: BITÁCORA SEMANAL (NUEVA LÓGICA DE AGRUPACIÓN)
+            # PESTAÑA 2: BITÁCORA SEMANAL (FIX BOTÓN IA)
             # =================================================================
             with tab_consolidados:
                 st.write("### 📚 Bitácora de Clases Ejecutadas")
@@ -1567,31 +1567,26 @@ else:
                 if mis_logros.empty:
                     st.info("Aún no tienes actividades consolidadas.")
                 else:
-                    # 1. PROCESAMIENTO DE FECHAS PARA AGRUPAR
+                    # 1. PROCESAMIENTO DE FECHAS
                     try:
                         mis_logros['FECHA_DT'] = pd.to_datetime(mis_logros['FECHA'], dayfirst=True, errors='coerce')
-                        # Agrupamos por número de semana del año
                         mis_logros['SEMANA_NUM'] = mis_logros['FECHA_DT'].dt.isocalendar().week
                         mis_logros = mis_logros.sort_values('FECHA_DT', ascending=False)
                     except:
-                        st.error("Error procesando fechas. Mostrando lista simple.")
                         mis_logros['SEMANA_NUM'] = 0
 
-                    # 2. ITERAMOS POR SEMANA (AGRUPACIÓN VISUAL)
+                    # 2. ITERAMOS POR SEMANA
                     semanas_unicas = mis_logros['SEMANA_NUM'].unique()
                     
                     for sem in semanas_unicas:
-                        # Filtramos los datos de esta semana
                         datos_semana = mis_logros[mis_logros['SEMANA_NUM'] == sem]
-                        
-                        # Título del bloque semanal (Tomamos la fecha más reciente de esa semana)
                         fecha_ref = datos_semana.iloc[0]['FECHA']
                         cant_act = len(datos_semana)
                         
-                        # --- EL BLOQUE SEMANAL QUE PEDISTE ---
                         with st.expander(f"📂 SEMANA: {fecha_ref} (Actividades: {cant_act})", expanded=True):
                             
-                            for _, logro in datos_semana.iterrows():
+                            # USAMOS ENUMERATE PARA TENER UN ÍNDICE ÚNICO (i)
+                            for i, (_, logro) in enumerate(datos_semana.iterrows()):
                                 st.markdown(f"##### 🗓️ {logro['FECHA']} | {logro['ACTIVIDAD_TITULO']}")
                                 
                                 # A. FOTOS
@@ -1602,11 +1597,10 @@ else:
                                 with c2:
                                     if len(fotos) > 1 and fotos[1].strip() != "-": st.image(fotos[1].strip(), caption="Cierre", width=150)
 
-                                # B. RESUMEN DEL DOCENTE
+                                # B. RESUMEN
                                 st.info(f"**📝 Tu Resumen:** {logro['RESUMEN_LOGROS']}")
                                 
-                                # C. CRUCE CON ALUMNOS (LO NUEVO)
-                                # Buscamos las evaluaciones de ESE día específico
+                                # C. CRUCE CON ALUMNOS
                                 ev_dia = df_evaluaciones[
                                     (df_evaluaciones['FECHA'] == logro['FECHA']) & 
                                     (df_evaluaciones['USUARIO'] == st.session_state.u['NOMBRE'])
@@ -1616,31 +1610,34 @@ else:
                                     with st.expander(f"👥 Ver {len(ev_dia)} Evaluaciones de este día"):
                                         for _, e in ev_dia.iterrows():
                                             st.markdown(f"**• {e['ESTUDIANTE']}:** {e['EVALUACION_IA']}")
-                                            st.caption(f"*(Anecdota original: {e['ANECDOTA']})*")
+                                            st.caption(f"*(Anecdota: {e['ANECDOTA']})*")
                                             st.divider()
-                                else:
-                                    st.caption("⚠️ No se registraron evaluaciones individuales este día.")
 
-                                # D. ANÁLISIS IA (CONTEXTUALIZADO)
-                                if st.button("🧠 Analizar Jornada (IA)", key=f"ia_btn_{logro['FECHA']}_{random.randint(0,999)}"):
-                                    # Construimos un prompt con TODO el contexto
-                                    contexto_alumnos = ""
-                                    if not ev_dia.empty:
-                                        contexto_alumnos = "EVALUACIONES ALUMNOS: " + ev_dia['EVALUACION_IA'].str.cat(sep=" | ")
-                                    
-                                    prompt_analisis = f"""
-                                    Analiza esta jornada escolar completa.
-                                    ACTIVIDAD: {logro['ACTIVIDAD_TITULO']}.
-                                    RESUMEN DOCENTE: {logro['RESUMEN_LOGROS']}.
-                                    {contexto_alumnos}
-                                    
-                                    Dime:
-                                    1. ¿Qué se logró consolidar?
-                                    2. ¿Hubo alguna incidencia implícita?
-                                    3. Sugerencia para la próxima clase.
-                                    """
-                                    res_ia = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":prompt_analisis}], 0.5)
-                                    st.markdown(f'<div class="eval-box">{res_ia}</div>', unsafe_allow_html=True)
+                                # D. ANÁLISIS IA (LLAVE FIJA CORREGIDA)
+                                # Usamos la semana (sem) y el índice (i) para crear una llave única y fija
+                                key_unica = f"btn_ia_sem{sem}_item{i}"
+                                
+                                if st.button("🧠 Analizar Jornada (IA)", key=key_unica):
+                                    with st.spinner("La IA está leyendo tu bitácora..."):
+                                        contexto_alumnos = ""
+                                        if not ev_dia.empty:
+                                            contexto_alumnos = "EVALUACIONES ALUMNOS: " + ev_dia['EVALUACION_IA'].str.cat(sep=" | ")
+                                        
+                                        prompt_analisis = f"""
+                                        Analiza esta jornada escolar completa de Educación Especial.
+                                        ACTIVIDAD: {logro['ACTIVIDAD_TITULO']}.
+                                        RESUMEN DOCENTE: {logro['RESUMEN_LOGROS']}.
+                                        {contexto_alumnos}
+                                        
+                                        Genera un reporte breve con:
+                                        1. Logro consolidado.
+                                        2. Incidencias detectadas (si las hay).
+                                        3. Sugerencia pedagógica para la siguiente clase.
+                                        """
+                                        res_ia = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":prompt_analisis}], 0.5)
+                                        
+                                        # Mostramos el resultado
+                                        st.markdown(f'<div class="eval-box">{res_ia}</div>', unsafe_allow_html=True)
                                 
                                 st.markdown("---")
 
