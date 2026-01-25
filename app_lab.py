@@ -1067,7 +1067,7 @@ else:
 
       
 # -------------------------------------------------------------------------
-    # VISTA: AULA VIRTUAL (v12.1 - REPORTE PADRES + UX FINAL)
+    # VISTA: AULA VIRTUAL (v12.3 - REFINAMIENTO IA OPCIONAL)
     # -------------------------------------------------------------------------
     elif opcion == "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)":
         st.info("💡 **Centro de Operaciones:** Gestión integral de la clase.")
@@ -1098,6 +1098,9 @@ else:
             
         if 'av_titulo_hoy' not in st.session_state: st.session_state.av_titulo_hoy = ""
         if 'av_contexto_hoy' not in st.session_state: st.session_state.av_contexto_hoy = ""
+        
+        # Variable temporal para la propuesta de la IA (No se guarda en BD todavía)
+        if 'temp_propuesta_ia' not in st.session_state: st.session_state.temp_propuesta_ia = ""
 
         # 3. PESTAÑAS
         tab1, tab2, tab3 = st.tabs(["🚀 Ejecución y PEI", "📝 Evaluación Estudiantil", "🏁 Cierre y Méritos"])
@@ -1118,8 +1121,6 @@ else:
             st.subheader("📖 Guía de la Actividad")
             if clase_de_hoy:
                 st.markdown(f'<div class="plan-box">{clase_de_hoy}</div>', unsafe_allow_html=True)
-                
-                # Extracción 250 chars
                 try:
                     lineas = clase_de_hoy.split('\n')
                     t_temp = "Actividad del Día"
@@ -1164,7 +1165,7 @@ else:
                 st.image(st.session_state.av_foto1, width=200, caption="Inicio cargado")
                 if st.button("♻️ Repetir Foto 1", key="reset_f1_v11"): st.session_state.av_foto1 = None; st.rerun()
 
-        # --- PESTAÑA 2: EVALUACIÓN (CON REPORTE WHATSAPP) ---
+        # --- PESTAÑA 2: EVALUACIÓN (LÓGICA OPCIONAL REFINADA) ---
         with tab2:
             st.subheader("📝 Carga de Notas Individuales")
             if not alums:
@@ -1175,6 +1176,7 @@ else:
                 if st.button("🔍 Cargar Actividad de Hoy", key="btn_load_act_v11", type="primary"):
                     st.session_state.av_titulo_hoy = st.session_state.get('temp_titulo_extract', 'Actividad Manual')
                     st.session_state.av_contexto_hoy = st.session_state.get('temp_contexto_extract', 'Sin contexto.')
+                    st.session_state.temp_propuesta_ia = "" # Limpiamos memoria anterior
                     st.rerun() 
                 
                 st.write("")
@@ -1184,14 +1186,32 @@ else:
                 else:
                     st.info("Presiona el botón 'Cargar Actividad' para traer los datos.")
 
-                o_eval = st.text_area(f"Observación de {e_sel}:", placeholder="Escribe aquí el desempeño...", key="av_eval_obs_v11")
+                # INPUT DEL DOCENTE
+                o_eval = st.text_area(f"Tu Observación (Anecdótica):", placeholder="Escribe con tus propias palabras lo que hizo el estudiante...", key="av_eval_obs_v11")
                 
-                if st.button("⚡ Guardar Evaluación", key="btn_save_ev_v11"):
-                    if o_eval and st.session_state.av_titulo_hoy:
-                        with st.spinner("Procesando nota..."):
+                # --- BOTÓN OPCIONAL DE IA ---
+                if o_eval:
+                    if st.button("✨ Sugerir Redacción Técnica (Opcional)", key="btn_sugerir_ia"):
+                        with st.spinner("Redactando propuesta técnica..."):
                             act_f = st.session_state.av_titulo_hoy
-                            p_ev = f"Alumno: {e_sel}. Actividad: {act_f}. Obs: {o_eval}. Contexto: {st.session_state.av_contexto_hoy}."
-                            res_ev = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":p_ev}], 0.5)
+                            p_ev = f"Alumno: {e_sel}. Actividad: {act_f}. Obs Docente: {o_eval}. Contexto: {st.session_state.av_contexto_hoy}. Transforma esto a lenguaje técnico pedagógico de Educación Especial."
+                            st.session_state.temp_propuesta_ia = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":p_ev}], 0.5)
+                
+                # MOSTRAR PROPUESTA SI EXISTE
+                if st.session_state.temp_propuesta_ia:
+                    st.info("🤖 **Propuesta Técnica (IA):**")
+                    st.markdown(f'<div class="eval-box">{st.session_state.temp_propuesta_ia}</div>', unsafe_allow_html=True)
+                    st.caption("Si te gusta esta versión, dale a GUARDAR y se archivará junto a tu nota original.")
+
+                st.divider()
+
+                # BOTÓN DE GUARDADO FINAL
+                if st.button("💾 Guardar en Expediente", type="primary", key="btn_save_final"):
+                    if o_eval and st.session_state.av_titulo_hoy:
+                        with st.spinner("Guardando registro..."):
+                            # Decidimos qué guardar en la columna técnica
+                            # Si generó IA, guardamos IA. Si no, guardamos la original repetida.
+                            nota_tecnica_final = st.session_state.temp_propuesta_ia if st.session_state.temp_propuesta_ia else o_eval
                             
                             df_ev = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
                             nueva_n = pd.DataFrame([{
@@ -1199,27 +1219,30 @@ else:
                                 "USUARIO": st.session_state.u['NOMBRE'], 
                                 "DOCENTE_TITULAR": titular, 
                                 "ESTUDIANTE": e_sel, 
-                                "ACTIVIDAD": act_f, 
-                                "ANECDOTA": o_eval, 
-                                "EVALUACION_IA": res_ev, 
+                                "ACTIVIDAD": st.session_state.av_titulo_hoy, 
+                                "ANECDOTA": o_eval, # Tu palabra
+                                "EVALUACION_IA": nota_tecnica_final, # La palabra técnica (o la tuya si no usaste IA)
                                 "PLANIFICACION_ACTIVA": pa['RANGO']
                             }])
                             conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=pd.concat([df_ev, nueva_n], ignore_index=True))
-                            st.success(f"✅ Nota guardada."); time.sleep(1)
-                    else: st.error("Faltan datos.")
+                            
+                            st.success(f"✅ Registro guardado exitosamente.")
+                            st.session_state.temp_propuesta_ia = "" # Limpiar para el siguiente
+                            time.sleep(1.5)
+                            st.rerun()
+                    else: st.error("Falta tu observación o cargar la actividad.")
 
-                # --- NUEVO: REPORTE PARA PADRES ---
+                # REPORTE PADRES
                 st.divider()
                 st.markdown("### 📱 Comunicación con el Hogar")
                 if st.button("💬 Generar Reporte WhatsApp", key="btn_ws_rep"):
                     if o_eval and st.session_state.av_titulo_hoy:
-                        prompt_ws = f"""Redacta un mensaje de WhatsApp para el representante de {e_sel}.
-                        Contexto venezolano, empático, sin hashtags. 
-                        Actividad: {st.session_state.av_titulo_hoy}. Logro: {o_eval}."""
+                        prompt_ws = f"""Redacta mensaje WhatsApp para representante de {e_sel}.
+                        Contexto venezolano, empático. Actividad: {st.session_state.av_titulo_hoy}. Logro: {o_eval}."""
                         msg = generar_respuesta([{"role":"user","content":prompt_ws}], 0.7)
                         st.info("Copia y pega:")
                         st.code(msg, language="text")
-                    else: st.error("Primero guarda la observación.")
+                    else: st.error("Primero escribe la observación.")
 
         # --- PESTAÑA 3: CIERRE ---
         with tab3:
