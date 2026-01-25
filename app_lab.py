@@ -728,20 +728,49 @@ else:
                         url_e = subir_a_imgbb(foto_ent)
                         if url_e:
                             h_ent_sistema = ahora_ve().strftime('%I:%M %p')
-                            res = registrar_asistencia_biometrica(
-                                st.session_state.u['NOMBRE'], "ASISTENCIA", h_ent_sistema, "-", 
-                                url_e, "-", motivo_entrada, "ENTRADA_REVISAR" if es_entrada_tardia else "-"
+                           res = registrar_asistencia_v7(
+                                usuario=st.session_state.u['NOMBRE'], 
+                                tipo="ASISTENCIA", 
+                                h_e=h_ent_sistema, 
+                                h_s="-", 
+                                f_e=url_e, 
+                                f_s="-", 
+                                motivo=motivo_entrada, 
+                                alerta_ia="ENTRADA_REVISAR" if es_entrada_tardia else "-",
+                                puntos=10, # <--- Agregamos los 10 puntos de mérito
+                                suplencia_a="-" # <--- Por defecto en la entrada es nadie
                             )
                             st.success(f"✅ Entrada enviada. Marcado: {h_ent_sistema}")
-                            time.sleep(3); st.session_state.pagina_actual = "HOME"; st.rerun()
-
-            elif status == "❌ No Asistí":
+                            time.sleep(3); st.session_state.pagina_actual = "HOME"; 
+elif status == "❌ No Asistí":
                 motivo_i = st.text_area("Justificativo:")
                 if st.button("📤 Enviar Reporte"):
-                    an = generar_respuesta([{"role":"user","content":f"¿Es salud? '{motivo_i}'"}], 0.1)
-                    alerta = "⚠️ Presentar justificativo médico." if "ALERTA_SALUD" in an else "-"
-                    registrar_asistencia_biometrica(st.session_state.u['NOMBRE'], "INASISTENCIA", "-", "-", "-", "-", motivo_i, alerta)
-                    st.warning("✅ Inasistencia reportada."); time.sleep(2); st.session_state.pagina_actual = "HOME"; st.rerun()
+                    if motivo_i:
+                        with st.spinner("Analizando justificativo..."):
+                            # 1. Tu lógica de IA para verificar si es salud
+                            an = generar_respuesta([{"role":"user","content":f"¿Es salud? '{motivo_i}'"}], 0.1)
+                            alerta = "⚠️ Presentar justificativo médico." if "ALERTA_SALUD" in an else "-"
+                            
+                            # 2. Lógica de Puntos v7.0: 5 puntos si es salud, 0 si es otra cosa
+                            pts_inasistencia = 5 if "ALERTA_SALUD" in an else 0
+                            
+                            # 3. LLAMADA A LA FUNCIÓN CORRECTA (v7)
+                            registrar_asistencia_v7(
+                                usuario=st.session_state.u['NOMBRE'], 
+                                tipo="INASISTENCIA", 
+                                hora_e="-", 
+                                hora_s="-", 
+                                foto_e="-", 
+                                foto_s="-", 
+                                motivo=motivo_i, 
+                                alerta_ia=alerta,
+                                puntos=pts_inasistencia, # <--- Enviamos los puntos solidarios
+                                suplencia_a="-"
+                            )
+                            st.warning(f"✅ Inasistencia reportada. Sumaste {pts_inasistencia} puntos solidarios.")
+                            time.sleep(2); st.session_state.pagina_actual = "HOME"; st.rerun()
+                    else:
+                        st.error("Por favor, escribe el motivo de tu inasistencia.")
 
        # --- ESCENARIO B: REGISTRO DE SALIDA ---
         elif reg_hoy.iloc[0]['HORA_SALIDA'] == "-":
@@ -789,20 +818,32 @@ else:
                         url_s = subir_a_imgbb(foto_sal)
                         if url_s:
                             h_sistema = ahora_ve().strftime('%I:%M %p')
-                            res = registrar_asistencia_biometrica(
-                                st.session_state.u['NOMBRE'], "ASISTENCIA", "-", h_sistema, 
-                                "-", url_s, motivo_salida, "SALIDA_REVISAR" if es_fuera_de_horario else "-"
+                           res = registrar_asistencia_v7(
+                                usuario=st.session_state.u['NOMBRE'], 
+                                tipo="ASISTENCIA", 
+                                hora_e="-", 
+                                hora_s=h_sistema, 
+                                foto_e="-", 
+                                foto_s=url_s, 
+                                motivo=motivo_salida, 
+                                alerta_ia="SALIDA_REVISAR" if es_fuera_de_horario else "-",
+                                puntos=10,      # <--- Nuevo: Puntos base de salida
+                                suplencia_a="-"  # <--- Nuevo: Espacio para suplencia
                             )
+                            
                             st.balloons()
                             st.success(f"✅ Salida registrada a las {h_sistema}")
                             if es_fuera_de_horario:
                                 st.info("📢 Su reporte fue enviado con alerta para validación del Director.")
+                            
                             time.sleep(3)
                             st.session_state.pagina_actual = "HOME"
                             st.rerun()
         else:
             st.info("✅ Registro del día completado.")
-            if st.button("⬅️ Volver"): st.session_state.pagina_actual = "HOME"; st.rerun()
+            if st.button("⬅️ Volver"): 
+                st.session_state.pagina_actual = "HOME"
+                st.rerun()
  # -------------------------------------------------------------------------
     # VISTA: PLANIFICADOR INTELIGENTE (VERSIÓN 6.3 - ESTRUCTURA "LUNES DE HIERRO")
     # -------------------------------------------------------------------------
