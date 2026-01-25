@@ -1067,16 +1067,15 @@ else:
 
       
 # -------------------------------------------------------------------------
-    # VISTA: AULA VIRTUAL (v11.8 - VERSIÓN FINAL ESTABLE Y COMPLETA)
+    # VISTA: AULA VIRTUAL (v12.1 - REPORTE PADRES + UX FINAL)
     # -------------------------------------------------------------------------
     elif opcion == "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)":
         st.info("💡 **Centro de Operaciones:** Gestión integral de la clase.")
         
-        # PERSISTENCIA SUPLENCIA
         if 'modo_suplencia_activo' not in st.session_state:
             st.session_state.modo_suplencia_activo = False
 
-        # 1. CONTEXTO DE CLASE
+        # 1. CONTEXTO
         st.markdown("### ⚙️ Contexto de la Clase")
         es_suplencia = st.checkbox("🦸 **Activar Modo Suplencia**", 
                                   value=st.session_state.modo_suplencia_activo,
@@ -1097,7 +1096,6 @@ else:
             st.error(f"🚨 {titular} no tiene un plan activo.")
             st.stop()
             
-        # Variables de Memoria para Título y Contexto
         if 'av_titulo_hoy' not in st.session_state: st.session_state.av_titulo_hoy = ""
         if 'av_contexto_hoy' not in st.session_state: st.session_state.av_contexto_hoy = ""
 
@@ -1121,23 +1119,19 @@ else:
             if clase_de_hoy:
                 st.markdown(f'<div class="plan-box">{clase_de_hoy}</div>', unsafe_allow_html=True)
                 
-                # --- LÓGICA DE EXTRACCIÓN (250 CARACTERES) ---
+                # Extracción 250 chars
                 try:
                     lineas = clase_de_hoy.split('\n')
                     t_temp = "Actividad del Día"
-                    c_temp = "Sin contexto adicional."
-                    
+                    c_temp = "Sin contexto."
                     for linea in lineas:
                         if "**1." in linea:
                             parte_sucia = linea.split(":")[1] if ":" in linea else linea
                             t_temp = parte_sucia.replace("**", "").strip()
-                            
-                        if "**4." in linea: # Desarrollo/Proceso
+                        if "**4." in linea:
                             texto_sucio = linea.replace("**4. DESARROLLO (Proceso):**", "")
-                            # AQUI ESTA EL LIMITE DE 250
                             c_temp = texto_sucio[:250].strip() 
                             if len(texto_sucio) > 250: c_temp += "..."
-                            
                     st.session_state.temp_titulo_extract = t_temp
                     st.session_state.temp_contexto_extract = c_temp
                 except:
@@ -1147,8 +1141,6 @@ else:
                 st.error("Error al cargar plan.")
 
             st.divider()
-            
-            # SECCIÓN PEI
             st.markdown("### 🧩 Adaptación P.E.I. Express")
             alums = df_mat_global[df_mat_global['DOCENTE_TITULAR'] == titular]['NOMBRE_ALUMNO'].tolist()
             c1, c2 = st.columns(2)
@@ -1162,7 +1154,6 @@ else:
                     st.markdown(f'<div class="eval-box">{generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":p_pei}], 0.5)}</div>', unsafe_allow_html=True)
 
             st.divider()
-            # CÁMARA INICIO
             if st.session_state.av_foto1 is None:
                 st.subheader("1. Evidencia de Inicio")
                 f1 = st.camera_input("Capturar proceso", key="av_cam1_v11")
@@ -1173,7 +1164,7 @@ else:
                 st.image(st.session_state.av_foto1, width=200, caption="Inicio cargado")
                 if st.button("♻️ Repetir Foto 1", key="reset_f1_v11"): st.session_state.av_foto1 = None; st.rerun()
 
-        # --- PESTAÑA 2: EVALUACIÓN ---
+        # --- PESTAÑA 2: EVALUACIÓN (CON REPORTE WHATSAPP) ---
         with tab2:
             st.subheader("📝 Carga de Notas Individuales")
             if not alums:
@@ -1181,15 +1172,12 @@ else:
             else:
                 e_sel = st.selectbox("Seleccione Estudiante:", sorted(alums), key="av_eval_al_v11")
                 
-                # BOTÓN REFRESCAR
                 if st.button("🔍 Cargar Actividad de Hoy", key="btn_load_act_v11", type="primary"):
                     st.session_state.av_titulo_hoy = st.session_state.get('temp_titulo_extract', 'Actividad Manual')
                     st.session_state.av_contexto_hoy = st.session_state.get('temp_contexto_extract', 'Sin contexto.')
                     st.rerun() 
                 
                 st.write("")
-                
-                # VISUALIZACIÓN PRO
                 if st.session_state.av_titulo_hoy:
                     st.markdown(f"#### 📌 {st.session_state.av_titulo_hoy}")
                     st.warning(f"💡 **Contexto:** {st.session_state.av_contexto_hoy}")
@@ -1220,6 +1208,19 @@ else:
                             st.success(f"✅ Nota guardada."); time.sleep(1)
                     else: st.error("Faltan datos.")
 
+                # --- NUEVO: REPORTE PARA PADRES ---
+                st.divider()
+                st.markdown("### 📱 Comunicación con el Hogar")
+                if st.button("💬 Generar Reporte WhatsApp", key="btn_ws_rep"):
+                    if o_eval and st.session_state.av_titulo_hoy:
+                        prompt_ws = f"""Redacta un mensaje de WhatsApp para el representante de {e_sel}.
+                        Contexto venezolano, empático, sin hashtags. 
+                        Actividad: {st.session_state.av_titulo_hoy}. Logro: {o_eval}."""
+                        msg = generar_respuesta([{"role":"user","content":prompt_ws}], 0.7)
+                        st.info("Copia y pega:")
+                        st.code(msg, language="text")
+                    else: st.error("Primero guarda la observación.")
+
         # --- PESTAÑA 3: CIERRE ---
         with tab3:
             st.subheader("🏁 Cierre de Jornada")
@@ -1234,12 +1235,8 @@ else:
             else:
                 st.image(st.session_state.av_foto2, width=200, caption="Cierre cargado")
                 st.session_state.av_resumen = st.text_area("Logros del día:", value=st.session_state.av_resumen, key="av_res_v11")
-                
-                # BOTÓN FINAL COMPLETO (Sin recortes)
                 if st.button("🚀 FINALIZAR Y ENVIAR REPORTE", type="primary", key="btn_finish_v11"):
-                    # Usamos el título guardado en memoria para el reporte final también
                     titulo_reporte = st.session_state.av_titulo_hoy if st.session_state.av_titulo_hoy else "Actividad Genérica"
-                    
                     if st.session_state.av_resumen:
                         df_ej = conn.read(spreadsheet=URL_HOJA, worksheet="EJECUCION", ttl=0)
                         nueva_f = pd.DataFrame([{
