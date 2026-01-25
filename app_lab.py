@@ -1269,32 +1269,42 @@ else:
                 else:
                     st.caption("Estado: **PAUSADO**. Solo planificará por tema manual.")
 
-            # BOTÓN DE GUARDAR
+           # BOTÓN DE GUARDAR (CON ESPEJO LOCAL)
             if st.form_submit_button("💾 Guardar Configuración"):
                 
-                # Concatenamos Selector + Detalle para guardar un solo string robusto
                 fase_final_guardar = f"{fase_select} || Detalle: {detalle_fase}"
-                
                 str_dias = ",".join(dias_psp) if es_taller else ""
                 str_activo = "TRUE" if activo else "FALSE"
                 
-                df_clean = df_proy[df_proy['USUARIO'] != st.session_state.u['NOMBRE']]
-                
+                # 1. CREAR EL REGISTRO PARA SHEETS
                 nuevo_reg = pd.DataFrame([{
                     "USUARIO": st.session_state.u['NOMBRE'],
                     "SERVICIO": servicio_seleccionado,
                     "NOMBRE_PA": nombre_pa,
                     "NOMBRE_PSP": nombre_psp,
-                    "FASE_ACTUAL": fase_final_guardar, # <--- AQUÍ SE GUARDA TODO JUNTO
+                    "FASE_ACTUAL": fase_final_guardar,
                     "DIAS_PSP": str_dias,
                     "ACTIVO": str_activo
                 }])
                 
                 try:
+                    # 2. GUARDAR EN LA NUBE (Google Sheets)
                     conn.update(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", data=pd.concat([df_clean, nuevo_reg], ignore_index=True))
-                    st.success("✅ ¡Etapa del Proyecto actualizada!")
+                    
+                    # 3. GUARDAR EN EL BOLSILLO (Session State) - ¡ESTA ES LA CLAVE!
+                    st.session_state['PROYECTO_LOCAL'] = {
+                        'ACTIVO': str_activo,
+                        'SERVICIO': servicio_seleccionado,
+                        'NOMBRE_PA': nombre_pa,
+                        'NOMBRE_PSP': nombre_psp,
+                        'FASE_ACTUAL': fase_final_guardar,
+                        'DIAS_PSP': str_dias
+                    }
+                    
+                    st.success("✅ ¡Configuración Guardada! (Sincronizada en Nube y Local)")
                     time.sleep(1.5)
                     st.rerun()
+                    
                 except Exception as e:
                     st.error(f"Error al guardar: {e}")
    # -------------------------------------------------------------------------
