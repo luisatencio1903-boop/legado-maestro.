@@ -908,23 +908,23 @@ else:
                         ], 0.4) # Temperatura más baja para máxima precisión estructural
                         st.rerun()
 # -------------------------------------------------------------------------
-    # VISTA: AULA VIRTUAL (v11.1 - INTEGRACIÓN TOTAL CORREGIDA)
+    # VISTA: AULA VIRTUAL (v11.2 - SINCRONIZACIÓN DE NOMBRES)
     # -------------------------------------------------------------------------
     elif opcion == "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)":
-        st.info("💡 **Centro de Operaciones:** Planificación, Evaluación y Cierre en un solo lugar.")
+        st.info("💡 **Centro de Operaciones:** Gestión integral de la clase.")
         
         # 1. CONTEXTO DE TRABAJO
         st.markdown("### ⚙️ Contexto de la Clase")
-        es_suplencia = st.checkbox("🦸 **Activar Modo Suplencia**", key="av_suplencia_check")
+        es_suplencia = st.checkbox("🦸 **Activar Modo Suplencia**", key="av_suplencia_v11")
         
         if es_suplencia:
-            titular = st.selectbox("Seleccione Docente Titular:", LISTA_DOCENTES, key="av_titular_sel")
+            titular = st.selectbox("Seleccione Docente Titular:", LISTA_DOCENTES, key="av_titular_v11")
             st.warning(f"Modo Suplencia: Usando planificación de **{titular}**")
         else:
             titular = st.session_state.u['NOMBRE']
             st.success("Trabajando con tu planificación y alumnos.")
 
-        # 2. BUSCAR PLAN ACTIVO DEL TITULAR
+        # 2. BUSCAR PLAN ACTIVO
         pa = obtener_plan_activa_usuario(titular)
         
         if not pa:
@@ -932,18 +932,18 @@ else:
             st.info("Activa un plan en 'Mi Archivo Pedagógico' para este docente.")
             st.stop()
 
-        # 3. PESTAÑAS MAESTRAS
-        tab_ejec, tab_eval, tab_cier = st.tabs(["🚀 Ejecución y PEI", "📝 Evaluación Estudiantil", "🏁 Cierre y Méritos"])
+        # 3. CREACIÓN DE PESTAÑAS (Nombres estandarizados)
+        tab1, tab2, tab3 = st.tabs(["🚀 Ejecución y PEI", "📝 Evaluación Estudiantil", "🏁 Cierre y Méritos"])
 
         # --- PESTAÑA 1: EJECUCIÓN ---
-        with tab_ejec:
+        with tab1:
             dias_es = {"Monday":"Lunes", "Tuesday":"Martes", "Wednesday":"Miércoles", "Thursday":"Jueves", "Friday":"Viernes", "Saturday":"Sábado", "Sunday":"Domingo"}
             dia_hoy_nombre = dias_es.get(ahora_ve().strftime("%A"))
             
             clase_dia = extraer_actividad_del_dia(pa["CONTENIDO_PLAN"], dia_hoy_nombre)
             if clase_dia is None:
-                st.warning(f"No hay actividad para hoy {dia_hoy_nombre}.")
-                dia_m = st.selectbox("Seleccione día a ejecutar:", ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"], key="av_manual_dia")
+                st.warning(f"No hay actividad programada para hoy {dia_hoy_nombre}.")
+                dia_m = st.selectbox("Seleccione día a ejecutar:", ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"], key="av_manual_v11")
                 clase_de_hoy = extraer_actividad_del_dia(pa["CONTENIDO_PLAN"], dia_m)
             else:
                 clase_de_hoy = clase_dia
@@ -956,9 +956,9 @@ else:
             st.markdown("### 🧩 Adaptación P.E.I. Express")
             alums = df_mat_global[df_mat_global['DOCENTE_TITULAR'] == titular]['NOMBRE_ALUMNO'].tolist()
             c1, c2 = st.columns(2)
-            with c1: al_a = st.selectbox("Alumno:", ["(Seleccionar)"] + sorted(alums), key="av_pei_a")
-            with c2: ctx_a = st.text_input("Situación:", placeholder="Ej: Inquieto...", key="av_pei_ctx")
-            if st.button("💡 Estrategia IA", key="btn_av_pei"):
+            with c1: al_a = st.selectbox("Alumno:", ["(Seleccionar)"] + sorted(alums), key="av_pei_al_v11")
+            with c2: ctx_a = st.text_input("Situación:", placeholder="Ej: Inquieto...", key="av_pei_ctx_v11")
+            if st.button("💡 Estrategia IA", key="btn_av_ia_v11"):
                 if al_a != "(Seleccionar)":
                     datos_al = df_mat_global[df_mat_global['NOMBRE_ALUMNO'] == al_a]
                     diag = datos_al['DIAGNOSTICO'].iloc[0] if not datos_al.empty else "N/A"
@@ -968,33 +968,32 @@ else:
             st.divider()
             if st.session_state.av_foto1 is None:
                 st.subheader("1. Evidencia de Inicio")
-                f1 = st.camera_input("Capturar proceso", key="av_cam1")
-                if f1 and st.button("📤 Guardar Inicio", key="btn_f1_save"):
+                f1 = st.camera_input("Capturar proceso", key="av_cam1_v11")
+                if f1 and st.button("📤 Guardar Inicio", key="btn_save_f1_v11"):
                     u1 = subir_a_imgbb(f1)
                     if u1: st.session_state.av_foto1 = u1; st.rerun()
             else:
                 st.image(st.session_state.av_foto1, width=200, caption="Inicio cargado")
-                if st.button("♻️ Repetir Foto 1", key="reset_f1"): st.session_state.av_foto1 = None; st.rerun()
+                if st.button("♻️ Repetir Foto 1", key="reset_f1_v11"): st.session_state.av_foto1 = None; st.rerun()
 
         # --- PESTAÑA 2: EVALUACIÓN ---
-        with tab_eval:
+        with tab2:
             st.subheader("📝 Carga de Notas Individuales")
             if not alums:
                 st.warning("No hay alumnos para este titular.")
             else:
-                e_sel = st.selectbox("Seleccione Estudiante:", sorted(alums), key="eval_sel_a")
-                if st.button("🔍 Cargar Actividad de Hoy", key="btn_load_act"):
+                e_sel = st.selectbox("Seleccione Estudiante:", sorted(alums), key="av_eval_al_v11")
+                if st.button("🔍 Cargar Actividad de Hoy", key="btn_load_act_v11"):
                     st.session_state.actividad_detectada = st.session_state.actividad_ejecutada_hoy
                 
-                a_eval = st.text_input("Actividad:", value=st.session_state.actividad_detectada, key="eval_act_input")
-                o_eval = st.text_area(f"Observación de {e_sel}:", key="eval_obs_input")
+                a_eval = st.text_input("Actividad:", value=st.session_state.actividad_detectada, key="av_eval_act_v11")
+                o_eval = st.text_area(f"Observación de {e_sel}:", key="av_eval_obs_v11")
                 
-                if st.button("⚡ Guardar Evaluación en Expediente", key="btn_save_ev"):
+                if st.button("⚡ Guardar Evaluación en Expediente", key="btn_save_ev_v11"):
                     if o_eval:
-                        with st.spinner("IA Analizando..."):
+                        with st.spinner("Procesando nota técnica..."):
                             p_ev = f"Alumno: {e_sel}. Actividad: {a_eval}. Obs: {o_eval}. Plan: {clase_de_hoy[:500]}."
                             res_ev = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":p_ev}], 0.5)
-                            # Guardado en hoja EVALUACIONES
                             df_ev = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
                             nueva_n = pd.DataFrame([{"FECHA": ahora_ve().strftime("%d/%m/%Y"), "USUARIO": st.session_state.u['NOMBRE'], "DOCENTE_TITULAR": titular, "ESTUDIANTE": e_sel, "ACTIVIDAD": a_eval, "ANECDOTA": o_eval, "EVALUACION_IA": res_ev, "PLANIFICACION_ACTIVA": pa['RANGO']}])
                             conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=pd.concat([df_ev, nueva_n], ignore_index=True))
@@ -1002,19 +1001,20 @@ else:
                     else: st.error("Escribe una observación.")
 
         # --- PESTAÑA 3: CIERRE ---
-        with tab_final:
+        with tab3:
+            st.subheader("🏁 Cierre de Jornada")
             if st.session_state.av_foto1 is None:
                 st.warning("Captura la foto de inicio en la pestaña 'Ejecución y PEI'.")
             elif st.session_state.av_foto2 is None:
                 st.subheader("2. Evidencia de Culminación")
-                f2 = st.camera_input("Capturar cierre", key="av_cam2")
-                if f2 and st.button("📤 Guardar Cierre", key="btn_f2_save"):
+                f2 = st.camera_input("Capturar cierre", key="av_cam2_v11")
+                if f2 and st.button("📤 Guardar Cierre", key="btn_save_f2_v11"):
                     u2 = subir_a_imgbb(f2)
                     if u2: st.session_state.av_foto2 = u2; st.rerun()
             else:
                 st.image(st.session_state.av_foto2, width=200, caption="Cierre cargado")
-                st.session_state.av_resumen = st.text_area("Logros del día:", value=st.session_state.av_resumen, key="av_res_area")
-                if st.button("🚀 FINALIZAR Y ENVIAR REPORTE", type="primary", key="btn_av_final"):
+                st.session_state.av_resumen = st.text_area("Logros del día:", value=st.session_state.av_resumen, key="av_res_v11")
+                if st.button("🚀 FINALIZAR Y ENVIAR REPORTE", type="primary", key="btn_finish_v11"):
                     if st.session_state.av_resumen:
                         df_ej = conn.read(spreadsheet=URL_HOJA, worksheet="EJECUCION", ttl=0)
                         nueva_f = pd.DataFrame([{"FECHA": ahora_ve().strftime("%d/%m/%Y"), "USUARIO": st.session_state.u['NOMBRE'], "DOCENTE_TITULAR": titular, "ACTIVIDAD_TITULO": st.session_state.actividad_ejecutada_hoy, "EVIDENCIA_FOTO": f"{st.session_state.av_foto1} | {st.session_state.av_foto2}", "RESUMEN_LOGROS": st.session_state.av_resumen, "ESTADO": "CULMINADA", "PUNTOS": 5}])
@@ -1022,71 +1022,6 @@ else:
                         st.session_state.av_foto1 = None; st.session_state.av_foto2 = None; st.session_state.av_resumen = ""
                         st.balloons(); st.success("✅ Actividad culminada."); time.sleep(3); st.session_state.pagina_actual = "HOME"; st.rerun()
                     else: st.error("Escribe el resumen antes de finalizar.")
-    # VISTA: PLANIFICADOR MINISTERIAL (ORIGINAL PRESERVADA)
-    # -------------------------------------------------------------------------
-    elif opcion == "📜 PLANIFICADOR MINISTERIAL":
-        st.markdown("**Adaptación de Lineamientos**")
-        st.info("Pega el texto del Ministerio. Legado Maestro lo adaptará y formateará.")
-        
-        aula_min = st.text_input("Aula/Taller:", value="Mantenimiento y Servicios")
-        texto_ministerio = st.text_area("Texto (WhatsApp):", height=250)
-        
-        if st.button("🪄 Adaptar y Organizar", type="primary"):
-            if texto_ministerio:
-                with st.spinner('Adaptando y humanizando actividades...'):
-                    # Intentar detectar fecha
-                    fechas_enc = re.findall(r'\d{1,2}[/-]\d{1,2}', texto_ministerio)
-                    rango_det = f"Semana {fechas_enc[0]}" if fechas_enc else "Semana Ministerial"
-                    st.session_state.temp_tema = "Planificación Ministerial Adaptada"
-                    
-                    prompt = f"""
-                    ERES EXPERTO EN CURRÍCULO. ADAPTA ESTO PARA TALLER LABORAL:
-                    "{texto_ministerio}"
-                    AULA: {aula_min}.
-                    
-                    1. ENCABEZADO OBLIGATORIO: "📝 **Planificación del Ministerio (Adaptada)**".
-                    2. Si hay actividades abstractas, cámbialas a concretas.
-                    3. Usa competencias técnicas completas.
-                    4. FORMATO: Lista vertical con doble espacio.
-                    """
-                    
-                    st.session_state.plan_actual = generar_respuesta([
-                        {"role":"system","content":INSTRUCCIONES_TECNICAS},
-                        {"role":"user","content":prompt}
-                    ], 0.6)
-                    st.rerun()
-            else:
-                st.warning("Pega el texto primero.")
-
-    # --- BLOQUE DE GUARDADO (COMÚN) ---
-    if st.session_state.plan_actual and opcion in ["🧠 PLANIFICADOR INTELIGENTE", "📜 PLANIFICADOR MINISTERIAL"]:
-        st.markdown("---")
-        st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
-        
-        if st.button("💾 Guardar en Mi Archivo"):
-            try:
-                df_archivo = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
-                tema_guardar = st.session_state.get('temp_tema', 'Planificación')
-                
-                # USAMOS AHORA_VE() PARA LA FECHA DE GUARDADO
-                fecha_guardado = ahora_ve().strftime("%d/%m/%Y")
-                
-                nueva_fila = pd.DataFrame([{
-                    "FECHA": fecha_guardado,
-                    "USUARIO": st.session_state.u['NOMBRE'],
-                    "TEMA": tema_guardar[:50], # Limitar largo
-                    "CONTENIDO": st.session_state.plan_actual,
-                    "ESTADO": "GUARDADO",
-                    "HORA_INICIO": "--", "HORA_FIN": "--"
-                }])
-                
-                conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=pd.concat([df_archivo, nueva_fila], ignore_index=True))
-                st.success("✅ Guardado correctamente.")
-                time.sleep(2)
-                st.session_state.pagina_actual = "📂 Mi Archivo Pedagógico"
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error al guardar: {e}")
 
    # -------------------------------------------------------------------------
     # VISTA: REGISTRO DE EVALUACIONES (v7.0 EXPEDIENTE COMPARTIDO)
