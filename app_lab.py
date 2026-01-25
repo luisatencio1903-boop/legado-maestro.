@@ -682,7 +682,7 @@ else:
 
    # -------------------------------------------------------------------------
    # -------------------------------------------------------------------------
-    # VISTA: CONTROL DE ASISTENCIA (LÓGICA DE HORARIOS RESTAURADA)
+    # VISTA: CONTROL DE ASISTENCIA (V5.3 - GESTIÓN DE MÉRITOS Y TRABAJO EXTRA)
     # -------------------------------------------------------------------------
     if opcion == "⏱️ Control de Asistencia":
         hora_v = ahora_ve()
@@ -691,7 +691,7 @@ else:
         hoy_str = hora_v.strftime("%d/%m/%Y")
         hora_display = hora_v.strftime('%I:%M %p')
         
-        st.info(f"ℹ️ Reporte para Dirección | 📅 {hoy_str} | 🕒 {hora_display}")
+        st.info(f"ℹ️ Panel de Control | 📅 {hoy_str} | 🕒 {hora_display}")
         
         # Consultar BD
         try:
@@ -699,83 +699,112 @@ else:
             reg = df_as[(df_as['USUARIO'] == st.session_state.u['NOMBRE']) & (df_as['FECHA'] == hoy_str)]
         except: reg = pd.DataFrame()
 
-        # --- CASO A: REGISTRAR ENTRADA ---
+        # --- CASO A: ENTRADA (Mantiene lógica de 8:15 AM) ---
         if reg.empty:
             status = st.radio("Estado:", ["(Seleccionar)", "✅ Asistí al Plantel", "❌ No Asistí"], index=0)
             
             if status == "✅ Asistí al Plantel":
-                # LÓGICA DE ALERTAS DE HORARIO
                 es_tarde = h_actual > 8 or (h_actual == 8 and h_min > 15)
-                es_madrugada = h_actual < 6 
-                
-                motivo_entrada = "Cumplimiento"
-                alerta_status = "-"
+                es_madrugada = h_actual < 6
+                motivo_e = "Cumplimiento"
+                alerta_e = "-"
 
-                # 1. SI ES MADRUGADA (Tu caso de las 12:28 AM)
                 if es_madrugada:
-                    st.warning(f"⚠️ **REGISTRO FUERA DE HORARIO ({hora_display})**")
-                    st.caption("Estás marcando asistencia en horario de madrugada.")
-                    motivo_input = st.text_input("Justificación (Opcional):", placeholder="Ej: Vigilancia nocturna, error de hora...")
-                    if motivo_input: motivo_entrada = f"MADRUGADA: {motivo_input}"
-                    alerta_status = "HORARIO_IRREGULAR"
-
-                # 2. SI ES TARDE (Después de las 8:15 AM)
+                    st.warning("⚠️ Horario de Madrugada")
+                    motivo_e = f"MADRUGADA: {st.text_input('Justificación:', placeholder='Ej: Vigilancia...')}"
                 elif es_tarde:
-                    st.error(f"🚨 **LLEGADA TARDÍA DETECTADA ({hora_display})**")
-                    st.caption("El sistema ha detectado que excedes el límite de las 8:15 AM.")
-                    motivo_input = st.text_input("Justificación del Retraso (Obligatorio):", placeholder="Ej: Transporte, Lluvia...")
-                    
-                    if motivo_input:
-                        motivo_entrada = f"RETRASO: {motivo_input}"
-                        alerta_status = "RETRASO"
-                    else:
-                        st.stop() # Bloquea el botón hasta que escriba
+                    st.error("🚨 Llegada Tardía (> 8:15 AM)")
+                    justif = st.text_input("Motivo del Retraso:", placeholder="Ej: Transporte...")
+                    if justif: motivo_e = f"RETRASO: {justif}"; alerta_e = "TARDANZA"
+                    else: st.stop()
 
-                # FOTO Y ENVÍO
-                foto_ent = st.camera_input("📸 Foto de Entrada")
-                if foto_ent:
-                    if st.button("🚀 Confirmar Entrada"):
-                        with st.spinner("Procesando..."):
-                            url = subir_a_imgbb(foto_ent)
-                            if url:
-                                registrar_asistencia_v7(
-                                    usuario=st.session_state.u['NOMBRE'],
-                                    tipo="ASISTENCIA",
-                                    hora_e=hora_display,
-                                    hora_s="-",
-                                    foto_e=url,
-                                    foto_s="-",
-                                    motivo=motivo_entrada,
-                                    alerta_ia=alerta_status,
-                                    puntos=10,
-                                    suplencia_a="-"
-                                )
-                                st.success("✅ Entrada registrada."); time.sleep(2); st.session_state.pagina_actual="HOME"; st.rerun()
-            
+                f_ent = st.camera_input("Foto Entrada")
+                if f_ent and st.button("🚀 Marcar Entrada"):
+                    url = subir_a_imgbb(f_ent)
+                    if url:
+                        registrar_asistencia_v7(st.session_state.u['NOMBRE'], "ASISTENCIA", hora_display, "-", url, "-", motivo_e, alerta_e, 10, "-")
+                        st.success("Entrada Registrada."); time.sleep(2); st.session_state.pagina_actual="HOME"; st.rerun()
+
             elif status == "❌ No Asistí":
                 mot = st.text_area("Motivo:")
-                if st.button("Enviar Reporte") and mot:
-                    es_salud = "salud" in mot.lower() or "médico" in mot.lower()
-                    alerta = "⚠️ 48h para justificativo." if es_salud else "-"
+                if st.button("Enviar") and mot:
+                    salud = "salud" in mot.lower() or "médico" in mot.lower()
+                    alerta = "⚠️ 48h para justificativo" if salud else "-"
                     registrar_asistencia_v7(st.session_state.u['NOMBRE'], "INASISTENCIA", "-", "-", "-", "-", mot, alerta, 5, "-")
                     st.success("Enviado."); time.sleep(2); st.session_state.pagina_actual="HOME"; st.rerun()
 
-        # --- CASO B: REGISTRAR SALIDA ---
+        # --- CASO B: SALIDA (NUEVA LÓGICA DE TRABAJO EXTRA) ---
         elif reg.iloc[0]['HORA_SALIDA'] == "-":
-            st.success(f"Entrada registrada: {reg.iloc[0]['HORA_ENTRADA']}")
-            st.markdown("### 🚪 Salida")
+            st.success(f"Entrada: {reg.iloc[0]['HORA_ENTRADA']}")
+            st.markdown("### 🚪 Registro de Salida y Méritos")
             
+            # 1. CÁLCULO DE PUNTOS BASE
+            puntos_totales = 10
+            resumen_actividad = ["Jornada Cumplida"]
+            alerta_director = "-"
+            
+            # 2. CHECKBOX: SUPLENCIA (+5 Pts)
+            col_sup, col_extra = st.columns(2)
+            with col_sup:
+                es_heroe = st.checkbox("🦸 Hice Suplencia (+5 pts)")
+            
+            # 3. CHECKBOX: TRABAJO EXTRA (+3 Pts)
+            with col_extra:
+                es_extra = st.checkbox("💼 Trabajo Extra (+3 pts)")
+
+            suplencia_a = "-"
+            
+            # Lógica Suplencia
+            if es_heroe:
+                try: docentes = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS")['NOMBRE'].unique()
+                except: docentes = []
+                suplencia_a = st.selectbox("Cubrí a:", [d for d in docentes if d != st.session_state.u['NOMBRE']])
+                puntos_totales += 5
+                resumen_actividad.append(f"Suplencia: {suplencia_a}")
+
+            # Lógica Trabajo Extra (La Joya de la Corona)
+            if es_extra:
+                st.info("🕒 **Mérito por Trabajo Extra:** Se enviará a 'SUPER DIRECTOR' para validación en libro.")
+                detalle_extra = st.text_input("¿Qué actividad realizaste?", placeholder="Ej: Carteleras, Reunión de Padres, Limpieza profunda...")
+                if detalle_extra:
+                    puntos_totales += 3
+                    resumen_actividad.append(f"EXTRA: {detalle_extra}")
+                    alerta_director = "VALIDAR_EXTRA_EN_LIBRO" # Señal para el Director
+                else:
+                    st.warning("⚠️ Debes describir el trabajo extra para sumar los puntos.")
+                    st.stop()
+
+            # 4. LÓGICA DE JUSTIFICACIÓN (Solo si NO es trabajo extra y la hora es rara)
+            # Si marcó trabajo extra, se asume que la hora tardía es correcta.
+            es_horario_irregular = (h_actual >= 14 or h_actual < 11) and not es_extra
+            
+            if es_horario_irregular:
+                st.warning("⚠️ **Salida fuera de horario habitual (12:30 PM)**")
+                justif_salida = st.selectbox("Motivo:", ["Corte Eléctrico", "Sin Datos", "Olvido", "Permiso"])
+                hora_real = st.text_input("Hora REAL de salida (Libro):", placeholder="Ej: 12:30 PM")
+                resumen_actividad.append(f"INCIDENCIA: {justif_salida} ({hora_real})")
+                if not hora_real: st.stop()
+
+            motivo_final = " | ".join(resumen_actividad)
+            
+            # FOTO Y CIERRE
+            st.write(f"🌟 **Puntos a acumular hoy:** {puntos_totales}")
             f_sal = st.camera_input("Foto Salida")
-            if f_sal and st.button("Finalizar"):
-                with st.spinner("Subiendo..."):
-                    url = subir_a_imgbb(f_sal)
-                    if url:
-                        registrar_asistencia_v7(
-                            usuario=st.session_state.u['NOMBRE'], tipo="ASISTENCIA",
-                            hora_e="-", hora_s=hora_display, foto_e="-", foto_s=url,
-                            motivo="Cumplido", alerta_ia="-", puntos=10, suplencia_a="-"
-                        )
-                        st.success("Listo."); time.sleep(2); st.session_state.pagina_actual="HOME"; st.rerun()
+            
+            if f_sal and st.button("🏁 Finalizar Jornada"):
+                url = subir_a_imgbb(f_sal)
+                if url:
+                    registrar_asistencia_v7(
+                        usuario=st.session_state.u['NOMBRE'], tipo="ASISTENCIA",
+                        hora_e="-", hora_s=hora_display, foto_e="-", foto_s=url,
+                        motivo=motivo_final, 
+                        alerta_ia=alerta_director, # Aquí va la señal para el Director
+                        puntos=puntos_totales, 
+                        suplencia_a=suplencia_a
+                    )
+                    st.balloons()
+                    st.success(f"✅ Jornada cerrada. ¡Sumaste {puntos_totales} puntos de mérito!")
+                    time.sleep(3); st.session_state.pagina_actual="HOME"; st.rerun()
         
         else:
             st.info("✅ Registro completo.")
