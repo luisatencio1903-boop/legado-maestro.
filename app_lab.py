@@ -812,7 +812,7 @@ elif status == "❌ No Asistí":
 
             foto_sal = st.camera_input("📸 Foto de Verificación (Evidencia de Salida)")
             
-           if foto_sal:
+          if foto_sal:
                 if st.button("🏁 Finalizar Jornada"):
                     with st.spinner("Procesando registro..."):
                         h_sistema = ahora_ve().strftime('%I:%M %p')
