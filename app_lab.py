@@ -752,49 +752,51 @@ else:
             status = st.radio("Estado:", ["(Seleccionar)", "✅ Asistí al Plantel", "❌ No Asistí"], index=0)
             
             if status == "✅ Asistí al Plantel":
+                # Definimos las variables de tiempo
                 es_tarde = h_actual > 8 or (h_actual == 8 and h_min > 15)
                 es_madrugada = h_actual < 6
                 motivo_e = "Cumplimiento"
                 alerta_e = "-"
 
+                # 1. CASO MADRUGADA
                 if es_madrugada:
                     st.warning("⚠️ Horario de Madrugada")
                     motivo_e = f"MADRUGADA: {st.text_input('Justificación:', placeholder='Ej: Vigilancia...')}"
-               elif es_tarde:
-                st.error("🚨 Llegada Tardía (> 8:15 AM)")
                 
-                # 1. LISTA DESPLEGABLE ESTANDARIZADA (Mejora v12.5)
-                motivo_lista = [
-                    "Seleccione motivo...",
-                    "⛈️ Condiciones Climáticas (Lluvia/Vía)",
-                    "🔌 Falla Eléctrica / Sin Señal",
-                    "🚌 Transporte / Combustible",
-                    "🤝 Diligencia Institucional",
-                    "🏥 Salud / Cita Médica",
-                    "👨‍👩‍👧‍👦 Asunto Familiar de Fuerza Mayor",
-                    "🕒 Otro"
-                ]
-                justif_sel = st.selectbox("Motivo del Retraso:", motivo_lista)
-                
-                if justif_sel != "Seleccione motivo...":
-                    # Si elige "Otro", le dejamos escribir, si no, usamos la lista
-                    if justif_sel == "🕒 Otro":
-                        texto_extra = st.text_input("Especifique:")
-                        motivo_e = f"RETRASO: {texto_extra}" if texto_extra else None
-                    else:
-                        motivo_e = f"RETRASO: {justif_sel}"
+                # 2. CASO TARDANZA (Aquí empieza el bloque nuevo corregido)
+                elif es_tarde:
+                    st.error("🚨 Llegada Tardía (> 8:15 AM)")
                     
-                    if motivo_e:
-                        alerta_e = "TARDANZA"
-                        # ALERTA PROACTIVA DE SALUD
-                        if "Salud" in justif_sel:
-                            st.warning("⚠️ **Recordatorio:** Debes consignar el justificativo médico en Dirección (48h).")
+                    # LISTA DESPLEGABLE ESTANDARIZADA
+                    motivo_lista = [
+                        "Seleccione motivo...",
+                        "⛈️ Condiciones Climáticas (Lluvia/Vía)",
+                        "🔌 Falla Eléctrica / Sin Señal",
+                        "🚌 Transporte / Combustible",
+                        "🤝 Diligencia Institucional",
+                        "🏥 Salud / Cita Médica",
+                        "👨‍👩‍👧‍👦 Asunto Familiar de Fuerza Mayor",
+                        "🕒 Otro"
+                    ]
+                    justif_sel = st.selectbox("Motivo del Retraso:", motivo_lista)
+                    
+                    if justif_sel != "Seleccione motivo...":
+                        if justif_sel == "🕒 Otro":
+                            texto_extra = st.text_input("Especifique:")
+                            motivo_e = f"RETRASO: {texto_extra}" if texto_extra else None
+                        else:
+                            motivo_e = f"RETRASO: {justif_sel}"
+                        
+                        if motivo_e:
+                            alerta_e = "TARDANZA"
+                            if "Salud" in justif_sel:
+                                st.warning("⚠️ **Recordatorio:** Debes consignar el justificativo médico en Dirección (48h).")
+                        else:
+                            st.stop()
                     else:
                         st.stop()
-                else:
-                    st.stop() # Detiene todo hasta que seleccione algo
 
-                # 2. CÁMARA (ESTO ES LO QUE FALTABA, AQUÍ ESTÁ DE VUELTA)
+                # 3. FOTO DE ENTRADA (Siempre visible si asistió)
                 f_ent = st.camera_input("Foto Entrada")
                 if f_ent and st.button("🚀 Marcar Entrada"):
                     url = subir_a_imgbb(f_ent)
