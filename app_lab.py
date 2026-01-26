@@ -1550,8 +1550,8 @@ else:
                         
                 except Exception as e:
                     st.error(f"Error al guardar: {e}")
-   # -------------------------------------------------------------------------
-    # VISTA: REGISTRO DE EVALUACIONES (v7.0 EXPEDIENTE COMPARTIDO)
+  # -------------------------------------------------------------------------
+    # VISTA: REGISTRO DE EVALUACIONES (v12.5 BLINDADO)
     # -------------------------------------------------------------------------
     elif opcion == "📊 Registro de Evaluaciones":
         try:
@@ -1571,42 +1571,40 @@ else:
                 st.metric("Total de Evaluaciones", len(registros_alumno))
                 st.markdown("---")
                 
-                # Mostrar registros del más reciente al más antiguo
-               # 1. BUCLE DE TARJETAS (HISTORIAL)
-                    for _, fila in registros_alumno.iloc[::-1].iterrows():
-                        # A. Abrimos la tarjeta
-                        with st.expander(f"📅 {fila['FECHA']} | Evalúa: {fila['USUARIO']}"):
-                            # Contenido de la tarjeta
-                            if fila['USUARIO'] != st.session_state.u['NOMBRE']:
-                                st.caption(f"ℹ️ Suplente: {fila['USUARIO']}")
-                            st.write(fila['EVALUACION_IA'])
-                            
-                            # B. BOTÓN DE BORRAR (¡Mira! Está alineado ADENTRO de la tarjeta)
-                            st.markdown("---")
-                            if st.button("🗑️ Eliminar Nota", key=f"del_nota_{fila.name}"):
-                                df_ev_new = df_historial.drop(fila.name)
-                                conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_ev_new)
-                                st.warning("🗑️ Eliminada.")
-                                time.sleep(1)
-                                st.rerun()
+                # 1. BUCLE DE TARJETAS (HISTORIAL)
+                for _, fila in registros_alumno.iloc[::-1].iterrows():
+                    # A. Abrimos la tarjeta
+                    with st.expander(f"📅 {fila['FECHA']} | Evalúa: {fila['USUARIO']}"):
+                        # Contenido de la tarjeta
+                        if fila['USUARIO'] != st.session_state.u['NOMBRE']:
+                            st.caption(f"ℹ️ Suplente: {fila['USUARIO']}")
+                        st.write(fila['EVALUACION_IA'])
+                        st.caption(f"Original: {fila.get('ANECDOTA', '-')}")
+                        
+                        # B. BOTÓN DE BORRAR (Alineado DENTRO de la tarjeta)
+                        st.markdown("---")
+                        if st.button("🗑️ Eliminar Nota", key=f"del_nota_{fila.name}"):
+                            df_ev_new = df_historial.drop(fila.name)
+                            conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_ev_new)
+                            st.warning("🗑️ Eliminada.")
+                            time.sleep(1)
+                            st.rerun()
 
-                    # 2. BOTÓN DE INFORME (¡Mira! Está AFUERA del bucle, alineado con el 'for')
-                    st.markdown("---")
-                    if st.button("📝 Generar Informe de Progreso", key="btn_inf_progreso"):
-                        with st.spinner("Analizando historial..."):
-                            historico_txt = registros_alumno['EVALUACION_IA'].str.cat(sep='\n\n')
-                            prompt_text = f"Genera un informe de progreso técnico para {alumno_sel} basado en: {historico_txt}"
-                            try:
-                                # Usamos tu función de IA existente
-                                informe = generar_respuesta([{"role":"user", "content":prompt_text}])
-                                st.markdown(f'<div class="plan-box">{informe}</div>', unsafe_allow_html=True)
-                            except:
-                                st.error("Error conectando con la IA. Intente de nuevo.")
+                # 2. BOTÓN DE INFORME (Alineado FUERA del bucle)
+                st.markdown("---")
+                if st.button("📝 Generar Informe de Progreso", key="btn_inf_progreso"):
+                    with st.spinner("Analizando historial..."):
+                        historico_txt = registros_alumno['EVALUACION_IA'].str.cat(sep='\n\n')
+                        prompt_text = f"Genera un informe de progreso técnico para {alumno_sel} basado en: {historico_txt}"
+                        try:
+                            # Usamos tu función de IA existente
+                            informe = generar_respuesta([{"role":"user", "content":prompt_text}])
+                            st.markdown(f'<div class="plan-box">{informe}</div>', unsafe_allow_html=True)
+                        except:
+                            st.error("Error conectando con la IA. Intente de nuevo.")
 
-        # AQUÍ ABAJO DEBE QUEDAR TU 'except Exception as e:' ORIGINAL
         except Exception as e:
             st.error(f"Error al cargar el historial: {e}")
-
 # -------------------------------------------------------------------------
     # VISTA: MI ARCHIVO PEDAGÓGICO (v12.4 - BITÁCORA SEMANAL + CRUCE DE DATOS)
     # -------------------------------------------------------------------------
