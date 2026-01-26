@@ -760,12 +760,41 @@ else:
                 if es_madrugada:
                     st.warning("⚠️ Horario de Madrugada")
                     motivo_e = f"MADRUGADA: {st.text_input('Justificación:', placeholder='Ej: Vigilancia...')}"
-                elif es_tarde:
-                    st.error("🚨 Llegada Tardía (> 8:15 AM)")
-                    justif = st.text_input("Motivo del Retraso:", placeholder="Ej: Transporte...")
-                    if justif: motivo_e = f"RETRASO: {justif}"; alerta_e = "TARDANZA"
-                    else: st.stop()
+               elif es_tarde:
+                st.error("🚨 Llegada Tardía (> 8:15 AM)")
+                
+                # 1. LISTA DESPLEGABLE ESTANDARIZADA (Mejora v12.5)
+                motivo_lista = [
+                    "Seleccione motivo...",
+                    "⛈️ Condiciones Climáticas (Lluvia/Vía)",
+                    "🔌 Falla Eléctrica / Sin Señal",
+                    "🚌 Transporte / Combustible",
+                    "🤝 Diligencia Institucional",
+                    "🏥 Salud / Cita Médica",
+                    "👨‍👩‍👧‍👦 Asunto Familiar de Fuerza Mayor",
+                    "🕒 Otro"
+                ]
+                justif_sel = st.selectbox("Motivo del Retraso:", motivo_lista)
+                
+                if justif_sel != "Seleccione motivo...":
+                    # Si elige "Otro", le dejamos escribir, si no, usamos la lista
+                    if justif_sel == "🕒 Otro":
+                        texto_extra = st.text_input("Especifique:")
+                        motivo_e = f"RETRASO: {texto_extra}" if texto_extra else None
+                    else:
+                        motivo_e = f"RETRASO: {justif_sel}"
+                    
+                    if motivo_e:
+                        alerta_e = "TARDANZA"
+                        # ALERTA PROACTIVA DE SALUD
+                        if "Salud" in justif_sel:
+                            st.warning("⚠️ **Recordatorio:** Debes consignar el justificativo médico en Dirección (48h).")
+                    else:
+                        st.stop()
+                else:
+                    st.stop() # Detiene todo hasta que seleccione algo
 
+                # 2. CÁMARA (ESTO ES LO QUE FALTABA, AQUÍ ESTÁ DE VUELTA)
                 f_ent = st.camera_input("Foto Entrada")
                 if f_ent and st.button("🚀 Marcar Entrada"):
                     url = subir_a_imgbb(f_ent)
@@ -773,12 +802,29 @@ else:
                         registrar_asistencia_v7(st.session_state.u['NOMBRE'], "ASISTENCIA", hora_display, "-", url, "-", motivo_e, alerta_e, 10, "-")
                         st.success("Entrada Registrada."); time.sleep(2); st.session_state.pagina_actual="HOME"; st.rerun()
 
+            # --- SECCIÓN DE INASISTENCIA (MEJORADA CON LISTA) ---
             elif status == "❌ No Asistí":
-                mot = st.text_area("Motivo:")
-                if st.button("Enviar") and mot:
-                    salud = "salud" in mot.lower() or "médico" in mot.lower()
-                    alerta = "⚠️ 48h para justificativo" if salud else "-"
-                    registrar_asistencia_v7(st.session_state.u['NOMBRE'], "INASISTENCIA", "-", "-", "-", "-", mot, alerta, 5, "-")
+                st.markdown("### Reporte de Inasistencia")
+                motivo_falta = st.selectbox("Causa de la falta:", [
+                    "🏥 Salud (Reposo/Cita)",
+                    "🚗 Falla Mecánica / Transporte",
+                    "📄 Diligencia Administrativa",
+                    "🛑 Paro / Protesta",
+                    "🏠 Calamidad Doméstica",
+                    "👤 Asuntos Personales"
+                ])
+                
+                detalles_falta = st.text_input("Detalles adicionales (Opcional):")
+                mot_final = f"{motivo_falta} - {detalles_falta}"
+                
+                # ALERTA INTELIGENTE
+                alerta = "-"
+                if "Salud" in motivo_falta:
+                    alerta = "⚠️ REPOSO: Entregar justificativo"
+                    st.info("ℹ️ El sistema ha marcado esto como incidencia de Salud. Recuerda los soportes.")
+
+                if st.button("Enviar Reporte de Falta"):
+                    registrar_asistencia_v7(st.session_state.u['NOMBRE'], "INASISTENCIA", "-", "-", "-", "-", mot_final, alerta, 0, "-") # 0 Puntos por falta
                     st.success("Enviado."); time.sleep(2); st.session_state.pagina_actual="HOME"; st.rerun()
 
         # --- CASO B: SALIDA (NUEVA LÓGICA DE TRABAJO EXTRA) ---
