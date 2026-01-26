@@ -1760,52 +1760,46 @@ else:
                                         st.warning("🗑️ Registro eliminado correctamente.")
                                         time.sleep(1)
                                         st.rerun()
-          # ---------------------------------------------------------------------
-        # CONTENIDO DE LA PESTAÑA 3: EXPEDIENTE (CORREGIDO)
-        # ---------------------------------------------------------------------
+         # PESTAÑA 3: HISTORIAL (Asegúrate que esté indentado dentro de 'with tab_historial_ev:')
+    with tab_historial_ev:
         st.subheader("📊 Expediente Estudiantil (Edición Activada)")
-
+        
         try:
-            # 1. Cargar datos frescos
+            # 1. Cargar datos
             df_historial = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
-            
-            # 2. Filtrar por docente titular
             mis_alumnos_data = df_historial[df_historial['DOCENTE_TITULAR'] == st.session_state.u['NOMBRE']]
 
             if mis_alumnos_data.empty:
-                st.info("📭 No se encontraron registros en el expediente.")
+                st.info("No hay evaluaciones registradas.")
             else:
-                # 3. Selector de Alumno (Con key única para no chocar)
-                lista_alumnos_hist = sorted(mis_alumnos_data['ESTUDIANTE'].unique())
-                alumno_sel = st.selectbox("Seleccione Alumno:", lista_alumnos_hist, key="sel_tab3_fix")
+                # 2. Selector
+                lista = sorted(mis_alumnos_data['ESTUDIANTE'].unique())
+                alumno_sel = st.selectbox("Seleccione Alumno:", lista, key="sel_tab3_final")
+                registros = mis_alumnos_data[mis_alumnos_data['ESTUDIANTE'] == alumno_sel]
                 
-                registros_alumno = mis_alumnos_data[mis_alumnos_data['ESTUDIANTE'] == alumno_sel]
-                
-                st.caption(f"Total de notas encontradas: {len(registros_alumno)}")
+                st.caption(f"Notas encontradas: {len(registros)}")
                 st.divider()
 
-                # 4. Bucle de Tarjetas
-                for _, fila in registros_alumno.iloc[::-1].iterrows():
-                    with st.expander(f"📅 {fila['FECHA']} | Evalúa: {fila['USUARIO']}"):
-                        # Contenido de la nota
+                # 3. Bucle de tarjetas
+                for _, fila in registros.iloc[::-1].iterrows():
+                    with st.expander(f"📅 {fila['FECHA']} | {fila['USUARIO']}"):
                         st.write(fila['EVALUACION_IA'])
-                        st.caption(f"Original: {fila.get('ANECDOTA', '-')}")
                         
-                        # --- ZONA DE BORRADO (Aquí está el botón rojo) ---
+                        # --- EL FAMOSO BOTÓN DE BORRAR ---
                         st.divider()
-                        col_a, col_b = st.columns([0.6, 0.4])
-                        
-                        with col_a:
+                        c1, c2 = st.columns([0.6, 0.4])
+                        with c1:
                             st.caption("⚠️ **Zona de Peligro**")
-                        
-                        with col_b:
-                            if st.button("🗑️ ELIMINAR NOTA", key=f"del_tab3_{fila.name}", type="primary"):
-                                # Acción de borrado
+                        with c2:
+                            if st.button("🗑️ ELIMINAR", key=f"del_tab3_{fila.name}", type="primary"):
                                 df_new = df_historial.drop(fila.name)
                                 conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_new)
-                                st.success("¡Eliminada correctamente!")
+                                st.success("¡Borrado!")
                                 time.sleep(1)
                                 st.rerun()
+
+        except Exception as e:
+            st.error(f"Error en historial: {e}")
 
         except Exception as e:
             # Este es el paracaídas que faltaba antes
