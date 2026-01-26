@@ -596,101 +596,66 @@ if st.session_state.redirigir_a_archivo:
     st.session_state.pagina_actual = "📂 Mi Archivo Pedagógico"
     st.session_state.redirigir_a_archivo = False
 
-# --- VISTA: HOME (PANTALLA DE INICIO) ---
+# --- VISTA: HOME (DISEÑO DE REJILLA TIPO APP) ---
 if st.session_state.pagina_actual == "HOME":
     
-    # Encabezado de Acciones Rápidas (3 Botones: Actualizar, Limpiar, Salir)
-    col_update, col_clean, col_logout = st.columns([1.2, 1, 1])
-    
-    # 1. BOTÓN ACTUALIZAR (CONEXIÓN NUBE)
-    with col_update:
-        if st.button("♻️ ACTUALIZAR", help="Forzar descarga de alumnos y planes nuevos de Google Sheets"):
-            # Esto borra la memoria caché de la Base de Datos
-            st.cache_data.clear()
-            st.toast("☁️ Conectando con Google Sheets...", icon="🔄")
-            time.sleep(1)
-            st.success("¡Sistema Sincronizado!")
-            time.sleep(1)
-            st.rerun()
+    # Encabezado limpio
+    st.title("🍎 Super Docente")
+    st.caption(f"Bienvenido, **{st.session_state.u['NOMBRE']}**")
 
-    # 2. BOTÓN LIMPIAR (MEMORIA LOCAL)
-    with col_clean:
-        if st.button("🧹 LIMPIAR", help="Borrar texto en pantalla y reiniciar variables temporales"):
-            # Esto solo borra lo que estás haciendo en el momento (No la base de datos)
-            st.session_state.plan_actual = ""
-            st.session_state.actividad_detectada = ""
-            st.session_state.eval_resultado = ""
-            st.session_state.temp_propuesta_ia = ""
-            st.toast("✨ Mesa de trabajo limpia")
-            time.sleep(0.5)
-            st.rerun()
-            
-    # 3. BOTÓN SALIR
-    with col_logout:
-        if st.button("🔒 SALIR", type="primary", help="Cerrar sesión segura"):
-            st.session_state.auth = False
-            st.session_state.u = None
-            st.query_params.clear() 
-            st.rerun()
+    # 1. BARRA SUPERIOR (Iconos pequeños)
+    with st.container():
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("🔄 Sincronizar"):
+                st.cache_data.clear(); st.toast("Actualizando..."); time.sleep(1); st.rerun()
+        with c2:
+            if st.button("🧹 Limpiar"):
+                st.session_state.plan_actual = ""; st.session_state.temp_propuesta_ia = ""
+                st.toast("Limpio"); time.sleep(0.5); st.rerun()
+        with c3:
+            if st.button("🔒 Salir", type="primary"):
+                st.session_state.auth = False; st.session_state.u = None; st.query_params.clear(); st.rerun()
 
-    st.divider()
-    
-    st.title("🍎 Asistente Educativo - Zulia")
-    st.info(f"👋 Saludos, **{st.session_state.u['NOMBRE']}**. Selecciona una acción:")
-    
-    st.write("")
-    
-    # 1. CONTROL DE ASISTENCIA
-    st.markdown("### ⏱️ CONTROL DIARIO")
-    if st.button("📸 REGISTRAR ASISTENCIA / SALIDA", type="primary", use_container_width=True):
+    st.write("") # Espacio
+
+    # 2. ACCIÓN PRINCIPAL (Gigante)
+    # Se usa type="primary" para que resalte en rojo/color principal
+    if st.button("⏱️  MARCAR ASISTENCIA  ⏱️", type="primary", use_container_width=True):
         st.session_state.pagina_actual = "⏱️ Control de Asistencia"
         st.rerun()
     
-    # 2. HERRAMIENTAS DE GESTIÓN (Home)
-    st.markdown("### 🛠️ GESTIÓN DOCENTE")
-    sel_principal = st.selectbox(
-        "Herramientas de Planificación:",
-        [
-            "(Seleccionar)",
-            "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)",    
-            "📂 Mi Archivo Pedagógico",                    
-            "🏗️ GESTIÓN DE PROYECTOS Y PLANES",           
-            "🧠 PLANIFICADOR INTELIGENTE",                
-            "📜 PLANIFICADOR MINISTERIAL"
-        ],
-        key="home_gestion"
-    )
-    
-    # 3. RECURSOS
-    st.markdown("### 🧩 RECURSOS EXTRA")
-    sel_extra = st.selectbox(
-        "Apoyo Docente:",
-        ["(Seleccionar)", "🌟 Mensaje Motivacional", "💡 Ideas de Actividades", "❓ Consultas Técnicas"],
-        key="home_extras"
-    )
-    
-    if sel_principal != "(Seleccionar)":
-        st.session_state.pagina_actual = sel_principal
-        st.rerun()
-        
-    if sel_extra != "(Seleccionar)":
-        st.session_state.pagina_actual = sel_extra
-        st.rerun()
-
-# --- VISTAS DE HERRAMIENTAS (PANTALLA COMPLETA) ---
-else:
-    # Botón Volver Universal
-    col_nav1, col_nav2 = st.columns([1, 4])
-    with col_nav1:
-        if st.button("⬅️ VOLVER", use_container_width=True):
-            st.session_state.pagina_actual = "HOME"
-            st.rerun()
-    with col_nav2:
-        st.subheader(st.session_state.pagina_actual)
-    
     st.divider()
-    opcion = st.session_state.pagina_actual
 
+    # 3. MENÚ DE BOTONES (GRID 2x2)
+    # En celular se verán 2 botones por fila, mucho más fácil de tocar que una lista
+    st.markdown("### 📂 Herramientas")
+    
+    fila1_a, fila1_b = st.columns(2)
+    with fila1_a:
+        if st.button("🦸‍♂️\nClase Virtual", use_container_width=True):
+            st.session_state.pagina_actual = "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)"; st.rerun()
+    with fila1_b:
+        if st.button("🧠\nPlanificador", use_container_width=True):
+            st.session_state.pagina_actual = "🧠 PLANIFICADOR INTELIGENTE"; st.rerun()
+
+    fila2_a, fila2_b = st.columns(2)
+    with fila2_a:
+        if st.button("📂\nMi Archivo", use_container_width=True):
+            st.session_state.pagina_actual = "📂 Mi Archivo Pedagógico"; st.rerun()
+    with fila2_b:
+        if st.button("⚙️\nConfigurar", use_container_width=True):
+            st.session_state.pagina_actual = "🏗️ GESTIÓN DE PROYECTOS Y PLANES"; st.rerun()
+
+    # 4. EXTRAS (Plegable para no estorbar)
+    st.write("")
+    with st.expander("🧩 Recursos Adicionales"):
+        if st.button("🌟 Mensaje Motivacional", use_container_width=True):
+            st.session_state.pagina_actual = "🌟 Mensaje Motivacional"; st.rerun()
+        if st.button("💡 Ideas Rápidas", use_container_width=True):
+            st.session_state.pagina_actual = "💡 Ideas de Actividades"; st.rerun()
+        if st.button("❓ Consultas Técnicas", use_container_width=True):
+            st.session_state.pagina_actual = "❓ Consultas Técnicas"; st.rerun()
    # -------------------------------------------------------------------------
    # -------------------------------------------------------------------------
     # VISTA: CONTROL DE ASISTENCIA (V5.3 - GESTIÓN DE MÉRITOS Y TRABAJO EXTRA)
