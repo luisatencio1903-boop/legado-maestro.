@@ -1128,7 +1128,68 @@ else:
                     st.session_state.plan_actual = ""
                     st.rerun()
 
-      
+      # -------------------------------------------------------------------------
+    # VISTA: PLANIFICADOR MINISTERIAL (ADAPTACIÓN A EDUCACIÓN ESPECIAL)
+    # -------------------------------------------------------------------------
+    elif opcion == "📜 PLANIFICADOR MINISTERIAL":
+        st.header("📜 Planificador y Adaptador Ministerial")
+        st.markdown("Contextualiza las orientaciones del Ministerio a tu servicio de Educación Especial.")
+
+        col_izq, col_der = st.columns([1, 1])
+
+        with col_izq:
+            st.subheader("1. Orientación Ministerial")
+            texto_ministerio = st.text_area("Pega aquí el contenido de la Guía Ministerial:", 
+                                          height=200, key="mppe_input",
+                                          placeholder="Ej: Efeméride de la Semana, Batalla de Carabobo...")
+
+        with col_der:
+            st.subheader("2. Contexto de Especial")
+            tipo_servicio = st.selectbox("Servicio / Modalidad:", 
+                                       ["Aula Integrada", "I.E.E. (Retardo)", "Taller Laboral", "C.A.I.P.A. (Autismo)", "U.P.E."],
+                                       key="mppe_serv")
+            nivel_grupo = st.text_input("Nivel o Grupo:", placeholder="Ej: 3er Grado", key="mppe_grado")
+            enfoque = st.radio("Adaptación:", ["De Acceso", "Curricular Significativa", "DUA"], key="mppe_radio")
+
+        if st.button("✨ GENERAR ADAPTACIÓN CURRICULAR", type="primary", use_container_width=True):
+            if not texto_ministerio:
+                st.error("⚠️ Falta el texto del Ministerio.")
+            else:
+                with st.spinner("🧠 Adaptando para Educación Especial..."):
+                    prompt_adapt = f"""
+                    ADAPTA ESTA PLANIFICACIÓN REGULAR: "{texto_ministerio}"
+                    PARA EL SERVICIO: {tipo_servicio}, GRUPO: {nivel_grupo}.
+                    ENFOQUE: {enfoque}.
+                    Genera: 1. Intencionalidad, 2. Inicio, 3. Desarrollo, 4. Cierre, 5. Recursos.
+                    """
+                    try:
+                        # Usa tu función maestra de IA
+                        res_ia = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":prompt_adapt}], 0.7)
+                        st.session_state.temp_propuesta_ia = res_ia
+                    except: st.error("Error de conexión con el cerebro IA.")
+
+        if st.session_state.get('temp_propuesta_ia'):
+            st.markdown("### 📝 Planificación Adaptada")
+            plan_final = st.text_area("Edición Final:", value=st.session_state.temp_propuesta_ia, height=300, key="mppe_edit")
+            
+            if st.button("💾 Guardar en Mi Archivo", key="mppe_save", use_container_width=True):
+                try:
+                    # Guardado en tu hoja principal 'Hoja1'
+                    df_h = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+                    nuevo_r = pd.DataFrame([{
+                        "FECHA": ahora_ve().strftime("%d/%m/%Y"), 
+                        "USUARIO": st.session_state.u['NOMBRE'], 
+                        "TEMA": "Adaptación Ministerial", 
+                        "CONTENIDO": plan_final, 
+                        "ESTADO": "GUARDADO", 
+                        "HORA_INICIO": "--", "HORA_FIN": "--"
+                    }])
+                    conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=pd.concat([df_h, nuevo_r], ignore_index=True))
+                    st.success("✅ ¡Adaptación guardada exitosamente en tu archivo!")
+                    st.session_state.temp_propuesta_ia = ""
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e: st.error(f"Error al guardar: {e}")
 # -------------------------------------------------------------------------
     # VISTA: AULA VIRTUAL (v13.0 - TRÍADA PEDAGÓGICA: INICIO, DESARROLLO, CIERRE)
     # -------------------------------------------------------------------------
