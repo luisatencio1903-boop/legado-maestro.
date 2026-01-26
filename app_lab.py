@@ -1589,14 +1589,13 @@ else:
         except Exception as e:
             st.error(f"Error: {e}")
 # =========================================================================
-    # SECCIÓN: MI ARCHIVO PEDAGÓGICO (OPTIMIZADA ANTI-BLOQUEO + REGLA DE ORO)
+    # SECCIÓN: MI ARCHIVO PEDAGÓGICO (VERSIÓN FINAL v1.0 - 3 FOTOS)
     # =========================================================================
     elif opcion == "📂 Mi Archivo Pedagógico":
         st.header(f"📂 Archivo Pedagógico de {st.session_state.u['NOMBRE']}")
         
         try:
-            # 1. CARGA DE DATOS INTELIGENTE (TTL=60 SEGUNDOS)
-            # Esto evita que Google te bloquee (Error 429) por leer muy rápido.
+            # 1. CARGA DE DATOS INTELIGENTE (TTL=60)
             # Lee de la memoria RAM (rápido) y solo va a Google cada 60 segs O al guardar.
             df_total_planes = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=60)
             df_ejecucion = conn.read(spreadsheet=URL_HOJA, worksheet="EJECUCION", ttl=60)
@@ -1605,13 +1604,11 @@ else:
             # 2. CREACIÓN DE PESTAÑAS
             tab_archivo, tab_consolidados, tab_historial_ev = st.tabs([
                 "📝 Mis Planificaciones", 
-                "📚 Bitácora de Clases", 
+                "📚 Bitácora (3 Momentos)", 
                 "📊 Historial Expediente"
             ])
 
-            # -----------------------------------------------------------------
-            # PESTAÑA 1: GESTIÓN DE PLANES
-            # -----------------------------------------------------------------
+            # --- PESTAÑA 1: GESTIÓN DE PLANES ---
             with tab_archivo:
                 col_filtros, col_backup = st.columns([3, 1])
                 with col_filtros:
@@ -1637,7 +1634,7 @@ else:
                     st.success(f"📌 **PLAN ACTIVO ACTUAL:** {pa['RANGO']}")
                     if st.button("Desactivar Plan", key="btn_des_master"): 
                         desactivar_plan_activa(usuario_a_consultar)
-                        st.cache_data.clear() # <--- IMPORTANTE: Limpia la memoria para ver el cambio YA
+                        st.cache_data.clear() # Limpiar memoria para ver cambio
                         st.rerun()
                 else: 
                     st.info(f"⚠️ {usuario_a_consultar} no tiene un plan activo en este momento.")
@@ -1662,13 +1659,10 @@ else:
                             if contenido_editado != fila["CONTENIDO"]:
                                 if c_save.button("💾 Guardar", key=f"save_{i}"):
                                     df_total_planes.at[i, 'CONTENIDO'] = contenido_editado
-                                    # 1. Enviamos a Google (NUBE)
                                     conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_total_planes)
-                                    # 2. Borramos la fotocopia vieja para traer la nueva
                                     st.cache_data.clear() 
-                                    st.toast("Plan actualizado en la Nube.")
-                                    time.sleep(1)
-                                    st.rerun()
+                                    st.toast("Plan actualizado.")
+                                    time.sleep(1); st.rerun()
                             
                             # ACTIVAR PLAN
                             if not es_este_activo:
@@ -1676,8 +1670,7 @@ else:
                                     establecer_plan_activa(usuario_a_consultar, str(i), contenido_editado, fila['FECHA'], "Aula")
                                     st.cache_data.clear()
                                     st.toast("¡Plan Activado!")
-                                    time.sleep(1)
-                                    st.rerun()
+                                    time.sleep(1); st.rerun()
                             
                             # BORRAR PLAN
                             if not modo_suplencia_arch:
@@ -1686,14 +1679,11 @@ else:
                                     conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_new)
                                     st.cache_data.clear()
                                     st.toast("Plan eliminado.")
-                                    time.sleep(1)
-                                    st.rerun()
+                                    time.sleep(1); st.rerun()
 
-            # -----------------------------------------------------------------
-            # PESTAÑA 2: BITÁCORA
-            # -----------------------------------------------------------------
+            # --- PESTAÑA 2: BITÁCORA (VISUALIZACIÓN DE 3 FOTOS) ---
             with tab_consolidados:
-                st.subheader("📚 Bitácora de Clases Ejecutadas")
+                st.subheader("📚 Bitácora de Clases (Inicio - Desarrollo - Cierre)")
                 mis_logros = df_ejecucion[df_ejecucion['USUARIO'] == st.session_state.u['NOMBRE']].copy()
                 
                 if mis_logros.empty:
@@ -1706,32 +1696,41 @@ else:
 
                     for i, (_, logro) in enumerate(mis_logros.iterrows()):
                         with st.expander(f"🗓️ {logro['FECHA']} | {logro['ACTIVIDAD_TITULO']}"):
+                            # AQUÍ MOSTRAMOS LAS 3 FOTOS
                             fotos = str(logro['EVIDENCIA_FOTO']).split('|')
-                            c1, c2 = st.columns(2)
-                            if len(fotos) > 0 and fotos[0] != "-": c1.image(fotos[0], width=150, caption="Inicio")
-                            if len(fotos) > 1 and fotos[1] != "-": c2.image(fotos[1], width=150, caption="Cierre")
+                            
+                            c1, c2, c3 = st.columns(3)
+                            
+                            with c1:
+                                if len(fotos) > 0 and fotos[0] not in ["-", "None"]: 
+                                    st.image(fotos[0], use_container_width=True, caption="1. Inicio")
+                            
+                            with c2:
+                                if len(fotos) > 1 and fotos[1] not in ["-", "None"]: 
+                                    st.image(fotos[1], use_container_width=True, caption="2. Desarrollo")
+                            
+                            with c3:
+                                if len(fotos) > 2 and fotos[2] not in ["-", "None"]: 
+                                    st.image(fotos[2], use_container_width=True, caption="3. Cierre")
                             
                             st.info(f"**Resumen:** {logro['RESUMEN_LOGROS']}")
                             
-                            if st.button("🧠 Analizar con IA", key=f"ia_bit_{i}"):
-                                with st.spinner("Analizando..."):
-                                    prompt = f"Analiza esta clase de Educación Especial: {logro['RESUMEN_LOGROS']}"
+                            if st.button("🧠 Analizar Pedagogía (IA)", key=f"ia_bit_{i}"):
+                                with st.spinner("Analizando momentos de la clase..."):
+                                    prompt = f"Analiza esta clase: {logro['RESUMEN_LOGROS']}. Evalúa si se cumplieron Inicio, Desarrollo y Cierre."
                                     try:
                                         res = generar_respuesta([{"role":"user","content":prompt}])
                                         st.success(res)
                                     except: st.error("Error IA")
                             
                             st.divider()
-                            # BORRAR BITÁCORA
                             if st.button("🗑️ Eliminar Registro", key=f"del_bit_{i}"):
                                 df_new = df_ejecucion.drop(logro.name)
                                 conn.update(spreadsheet=URL_HOJA, worksheet="EJECUCION", data=df_new)
-                                st.cache_data.clear() # Actualización inmediata
+                                st.cache_data.clear() # Refresco inmediato
                                 st.rerun()
 
-            # -----------------------------------------------------------------
-            # PESTAÑA 3: EXPEDIENTE ESTUDIANTIL
-            # -----------------------------------------------------------------
+            # --- PESTAÑA 3: EXPEDIENTE ESTUDIANTIL ---
             with tab_historial_ev:
                 st.subheader("📊 Expediente Estudiantil (Edición)")
                 mis_alumnos_data = df_evaluaciones[df_evaluaciones['DOCENTE_TITULAR'] == st.session_state.u['NOMBRE']]
@@ -1755,25 +1754,23 @@ else:
                             c_txt, c_btn = st.columns([0.6, 0.4])
                             with c_txt: st.caption("⚠️ **Zona de Peligro**")
                             with c_btn:
-                                # BORRAR NOTA
                                 if st.button("🗑️ ELIMINAR NOTA", key=f"del_exp_{fila.name}", type="primary"):
                                     df_new = df_evaluaciones.drop(fila.name)
                                     conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_new)
                                     st.cache_data.clear() # Refresco inmediato
-                                    st.success("¡Eliminado de la Nube!")
-                                    time.sleep(1)
-                                    st.rerun()
+                                    st.success("¡Eliminado!")
+                                    time.sleep(1); st.rerun()
 
         except Exception as e:
             st.error(f"Error general en el módulo de Archivo: {e}")
 
-    # --- PIE DE PÁGINA: SUPER DOCENTE ---
-    st.markdown("---")
-    col_f1, col_f2 = st.columns([3, 1])
-    with col_f1:
-        st.markdown("**© 2026 SUPER DOCENTE**")
-        st.caption("Tecnología educativa hecha en La Concepción, Zulia.")
-        st.caption("Desarrollado por: **Luis Atencio** (Bachiller Docente).")
-    with col_f2:
-        try: st.caption(f"v12.5 | {ahora_ve().strftime('%I:%M %p')}")
-        except: st.caption("v12.5")
+# --- PIE DE PÁGINA: SUPER DOCENTE ---
+st.markdown("---")
+col_f1, col_f2 = st.columns([3, 1])
+with col_f1:
+    st.markdown("**© 2026 SUPER DOCENTE**")
+    st.caption("Tecnología educativa hecha en La Concepción, Zulia.")
+    st.caption("Desarrollado por: **Luis Atencio** (Bachiller Docente).")
+with col_f2:
+    try: st.caption(f"v1.0 | {ahora_ve().strftime('%I:%M %p')}")
+    except: st.caption("v1.0")
