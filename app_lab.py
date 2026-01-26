@@ -1665,104 +1665,109 @@ else:
                                 if col_btns[2].button(f"🗑️ Borrar", key=f"del_btn_{i}"):
                                     conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_total_planes.drop(i)); st.rerun()
 
-            # =================================================================
-            # PESTAÑA 2: BITÁCORA SEMANAL (FIX BOTÓN IA)
-            # =================================================================
-            with tab_consolidados:
-                st.write("### 📚 Bitácora de Clases Ejecutadas")
-                mis_logros = df_ejecucion[df_ejecucion['USUARIO'] == st.session_state.u['NOMBRE']].copy()
+           # =================================================================
+    # PESTAÑA 2: BITÁCORA SEMANAL (CONSOLIDADO)
+    # =================================================================
+    with tab_consolidados:
+        st.write("### 📚 Bitácora de Clases Ejecutadas")
+        
+        # Filtramos solo tus logros
+        mis_logros = df_ejecucion[df_ejecucion['USUARIO'] == st.session_state.u['NOMBRE']].copy()
+        
+        if mis_logros.empty:
+            st.info("Aún no tienes actividades consolidadas.")
+        else:
+            # 1. PROCESAMIENTO DE FECHAS
+            try:
+                mis_logros['FECHA_DT'] = pd.to_datetime(mis_logros['FECHA'], dayfirst=True, errors='coerce')
+                mis_logros['SEMANA_NUM'] = mis_logros['FECHA_DT'].dt.isocalendar().week
+                mis_logros = mis_logros.sort_values('FECHA_DT', ascending=False)
+            except:
+                mis_logros['SEMANA_NUM'] = 0
+
+            # 2. ITERAMOS POR SEMANA
+            semanas_unicas = mis_logros['SEMANA_NUM'].unique()
+            
+            for sem in semanas_unicas:
+                datos_semana = mis_logros[mis_logros['SEMANA_NUM'] == sem]
+                if datos_semana.empty: continue
                 
-                if mis_logros.empty:
-                    st.info("Aún no tienes actividades consolidadas.")
-                else:
-                    # 1. PROCESAMIENTO DE FECHAS
-                    try:
-                        mis_logros['FECHA_DT'] = pd.to_datetime(mis_logros['FECHA'], dayfirst=True, errors='coerce')
-                        mis_logros['SEMANA_NUM'] = mis_logros['FECHA_DT'].dt.isocalendar().week
-                        mis_logros = mis_logros.sort_values('FECHA_DT', ascending=False)
-                    except:
-                        mis_logros['SEMANA_NUM'] = 0
-
-                    # 2. ITERAMOS POR SEMANA
-                    semanas_unicas = mis_logros['SEMANA_NUM'].unique()
+                fecha_ref = datos_semana.iloc[0]['FECHA']
+                cant_act = len(datos_semana)
+                
+                with st.expander(f"📂 SEMANA: {fecha_ref} (Actividades: {cant_act})", expanded=True):
                     
-                    for sem in semanas_unicas:
-                        datos_semana = mis_logros[mis_logros['SEMANA_NUM'] == sem]
-                        fecha_ref = datos_semana.iloc[0]['FECHA']
-                        cant_act = len(datos_semana)
+                    # USAMOS ENUMERATE PARA TENER UN ÍNDICE ÚNICO (i)
+                    for i, (_, logro) in enumerate(datos_semana.iterrows()):
+                        st.markdown(f"##### 🗓️ {logro['FECHA']} | {logro['ACTIVIDAD_TITULO']}")
                         
-                        with st.expander(f"📂 SEMANA: {fecha_ref} (Actividades: {cant_act})", expanded=True):
-                            
-                            # USAMOS ENUMERATE PARA TENER UN ÍNDICE ÚNICO (i)
-                            for i, (_, logro) in enumerate(datos_semana.iterrows()):
-                                st.markdown(f"##### 🗓️ {logro['FECHA']} | {logro['ACTIVIDAD_TITULO']}")
-                                
-                                # A. FOTOS
-                                fotos = str(logro['EVIDENCIA_FOTO']).split('|')
-                                c1, c2 = st.columns(2)
-                                with c1:
-                                    if len(fotos) > 0 and fotos[0].strip() != "-": st.image(fotos[0].strip(), caption="Inicio", width=150)
-                                with c2:
-                                    if len(fotos) > 1 and fotos[1].strip() != "-": st.image(fotos[1].strip(), caption="Cierre", width=150)
+                        # A. FOTOS
+                        fotos = str(logro['EVIDENCIA_FOTO']).split('|')
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            if len(fotos) > 0 and fotos[0].strip() != "-": 
+                                st.image(fotos[0].strip(), caption="Inicio", width=150)
+                        with c2:
+                            if len(fotos) > 1 and fotos[1].strip() != "-": 
+                                st.image(fotos[1].strip(), caption="Cierre", width=150)
 
-                                # B. RESUMEN
-                                st.info(f"**📝 Tu Resumen:** {logro['RESUMEN_LOGROS']}")
-                                
-                                # C. CRUCE CON ALUMNOS
-                                ev_dia = df_evaluaciones[
-                                    (df_evaluaciones['FECHA'] == logro['FECHA']) & 
-                                    (df_evaluaciones['USUARIO'] == st.session_state.u['NOMBRE'])
-                                ]
-                                
+                        # B. RESUMEN
+                        st.info(f"**📝 Tu Resumen:** {logro['RESUMEN_LOGROS']}")
+                        
+                        # C. CRUCE CON ALUMNOS
+                        ev_dia = df_evaluaciones[
+                            (df_evaluaciones['FECHA'] == logro['FECHA']) & 
+                            (df_evaluaciones['USUARIO'] == st.session_state.u['NOMBRE'])
+                        ]
+                        
+                        if not ev_dia.empty:
+                            with st.expander(f"👥 Ver {len(ev_dia)} Evaluaciones de este día"):
+                                for _, e in ev_dia.iterrows():
+                                    st.markdown(f"**• {e['ESTUDIANTE']}:** {e['EVALUACION_IA']}")
+                                    st.caption(f"*(Anecdota: {e['ANECDOTA']})*")
+                                    st.divider()
+
+                        # D. ANÁLISIS IA
+                        key_unica = f"btn_ia_sem{sem}_item{i}"
+                        
+                        if st.button("🧠 Analizar Jornada (IA)", key=key_unica):
+                            with st.spinner("La IA está leyendo tu bitácora..."):
+                                contexto_alumnos = ""
                                 if not ev_dia.empty:
-                                    with st.expander(f"👥 Ver {len(ev_dia)} Evaluaciones de este día"):
-                                        for _, e in ev_dia.iterrows():
-                                            st.markdown(f"**• {e['ESTUDIANTE']}:** {e['EVALUACION_IA']}")
-                                            st.caption(f"*(Anecdota: {e['ANECDOTA']})*")
-                                            st.divider()
-
-                                # D. ANÁLISIS IA (LLAVE FIJA CORREGIDA)
-                                # Usamos la semana (sem) y el índice (i) para crear una llave única y fija
-                                key_unica = f"btn_ia_sem{sem}_item{i}"
+                                    contexto_alumnos = "EVALUACIONES ALUMNOS: " + ev_dia['EVALUACION_IA'].str.cat(sep=" | ")
                                 
-                                if st.button("🧠 Analizar Jornada (IA)", key=key_unica):
-                                    with st.spinner("La IA está leyendo tu bitácora..."):
-                                        contexto_alumnos = ""
-                                        if not ev_dia.empty:
-                                            contexto_alumnos = "EVALUACIONES ALUMNOS: " + ev_dia['EVALUACION_IA'].str.cat(sep=" | ")
-                                        
-                                        prompt_analisis = f"""
-                                        Analiza esta jornada escolar completa de Educación Especial.
-                                        ACTIVIDAD: {logro['ACTIVIDAD_TITULO']}.
-                                        RESUMEN DOCENTE: {logro['RESUMEN_LOGROS']}.
-                                        {contexto_alumnos}
-                                        
-                                        Genera un reporte breve con:
-                                        1. Logro consolidado.
-                                        2. Incidencias detectadas (si las hay).
-                                        3. Sugerencia pedagógica para la siguiente clase.
-                                        """
-                                        res_ia = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":prompt_analisis}], 0.5)
-                                        
-                                        # Mostramos el resultado
-                                        st.markdown(f'<div class="eval-box">{res_ia}</div>', unsafe_allow_html=True)
+                                prompt_analisis = f"""
+                                Analiza esta jornada escolar completa de Educación Especial.
+                                ACTIVIDAD: {logro['ACTIVIDAD_TITULO']}.
+                                RESUMEN DOCENTE: {logro['RESUMEN_LOGROS']}.
+                                {contexto_alumnos}
                                 
-                                st.markdown("---")
+                                Genera un reporte breve con:
+                                1. Logro consolidado.
+                                2. Incidencias detectadas (si las hay).
+                                3. Sugerencia pedagógica para la siguiente clase.
+                                """
+                                try:
+                                    res_ia = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":prompt_analisis}], 0.5)
+                                    st.markdown(f'<div class="eval-box">{res_ia}</div>', unsafe_allow_html=True)
+                                except Exception as e_ia:
+                                    st.error("Error conectando con la IA.")
+                        
+                        st.markdown("---")
 
-                                # --- ZONA DE CORRECCIÓN (v12.5) ---
-                                with st.expander("⚙️ Opciones de Registro"):
-                                    st.caption("Si este registro es un error o está duplicado, elimínalo aquí.")
-                                    # Usamos key única para no confundir botones
-                                    if st.button("🗑️ Eliminar Actividad", key=f"del_act_{sem}_{i}"):
-                                        # Borrado seguro usando el índice exacto
-                                        df_new = df_ejecucion.drop(logro.name)
-                                        conn.update(spreadsheet=URL_HOJA, worksheet="EJECUCION", data=df_new)
-                                        st.warning("🗑️ Registro eliminado correctamente.")
-                                       time.sleep(1)
-                        st.rerun()
-            except: 
-                pass 
+                        # --- ZONA DE CORRECCIÓN (BORRAR BITÁCORA) ---
+                        with st.expander("⚙️ Opciones de Registro"):
+                            st.caption("Si este registro es un error, elimínalo aquí.")
+                            if st.button("🗑️ Eliminar Actividad", key=f"del_act_{sem}_{i}"):
+                                df_new = df_ejecucion.drop(logro.name)
+                                conn.update(spreadsheet=URL_HOJA, worksheet="EJECUCION", data=df_new)
+                                st.warning("🗑️ Registro eliminado.")
+                                time.sleep(1)
+                                st.rerun()
 
+    # =================================================================
+    # PESTAÑA 3: EXPEDIENTE ESTUDIANTIL (CORREGIDO)
+    # =================================================================
     with tab_historial_ev:
         st.subheader("📊 Expediente Estudiantil (Edición Activada)")
         
@@ -1772,11 +1777,11 @@ else:
             mis_alumnos_data = df_historial[df_historial['DOCENTE_TITULAR'] == st.session_state.u['NOMBRE']]
 
             if mis_alumnos_data.empty:
-                st.info("No hay evaluaciones registradas.")
+                st.info("No hay evaluaciones registradas en el expediente.")
             else:
                 # 2. Selector
                 lista = sorted(mis_alumnos_data['ESTUDIANTE'].unique())
-                alumno_sel = st.selectbox("Seleccione Alumno:", lista, key="sel_tab3_final")
+                alumno_sel = st.selectbox("Seleccione Alumno:", lista, key="sel_tab3_final_v12")
                 registros = mis_alumnos_data[mis_alumnos_data['ESTUDIANTE'] == alumno_sel]
                 
                 st.caption(f"Notas encontradas: {len(registros)}")
@@ -1787,44 +1792,41 @@ else:
                     with st.expander(f"📅 {fila['FECHA']} | {fila['USUARIO']}"):
                         st.write(fila['EVALUACION_IA'])
                         
-                        # --- EL FAMOSO BOTÓN DE BORRAR ---
+                        # --- ZONA DE PELIGRO (BOTÓN ROJO) ---
                         st.divider()
                         c1, c2 = st.columns([0.6, 0.4])
                         with c1:
-                            st.caption("⚠️ **Zona de Peligro**")
+                            st.caption("⚠️ **Zona de Peligro**: Esta acción es irreversible.")
                         with c2:
-                            if st.button("🗑️ ELIMINAR", key=f"del_tab3_{fila.name}", type="primary"):
+                            if st.button("🗑️ ELIMINAR NOTA", key=f"del_tab3_{fila.name}", type="primary"):
                                 df_new = df_historial.drop(fila.name)
                                 conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_new)
-                                st.success("¡Borrado!")
+                                st.success("¡Borrado del expediente!")
                                 time.sleep(1)
                                 st.rerun()
 
         except Exception as e:
-            st.error(f"Error en historial: {e}")
-
-        except Exception as e:
-            # Este es el paracaídas que faltaba antes
             st.error(f"Error cargando el expediente: {e}")
-    # -------------------------------------------------------------------------
-    # VISTAS: EXTRAS (ORIGINALES PRESERVADAS)
-    # -------------------------------------------------------------------------
-    elif opcion == "🌟 Mensaje Motivacional":
-        if st.button("Recibir Ánimo"):
-            res = generar_respuesta([{"role":"user","content":"Frase motivadora para docente de educación especial en Venezuela."}])
-            st.success(res)
-            
-    elif opcion == "💡 Ideas de Actividades":
-        t = st.text_input("Tema:")
-        if st.button("Sugerir"):
-            res = generar_respuesta([{"role":"user","content":f"3 actividades vivenciales para Taller Laboral: {t}"}])
-            st.markdown(res)
-            
-    elif opcion == "❓ Consultas Técnicas":
-        d = st.text_area("Pregunta:")
-        if st.button("Consultar"):
-            res = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":d}])
-            st.info(res)
+
+# -------------------------------------------------------------------------
+# VISTAS: EXTRAS Y CONSULTAS
+# -------------------------------------------------------------------------
+elif opcion == "🌟 Mensaje Motivacional":
+    if st.button("Recibir Ánimo"):
+        res = generar_respuesta([{"role":"user","content":"Frase motivadora corta para docente de educación especial en Venezuela."}])
+        st.success(res)
+        
+elif opcion == "💡 Ideas de Actividades":
+    t = st.text_input("Tema:")
+    if st.button("Sugerir"):
+        res = generar_respuesta([{"role":"user","content":f"3 actividades vivenciales cortas para Taller Laboral sobre: {t}"}])
+        st.markdown(res)
+        
+elif opcion == "❓ Consultas Técnicas":
+    d = st.text_area("Pregunta sobre tu planificación:")
+    if st.button("Consultar"):
+        res = generar_respuesta([{"role":"system","content":INSTRUCCIONES_TECNICAS},{"role":"user","content":d}])
+        st.info(res)
 
 # --- PIE DE PÁGINA: SUPER DOCENTE ---
 st.markdown("---")
@@ -1834,4 +1836,7 @@ with col_f1:
     st.caption("Tecnología educativa hecha en La Concepción, Zulia.")
     st.caption("Desarrollado por: **Luis Atencio** (Bachiller Docente).")
 with col_f2:
-    st.caption(f"v12.5 | {ahora_ve().strftime('%I:%M %p')}")
+    try:
+        st.caption(f"v12.5 | {ahora_ve().strftime('%I:%M %p')}")
+    except:
+        st.caption("v12.5")
