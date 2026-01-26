@@ -1551,7 +1551,7 @@ else:
                 except Exception as e:
                     st.error(f"Error al guardar: {e}")
   # -------------------------------------------------------------------------
-    # VISTA: REGISTRO DE EVALUACIONES (v12.5 FINAL)
+    # VISTA: REGISTRO DE EVALUACIONES (v12.5 BLINDADO CON COLUMNAS)
     # -------------------------------------------------------------------------
     elif opcion == "📊 Registro de Evaluaciones":
         try:
@@ -1585,15 +1585,17 @@ else:
                         st.caption(f"Original: {fila.get('ANECDOTA', '-')}")
 
                         # 2. ZONA DE BORRADO (CON COLUMNAS PARA FORZAR VISIBILIDAD)
-                        st.divider() # Línea divisoria segura
-                        c_text, c_btn = st.columns([0.6, 0.4]) # Dividimos espacio
+                        st.markdown("---") # Línea divisoria
+                        
+                        # --- AQUÍ ESTÁ LA MAGIA QUE FALTABA EN TU CÓDIGO ---
+                        c_text, c_btn = st.columns([0.6, 0.4]) 
                         
                         with c_text:
-                            st.caption("⚠️ Esta acción es irreversible.")
+                            st.caption("⚠️ **ZONA DE PELIGRO**: Borrar nota.")
                         
                         with c_btn:
-                            # Botón ROJO para que se vea
-                            if st.button("🗑️ Borrar", key=f"del_{fila.name}", type="primary"):
+                            # Botón ROJO (primary) para que resalte
+                            if st.button("🗑️ BORRAR NOTA", key=f"del_{fila.name}", type="primary"):
                                 df_ev_new = df_historial.drop(fila.name)
                                 conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_ev_new)
                                 st.success("¡Eliminado!")
