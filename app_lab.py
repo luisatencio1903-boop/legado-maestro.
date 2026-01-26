@@ -1304,38 +1304,72 @@ else:
                         st.code(msg, language="text")
                     else: st.error("Primero escribe la observación.")
 
-        # --- PESTAÑA 3: CIERRE ---
+       # --- PESTAÑA 3: CIERRE (BLINDADO v12.5) ---
         with tab3:
             st.subheader("🏁 Cierre de Jornada")
-            if st.session_state.av_foto1 is None:
-                st.warning("Falta foto de inicio.")
-            elif st.session_state.av_foto2 is None:
-                st.subheader("2. Evidencia de Culminación")
-                f2 = st.camera_input("Capturar cierre", key="av_cam2_v11")
-                if f2 and st.button("📤 Guardar Cierre", key="btn_save_f2_v11"):
-                    u2 = subir_a_imgbb(f2)
-                    if u2: st.session_state.av_foto2 = u2; st.rerun()
+            
+            # 1. VERIFICACIÓN DE SEGURIDAD (Regla de Oro: Evitar Duplicados)
+            hoy_check = ahora_ve().strftime("%d/%m/%Y")
+            
+            # Leemos la bitácora actual para ver si ya existo hoy
+            df_check = conn.read(spreadsheet=URL_HOJA, worksheet="EJECUCION", ttl=0)
+            
+            ya_cerro = not df_check[
+                (df_check['USUARIO'] == st.session_state.u['NOMBRE']) & 
+                (df_check['FECHA'] == hoy_check)
+            ].empty
+            
+            if ya_cerro:
+                # ESCUDO ACTIVADO: Bloqueamos para proteger la base de datos
+                st.success("✅ **Jornada Consolidada Exitosamente.**")
+                st.info("""
+                **Ya enviaste el cierre de hoy.**
+                - El sistema ha protegido tu registro para evitar duplicados.
+                - Si te faltó evaluar a un alumno: Ve a la pestaña **'Evaluación Estudiantil'**, carga la nota y guarda. Se sumará sola al expediente.
+                """)
+                if st.button("🏠 Volver al Inicio"):
+                    st.session_state.pagina_actual = "HOME"
+                    st.rerun()
             else:
-                st.image(st.session_state.av_foto2, width=200, caption="Cierre cargado")
-                st.session_state.av_resumen = st.text_area("Logros del día:", value=st.session_state.av_resumen, key="av_res_v11")
-                if st.button("🚀 FINALIZAR Y ENVIAR REPORTE", type="primary", key="btn_finish_v11"):
-                    titulo_reporte = st.session_state.av_titulo_hoy if st.session_state.av_titulo_hoy else "Actividad Genérica"
-                    if st.session_state.av_resumen:
-                        df_ej = conn.read(spreadsheet=URL_HOJA, worksheet="EJECUCION", ttl=0)
-                        nueva_f = pd.DataFrame([{
-                            "FECHA": ahora_ve().strftime("%d/%m/%Y"), 
-                            "USUARIO": st.session_state.u['NOMBRE'], 
-                            "DOCENTE_TITULAR": titular, 
-                            "ACTIVIDAD_TITULO": titulo_reporte, 
-                            "EVIDENCIA_FOTO": f"{st.session_state.av_foto1} | {st.session_state.av_foto2}", 
-                            "RESUMEN_LOGROS": st.session_state.av_resumen, 
-                            "ESTADO": "CULMINADA", 
-                            "PUNTOS": 5
-                        }])
-                        conn.update(spreadsheet=URL_HOJA, worksheet="EJECUCION", data=pd.concat([df_ej, nueva_f], ignore_index=True))
-                        st.session_state.av_foto1 = None; st.session_state.av_foto2 = None; st.session_state.av_resumen = ""
-                        st.balloons(); st.success("✅ Jornada culminada."); time.sleep(3); st.session_state.pagina_actual = "HOME"; st.rerun()
-                    else: st.error("Resumen requerido.")
+                # FLUJO NORMAL (Se activa solo si NO has cerrado)
+                if st.session_state.av_foto1 is None:
+                    st.warning("⚠️ Falta la foto de Inicio (Ve a la Pestaña 1).")
+                elif st.session_state.av_foto2 is None:
+                    st.subheader("2. Evidencia de Culminación")
+                    # MANTENEMOS TU CÁMARA INTACTA
+                    f2 = st.camera_input("Capturar cierre", key="av_cam2_v125")
+                    if f2 and st.button("📤 Guardar Cierre", key="btn_save_f2_v125"):
+                        u2 = subir_a_imgbb(f2)
+                        if u2: st.session_state.av_foto2 = u2; st.rerun()
+                else:
+                    st.image(st.session_state.av_foto2, width=200, caption="Cierre listo")
+                    st.session_state.av_resumen = st.text_area("Resumen de Logros:", value=st.session_state.av_resumen, key="av_res_v125")
+                    
+                    if st.button("🚀 FINALIZAR JORNADA", type="primary", key="btn_fin_v125"):
+                        if st.session_state.av_resumen:
+                            with st.spinner("Guardando en Bitácora..."):
+                                df_ej = conn.read(spreadsheet=URL_HOJA, worksheet="EJECUCION", ttl=0)
+                                nueva_f = pd.DataFrame([{
+                                    "FECHA": hoy_check, 
+                                    "USUARIO": st.session_state.u['NOMBRE'], 
+                                    "DOCENTE_TITULAR": titular, 
+                                    "ACTIVIDAD_TITULO": st.session_state.av_titulo_hoy or "Actividad General", 
+                                    "EVIDENCIA_FOTO": f"{st.session_state.av_foto1} | {st.session_state.av_foto2}", 
+                                    "RESUMEN_LOGROS": st.session_state.av_resumen, 
+                                    "ESTADO": "CULMINADA", 
+                                    "PUNTOS": 5
+                                }])
+                                conn.update(spreadsheet=URL_HOJA, worksheet="EJECUCION", data=pd.concat([df_ej, nueva_f], ignore_index=True))
+                                
+                                # Limpieza de variables
+                                st.session_state.av_foto1 = None
+                                st.session_state.av_foto2 = None
+                                st.session_state.av_resumen = ""
+                                st.balloons()
+                                st.success("✅ ¡Excelente trabajo! Jornada cerrada.")
+                                time.sleep(2); st.session_state.pagina_actual = "HOME"; st.rerun()
+                        else:
+                            st.error("Por favor, escribe el resumen de logros.")
 # -------------------------------------------------------------------------
     # VISTA: GESTIÓN DE PROYECTOS (v11.6 - MENÚ DINÁMICO REAL)
     # -------------------------------------------------------------------------
