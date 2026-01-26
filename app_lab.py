@@ -1577,7 +1577,15 @@ else:
                         if fila['USUARIO'] != st.session_state.u['NOMBRE']:
                             st.caption(f"ℹ️ Esta nota fue cargada por un docente suplente ({fila['USUARIO']})")
                         st.write(fila['EVALUACION_IA'])
-                        
+                 # --- CÓDIGO NUEVO PARA BORRAR NOTAS (v12.5) ---
+            st.markdown("---")
+            if st.button("🗑️ Eliminar esta Nota", key=f"del_nota_{fila.name}"):
+                # Borramos la fila exacta usando su índice único
+                df_ev_new = df_historial.drop(fila.name)
+                conn.update(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", data=df_ev_new)
+                st.warning("🗑️ Nota eliminada del expediente.")
+                time.sleep(1)
+                st.rerun()       
                 if st.button("📝 Generar Informe de Progreso"):
                     with st.spinner("Consolidando información..."):
                         historico_txt = registros_alumno['EVALUACION_IA'].str.cat(sep='\n\n')
