@@ -1740,183 +1740,136 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                 except Exception as e:
                     st.warning(f"No se pudo cargar la biblioteca. Error: {e}")
 # -------------------------------------------------------------------------
-    # VISTA: GESTIÓN DE PROYECTOS (v11.6 - MENÚ DINÁMICO REAL)
+    # VISTA: GESTIÓN DE PROYECTOS (ACTUALIZADO: HORARIOS SEPARADOS PA vs PSP)
     # -------------------------------------------------------------------------
     elif opcion == "🏗️ GESTIÓN DE PROYECTOS Y PLANES":
         st.header("🏗️ Configuración de Proyectos y Planes")
-        st.markdown("Defina su hoja de ruta. El sistema adaptará los menús según su **Modalidad**.")
+        st.markdown("Defina su hoja de ruta. El sistema diferenciará los días de Teoría (P.A.) y Práctica (P.S.P.).")
 
         # 1. LEER DATOS (Con Caché y Prioridad Local)
         try:
-            df_proy = conn.read(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", ttl=60)
+            df_proy = conn.read(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", ttl=0)
+            # Filtramos por usuario
             mi_proy = df_proy[df_proy['USUARIO'] == st.session_state.u['NOMBRE']]
-        except: mi_proy = pd.DataFrame()
+        except:
+            mi_proy = pd.DataFrame()
 
-        # Variables por defecto
-        d_servicio = "Taller de Educación Laboral (T.E.L.)"
-        d_pa = ""
-        d_psp = ""
-        d_fase_full = ""
-        d_dias = []
-        d_activo = False
-
-        # Cargar de Nube
-        if not mi_proy.empty:
-            fila = mi_proy.iloc[0]
-            d_servicio = fila['SERVICIO'] if pd.notna(fila['SERVICIO']) else d_servicio
-            d_pa = fila['NOMBRE_PA'] if pd.notna(fila['NOMBRE_PA']) else ""
-            d_psp = fila['NOMBRE_PSP'] if pd.notna(fila['NOMBRE_PSP']) else ""
-            d_fase_full = fila['FASE_ACTUAL'] if pd.notna(fila['FASE_ACTUAL']) else ""
-            d_dias = str(fila['DIAS_PSP']).split(",") if pd.notna(fila['DIAS_PSP']) and fila['DIAS_PSP'] else []
-            d_activo = True if str(fila['ACTIVO']) == "TRUE" else False
-
-        # Cargar de Memoria Local (Prioridad)
-        if 'PROYECTO_LOCAL' in st.session_state:
-            local = st.session_state['PROYECTO_LOCAL']
-            d_servicio = local.get('SERVICIO', d_servicio)
-            d_pa = local.get('NOMBRE_PA', d_pa)
-            d_psp = local.get('NOMBRE_PSP', d_psp)
-            d_fase_full = local.get('FASE_ACTUAL', d_fase_full)
-            if local.get('DIAS_PSP'): d_dias = local['DIAS_PSP'].split(",")
-            d_activo = True if str(local.get('ACTIVO')).upper() == "TRUE" else False
-
-        # =====================================================================
-        # PASO 1: SELECTOR DE SERVICIO (FUERA DEL FORMULARIO PARA SER DINÁMICO)
-        # =====================================================================
-        st.subheader("1. Identidad del Servicio")
-        
-        # Calcular índice inicial basado en la memoria
-        idx_serv = 0
-        if "Inicial" in d_servicio: idx_serv = 1
-        elif "Aula Integrada" in d_servicio: idx_serv = 2
-        
-        # ESTE SELECTBOX AHORA REFRESCA LA PÁGINA AL CAMBIAR
-        servicio_seleccionado = st.selectbox(
-            "¿A qué Modalidad o Servicio pertenece usted?",
-            ["Taller de Educación Laboral (T.E.L.)", "Educación Inicial / I.E.E. (Escuela)", "Aula Integrada / U.P.E. / C.A.I.P.A."],
-            index=idx_serv,
-            key="selector_servicio_dinamico"
-        )
-        
-        # Detectamos si es taller AHORA MISMO (Visualmente)
-        es_taller_visual = "Taller" in servicio_seleccionado
-        es_especial_visual = "Aula Integrada" in servicio_seleccionado
-
-        st.divider()
-
-        # =====================================================================
-        # PASO 2: EL FORMULARIO (ADAPTABLE)
-        # =====================================================================
-        with st.form("form_proyecto_maestro"):
-            st.subheader("2. Datos del Plan")
+        # FORMULARIO
+        with st.form("form_config_proyectos"):
             
-            # A. CAMPO PROYECTO DE APRENDIZAJE (Etiqueta Dinámica)
-            label_pa = "Nombre del Proyecto de Aprendizaje (P.A.):"
-            placeholder_pa = "Ej: Conociendo los animales..."
-            
-            if es_especial_visual:
-                label_pa = "Nombre de la Línea de Acción / P.A.I.:"
-                placeholder_pa = "Ej: Superando barreras de lecto-escritura..."
-            elif es_taller_visual:
-                label_pa = "Nombre del Proyecto de Aprendizaje (P.A.) - Aula:"
-                placeholder_pa = "Ej: Valores para el Trabajo Liberador..."
-            
-            nombre_pa = st.text_input(label_pa, value=d_pa, placeholder=placeholder_pa)
+            st.subheader("1. Identidad del Servicio")
+            # Intentamos recuperar el valor guardado, si no, valor por defecto
+            idx_mod = 0
+            if not mi_proy.empty and "MODALIDAD" in mi_proy.columns:
+                mod_guardada = mi_proy.iloc[0]['MODALIDAD']
+                lista_ops = ["Taller de Educación Laboral (T.E.L.)", "Aula Integrada", "Escuela Especial"]
+                if mod_guardada in lista_ops:
+                    idx_mod = lista_ops.index(mod_guardada)
 
-            # B. CAMPOS EXCLUSIVOS DE TALLER (Solo aparecen si es Taller)
-            nombre_psp = ""
-            dias_psp = []
+            modalidad = st.selectbox("¿A qué Modalidad o Servicio pertenece usted?", 
+                                   ["Taller de Educación Laboral (T.E.L.)", "Aula Integrada", "Escuela Especial"],
+                                   index=idx_mod)
             
-            if es_taller_visual:
-                st.info("🛠️ **Configuración de Taller Laboral:**")
-                nombre_psp = st.text_input("Nombre del Proyecto Socio-Productivo (P.S.P.) - Taller:", 
-                                         value=d_psp, 
-                                         placeholder="Ej: Vivero Ornamental...")
-                
-                dias_psp = st.multiselect("Días de Práctica (Con Instructor):", 
-                                        ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"], 
-                                        default=[d.strip() for d in d_dias if d.strip()])
-            else:
-                # Si no es taller, guardamos "N/A" internamente
-                nombre_psp = "N/A"
+            st.divider()
+            
+            st.subheader("2. Datos de los Proyectos y Horarios")
+            
+            # --- SECCIÓN A: PROYECTO DE APRENDIZAJE (P.A.) ---
+            st.markdown("##### 📘 Proyecto de Aprendizaje (P.A. - Aula/Teoría)")
+            st.caption("Días dedicados a la formación académica, valores y teoría en el aula.")
+            
+            # Recuperar Titulo PA
+            val_pa = "VALORES PARA EL TRABAJO LIBERADOR"
+            if not mi_proy.empty and "TITULO_PA" in mi_proy.columns:
+                 val_pa = mi_proy.iloc[0]['TITULO_PA']
+            pa_titulo = st.text_input("Nombre del P.A.:", value=val_pa)
+            
+            # Recuperar Días PA
+            dias_pa_default = []
+            if not mi_proy.empty and "DIAS_PA" in mi_proy.columns and pd.notna(mi_proy.iloc[0]['DIAS_PA']):
+                # Convertimos string "Lunes,Martes" a lista ["Lunes", "Martes"]
+                raw_pa = str(mi_proy.iloc[0]['DIAS_PA'])
+                if raw_pa.strip() != "":
+                    dias_pa_default = raw_pa.split(",")
+                    # Limpiamos espacios por si acaso
+                    dias_pa_default = [d.strip() for d in dias_pa_default if d.strip() in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
 
-            # C. FASE (Cronología)
-            st.markdown("---")
-            st.subheader("3. Etapa del Proyecto")
-            
-            opciones_fases = [
-                "Fase 1: Diagnóstico, Sensibilización y Selección (Inicio)",
-                "Fase 2: Formación Teórica y Planificación (Preparación)",
-                "Fase 3: Ejecución, Producción y Práctica (Desarrollo)",
-                "Fase 4: Cierre, Evaluación y Comercialización (Final)"
-            ]
-            
-            # Recuperar fase guardada
-            index_fase = 0
-            detalle_previo = d_fase_full
-            for i, op in enumerate(opciones_fases):
-                if op.split(":")[0] in d_fase_full:
-                    index_fase = i
-                    detalle_previo = d_fase_full.replace(op, "").replace(" || Detalle: ", "").strip()
-                    break
-            
-            fase_select = st.selectbox("Seleccione la Etapa Macro:", opciones_fases, index=index_fase)
-            detalle_fase = st.text_area("Detalle específico de la semana:", value=detalle_previo)
+            dias_pa_sel = st.multiselect("Seleccione los días de P.A. (Aula):", 
+                                       ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
+                                       default=dias_pa_default,
+                                       key="sel_dias_pa")
 
+            st.write("") # Espacio visual
             st.divider()
 
-            # D. ACTIVACIÓN
-            col_act, col_info = st.columns([1, 2])
-            with col_act:
-                activo = st.toggle("✅ ACTIVAR PROYECTO", value=d_activo)
-            with col_info:
-                if activo: st.caption("Estado: **ACTIVO**. La IA usará estos datos.")
-                else: st.caption("Estado: **PAUSADO**.")
+            # --- SECCIÓN B: PROYECTO SOCIO-PRODUCTIVO (P.S.P.) ---
+            st.markdown("##### 🛠️ Proyecto Socio-Productivo (P.S.P. - Taller/Práctica)")
+            st.caption("Días dedicados a la práctica laboral, taller y manos a la obra.")
+            
+            # Recuperar Titulo PSP
+            val_psp = "VIVERO ORNAMENTAL"
+            if not mi_proy.empty and "TITULO_PSP" in mi_proy.columns:
+                 val_psp = mi_proy.iloc[0]['TITULO_PSP']
+            psp_titulo = st.text_input("Nombre del P.S.P.:", value=val_psp)
+            
+            # Recuperar Días PSP
+            dias_psp_default = []
+            if not mi_proy.empty and "DIAS_PSP" in mi_proy.columns and pd.notna(mi_proy.iloc[0]['DIAS_PSP']):
+                raw_psp = str(mi_proy.iloc[0]['DIAS_PSP'])
+                if raw_psp.strip() != "":
+                    dias_psp_default = raw_psp.split(",")
+                    dias_psp_default = [d.strip() for d in dias_psp_default if d.strip() in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
 
-            # BOTÓN GUARDAR
-            if st.form_submit_button("💾 Guardar Configuración"):
-                fase_final = f"{fase_select} || Detalle: {detalle_fase}"
-                str_dias = ",".join(dias_psp) if es_taller_visual else ""
-                str_activo = "TRUE" if activo else "FALSE"
-                
+            dias_psp_sel = st.multiselect("Seleccione los días de P.S.P. (Taller):", 
+                                        ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
+                                        default=dias_psp_default,
+                                        key="sel_dias_psp")
+
+            st.divider()
+            
+            # ESTADO DEL PROYECTO
+            c_tog, c_st = st.columns([1, 4])
+            with c_tog:
+                # Recuperar estado
+                estado_val = True
+                if not mi_proy.empty and "ESTADO" in mi_proy.columns:
+                    if mi_proy.iloc[0]['ESTADO'] == "PAUSADO":
+                        estado_val = False
+                activo = st.toggle("✅ ACTIVAR PROYECTO", value=estado_val)
+            with c_st:
+                st.caption("Si desactiva, el sistema usará planificación genérica.")
+
+            submitted = st.form_submit_button("💾 Guardar Configuración")
+            
+            if submitted:
                 try:
-                    with st.spinner("Actualizando perfil..."):
-                        # Lectura de seguridad
-                        df_seg = conn.read(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", ttl=0)
-                        
-                        if df_seg is None or df_seg.empty:
-                            df_clean = pd.DataFrame(columns=["USUARIO", "SERVICIO", "NOMBRE_PA", "NOMBRE_PSP", "FASE_ACTUAL", "DIAS_PSP", "ACTIVO"])
-                        else:
-                            df_clean = df_seg[df_seg['USUARIO'] != st.session_state.u['NOMBRE']]
-                        
-                        nuevo_reg = pd.DataFrame([{
-                            "USUARIO": st.session_state.u['NOMBRE'],
-                            "SERVICIO": servicio_seleccionado, # Usamos el del selector externo
-                            "NOMBRE_PA": nombre_pa,
-                            "NOMBRE_PSP": nombre_psp,
-                            "FASE_ACTUAL": fase_final,
-                            "DIAS_PSP": str_dias,
-                            "ACTIVO": str_activo
-                        }])
-                        
-                        conn.update(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", data=pd.concat([df_clean, nuevo_reg], ignore_index=True))
-                        
-                        # Actualizar Memoria Local
-                        st.session_state['PROYECTO_LOCAL'] = {
-                            'ACTIVO': str_activo,
-                            'SERVICIO': servicio_seleccionado,
-                            'NOMBRE_PA': nombre_pa,
-                            'NOMBRE_PSP': nombre_psp,
-                            'FASE_ACTUAL': fase_final,
-                            'DIAS_PSP': str_dias
-                        }
-                        
-                        st.success("✅ Configuración guardada.")
-                        time.sleep(1)
-                        st.rerun()
-                        
+                    # Preparamos los días como texto separado por comas
+                    str_dias_pa = ",".join(dias_pa_sel)
+                    str_dias_psp = ",".join(dias_psp_sel)
+                    
+                    # 1. Borramos el registro anterior del usuario para no duplicar
+                    df_nuevo = df_proy[df_proy['USUARIO'] != st.session_state.u['NOMBRE']]
+                    
+                    # 2. Creamos el nuevo registro con TODOS los campos
+                    registro_actualizado = pd.DataFrame([{
+                        "FECHA": ahora_ve().strftime("%d/%m/%Y"),
+                        "USUARIO": st.session_state.u['NOMBRE'],
+                        "MODALIDAD": modalidad,
+                        "TITULO_PA": pa_titulo,
+                        "TITULO_PSP": psp_titulo,
+                        "DIAS_PA": str_dias_pa,    # <--- GUARDAMOS DÍAS PA EN SU COLUMNA
+                        "DIAS_PSP": str_dias_psp,  # <--- GUARDAMOS DÍAS PSP EN SU COLUMNA
+                        "ESTADO": "ACTIVO" if activo else "PAUSADO"
+                    }])
+                    
+                    # 3. Guardamos
+                    conn.update(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", data=pd.concat([df_nuevo, registro_actualizado], ignore_index=True))
+                    st.success("✅ ¡Horarios diferenciados guardados correctamente!")
+                    time.sleep(1.5)
+                    st.rerun()
+                    
                 except Exception as e:
-                    st.error(f"Error al guardar: {e}")
+                    st.error(f"Error al guardar: {e}. (Asegúrate de que las columnas DIAS_PA y DIAS_PSP existen en la hoja CONFIG_PROYECTO).")
   # -------------------------------------------------------------------------
     # VISTA: REGISTRO DE EVALUACIONES (v12.5 PRUEBA FINAL)
     # -------------------------------------------------------------------------
