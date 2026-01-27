@@ -1447,17 +1447,21 @@ else:
                             st.success("✅ ¡Jornada Exitosa! 3 Evidencias Guardadas.")
                             time.sleep(2); st.session_state.pagina_actual = "HOME"; st.rerun()
 # -------------------------------------------------------------------------
-    # VISTA: FÁBRICA DE PENSUMS (V. FINAL: LOGICA DE TEMARIO + TOGGLE + DÍAS)
+    # VISTA: FÁBRICA DE PENSUMS (CÓDIGO MAESTRO UNIFICADO V. FINAL)
     # -------------------------------------------------------------------------
     elif opcion == "🏗️ FÁBRICA DE PENSUMS":
         st.header("🏗️ Fábrica de Diseño Instruccional")
         st.markdown("Generador estandarizado de currículo y gestión de activación.")
 
         # --- MEMORIA TEMPORAL ---
+        # Variables de Generación
         if 'fp_fase1' not in st.session_state: st.session_state.fp_fase1 = ""
         if 'fp_fase2' not in st.session_state: st.session_state.fp_fase2 = ""
         if 'fp_fase3' not in st.session_state: st.session_state.fp_fase3 = ""
         if 'fp_completo' not in st.session_state: st.session_state.fp_completo = ""
+        # Variables del Visor de Lectura
+        if 'visor_activo' not in st.session_state: st.session_state.visor_activo = False
+        if 'visor_data' not in st.session_state: st.session_state.visor_data = {}
 
         tab_fabrica, tab_biblioteca = st.tabs(["🏭 Línea de Producción (Crear)", "📚 Biblioteca y Activación"])
 
@@ -1474,7 +1478,7 @@ else:
                 docente_resp = st.text_input("Docente Responsable:", value=st.session_state.u['NOMBRE'])
             
             contexto_extra = st.text_area("Recursos y Enfoque (Clave para la adaptación):", 
-                                        placeholder="Ej: Tenemos instrumentos de percusión, queremos formar una banda...")
+                                        placeholder="Ej: Tenemos instrumentos de percusión, queremos formar una banda, no hay electricidad...")
             
             st.divider()
 
@@ -1503,7 +1507,7 @@ else:
             if st.session_state.fp_fase1:
                 st.session_state.fp_fase1 = st.text_area("Edición Fase 1:", value=st.session_state.fp_fase1, height=200)
 
-            # 3. FASE 2: MALLA CURRICULAR (TEMARIO, NO ACTIVIDADES)
+            # 3. FASE 2: MALLA CURRICULAR (TEMARIO)
             st.markdown("### 🔹 Fase 2: Temario y Contenidos (Listas)")
             st.info("La IA generará listas de conceptos (Temario) para que el Planificador tenga material para variar.")
             
@@ -1516,7 +1520,7 @@ else:
                         TAREA: DISEÑA LOS BLOQUES DE CONTENIDO (TEMARIO).
                         
                         IMPORTANTE: NO GENERES ACTIVIDADES ESPECÍFICAS (NO digas "hacer un dibujo").
-                        GENERA LISTAS DE CONCEPTOS Y TEMAS TÉCNICOS. EL DOCENTE USARÁ ESTA LISTA PARA CREAR MÚLTIPLES CLASES.
+                        GENERA LISTAS DE CONCEPTOS Y TEMAS TÉCNICOS.
                         
                         Ejemplo de Formato Correcto:
                         1. BLOQUE: ECONOMÍA
@@ -1610,7 +1614,7 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                             try:
                                 df_lib = conn.read(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", ttl=0)
                             except:
-                                # Creamos DF con la nueva columna DIAS
+                                # Creamos DF con la nueva columna DIAS si no existe
                                 df_lib = pd.DataFrame(columns=["FECHA", "USUARIO", "TITULO_PENSUM", "CONTENIDO_FULL", "ESTADO", "DIAS"])
 
                             nuevo_pen = pd.DataFrame([{
@@ -1618,10 +1622,9 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                                 "USUARIO": st.session_state.u['NOMBRE'],
                                 "TITULO_PENSUM": especialidad,
                                 "CONTENIDO_FULL": st.session_state.fp_completo,
-                                "ESTADO": "INACTIVO", # Nace inactivo hasta que se configure
+                                "ESTADO": "INACTIVO", 
                                 "DIAS": "" 
                             }])
-                            # Concatenamos asegurando que las columnas coincidan
                             conn.update(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", data=pd.concat([df_lib, nuevo_pen], ignore_index=True))
                             st.balloons()
                             st.success("Guardado en la Nube.")
@@ -1632,87 +1635,110 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                     st.download_button("📥 Descargar Archivo (.txt)", data=st.session_state.fp_completo, file_name=f"PENSUM_{especialidad}_ERAC.txt")
 
         # =====================================================================
-        # PESTAÑA 2: BIBLIOTECA (GESTIÓN REAL: TOGGLE Y DÍAS)
+        # PESTAÑA 2: BIBLIOTECA (CON VISOR DE LECTURA + GESTIÓN)
         # =====================================================================
         with tab_biblioteca:
-            st.subheader("📚 Gestión de Pensums y Horarios")
-            try:
-                df_biblio = conn.read(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", ttl=0)
-                mis_p = df_biblio[df_biblio['USUARIO'] == st.session_state.u['NOMBRE']]
+            
+            # ESCENARIO A: MODO LECTURA ACTIVADO (Visor Pantalla Completa)
+            if st.session_state.visor_activo:
+                data = st.session_state.visor_data
                 
-                if mis_p.empty:
-                    st.info("No tienes pensums registrados.")
-                else:
-                    for i, row in mis_p.iterrows():
-                        # Recuperamos el estado y los días
-                        estado_actual = row['ESTADO']
-                        es_activo = (estado_actual == "ACTIVO")
-                        
-                        # Recuperar días guardados (manejo de errores si está vacío)
-                        dias_guardados = []
-                        if "DIAS" in row and pd.notna(row['DIAS']) and row['DIAS'] != "":
-                            dias_guardados = str(row['DIAS']).split(",")
-                        
-                        # Título de la tarjeta con indicador visual
-                        titulo_card = f"🟢 {row['TITULO_PENSUM']}" if es_activo else f"⚪ {row['TITULO_PENSUM']} (Inactivo)"
-                        
-                        with st.expander(titulo_card):
-                            st.caption(f"Fecha de creación: {row['FECHA']}")
+                # Barra Superior del Visor
+                c_vol, c_tit = st.columns([1, 6])
+                with c_vol:
+                    if st.button("🔙 SALIR", use_container_width=True):
+                        st.session_state.visor_activo = False
+                        st.rerun()
+                with c_tit:
+                    st.subheader(f"📖 Leyendo: {data['TITULO_PENSUM']}")
+                
+                st.divider()
+                
+                # Herramienta: Lupa / Buscador
+                busqueda = st.text_input("🔍 Buscar en el documento (La lupa):", placeholder="Escribe para filtrar (ej: Cono Monetario)...")
+                
+                texto_completo = data['CONTENIDO_FULL']
+                
+                if busqueda:
+                    st.markdown(f"**Resultados para: '{busqueda}'**")
+                    lineas = texto_completo.split('\n')
+                    encontrado = False
+                    for i, linea in enumerate(lineas):
+                        if busqueda.lower() in linea.lower():
+                            st.info(f"📍 Línea {i}: ...{linea.strip()}...")
+                            encontrado = True
+                    if not encontrado:
+                        st.warning("No se encontraron coincidencias exactas.")
+                    st.divider()
+
+                # El Documento
+                st.text_area("Documento Maestro:", value=texto_completo, height=800)
+
+
+            # ESCENARIO B: VISTA DE TARJETAS (Gestión)
+            else:
+                st.subheader("📚 Gestión de Pensums y Horarios")
+                try:
+                    df_biblio = conn.read(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", ttl=0)
+                    mis_p = df_biblio[df_biblio['USUARIO'] == st.session_state.u['NOMBRE']]
+                    
+                    if mis_p.empty:
+                        st.info("No tienes pensums registrados.")
+                    else:
+                        for i, row in mis_p.iterrows():
+                            # Variables
+                            estado_actual = row['ESTADO']
+                            es_activo = (estado_actual == "ACTIVO")
+                            dias_guardados = []
+                            if "DIAS" in row and pd.notna(row['DIAS']) and row['DIAS'] != "":
+                                dias_guardados = str(row['DIAS']).split(",")
                             
-                            # COLUMNAS DE GESTIÓN
-                            col_conf, col_del = st.columns([3, 1])
+                            titulo_card = f"🟢 {row['TITULO_PENSUM']}" if es_activo else f"⚪ {row['TITULO_PENSUM']} (Inactivo)"
                             
-                            with col_conf:
-                                st.markdown("##### ⚙️ Configuración de Activación")
+                            with st.expander(titulo_card):
+                                st.caption(f"Fecha: {row['FECHA']}")
                                 
-                                # 1. EL INTERRUPTOR (TOGGLE)
-                                nuevo_estado_bool = st.toggle("¿Activar este Pensum?", value=es_activo, key=f"tog_{i}")
-                                
-                                # 2. EL SELECTOR DE DÍAS (SOLO SI ESTÁ ACTIVO)
-                                seleccion_dias = []
-                                if nuevo_estado_bool:
-                                    st.info("Selecciona los días que darás esta especialidad:")
-                                    seleccion_dias = st.multiselect(
-                                        "Días de clase:",
-                                        ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
-                                        default=dias_guardados,
-                                        key=f"ms_{i}"
-                                    )
-                                else:
-                                    st.caption("Activa el interruptor para configurar los días.")
-
-                                # BOTÓN DE GUARDAR CAMBIOS (Actualiza Estado y Días)
-                                if st.button("💾 Actualizar Configuración", key=f"upd_{i}"):
-                                    try:
-                                        # Actualizamos el DF en memoria
-                                        df_biblio.at[i, 'ESTADO'] = "ACTIVO" if nuevo_estado_bool else "INACTIVO"
-                                        df_biblio.at[i, 'DIAS'] = ",".join(seleccion_dias) # Guardamos como texto separado por comas
-                                        
-                                        # (Opcional) Si quieres que solo haya UNO activo, descomenta:
-                                        # if nuevo_estado_bool:
-                                        #     df_biblio.loc[(df_biblio['USUARIO'] == st.session_state.u['NOMBRE']) & (df_biblio.index != i), 'ESTADO'] = "INACTIVO"
-
-                                        conn.update(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", data=df_biblio)
-                                        st.toast("✅ Cambios guardados en la nube.")
-                                        time.sleep(1)
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error al actualizar: {e}")
-
-                            with col_del:
-                                st.write("") # Espacio para alinear
-                                st.write("")
-                                if st.button("🗑️ Borrar", key=f"del_{i}", type="secondary"):
-                                    df_new = df_biblio.drop(i)
-                                    conn.update(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", data=df_new)
+                                # 1. BOTÓN GRANDE DE LECTURA
+                                if st.button(f"📖 ABRIR / CONSULTAR", key=f"read_{i}", use_container_width=True):
+                                    st.session_state.visor_activo = True
+                                    st.session_state.visor_data = row
                                     st.rerun()
+                                
+                                st.divider()
+                                
+                                # 2. ZONA DE GESTIÓN (Toggle y Días)
+                                c_conf, c_del = st.columns([3, 1])
+                                
+                                with c_conf:
+                                    st.markdown("**Configuración:**")
+                                    nuevo_estado_bool = st.toggle("Activar Pensum", value=es_activo, key=f"tog_{i}")
+                                    
+                                    seleccion_dias = []
+                                    if nuevo_estado_bool:
+                                        seleccion_dias = st.multiselect("Días de clase:", ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"], default=dias_guardados, key=f"ms_{i}")
+                                    else:
+                                        st.caption("Activa para asignar días.")
+                                        
+                                    if st.button("💾 Guardar Cambios", key=f"upd_{i}"):
+                                        try:
+                                            df_biblio.at[i, 'ESTADO'] = "ACTIVO" if nuevo_estado_bool else "INACTIVO"
+                                            df_biblio.at[i, 'DIAS'] = ",".join(seleccion_dias)
+                                            conn.update(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", data=df_biblio)
+                                            st.toast("✅ Configuración guardada.")
+                                            time.sleep(1)
+                                            st.rerun()
+                                        except Exception as e: st.error(f"Error: {e}")
 
-                            # VISOR DEL CONTENIDO
-                            st.divider()
-                            st.text_area("Contenido del Pensum:", row['CONTENIDO_FULL'], height=150, disabled=True)
+                                with c_del:
+                                    st.write("")
+                                    st.write("") # Espaciado
+                                    if st.button("🗑️", key=f"del_{i}", help="Borrar Pensum"):
+                                        df_new = df_biblio.drop(i)
+                                        conn.update(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", data=df_new)
+                                        st.rerun()
 
-            except Exception as e:
-                st.warning(f"No se pudo cargar la biblioteca. Asegúrate de tener la columna 'DIAS' en la hoja. Error: {e}")
+                except Exception as e:
+                    st.warning(f"No se pudo cargar la biblioteca. Error: {e}")
 # -------------------------------------------------------------------------
     # VISTA: GESTIÓN DE PROYECTOS (v11.6 - MENÚ DINÁMICO REAL)
     # -------------------------------------------------------------------------
