@@ -684,17 +684,18 @@ if st.session_state.pagina_actual == "HOME":
         st.session_state.pagina_actual = "⏱️ Control de Asistencia"
         st.rerun()
     
-    # 2. HERRAMIENTAS DE GESTIÓN (Home)
+   # 2. HERRAMIENTAS DE GESTIÓN (Home)
     st.markdown("### 🛠️ GESTIÓN DOCENTE")
     sel_principal = st.selectbox(
         "Herramientas de Planificación:",
         [
             "(Seleccionar)",
-            "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)",    
-            "📂 Mi Archivo Pedagógico",                    
-            "🏗️ GESTIÓN DE PROYECTOS Y PLANES",           
-            "🧠 PLANIFICADOR INTELIGENTE",                
-            "📜 PLANIFICADOR MINISTERIAL"
+            "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)",
+            "📂 Mi Archivo Pedagógico",
+            "🧠 PLANIFICADOR INTELIGENTE",
+            "📜 PLANIFICADOR MINISTERIAL",
+            "🏗️ FÁBRICA DE PENSUMS",  # <--- NUEVO MÓDULO AQUÍ
+            "🏗️ GESTIÓN DE PROYECTOS Y PLANES"
         ],
         key="home_gestion"
     )
