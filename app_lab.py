@@ -1883,11 +1883,11 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
         except Exception as e:
             st.error(f"Error: {e}")
 # -------------------------------------------------------------------------
-    # VISTA: MI ARCHIVO PEDAGÓGICO (RESTAURADO: TABS + PLANIFICACIONES + EVIDENCIAS)
+    # VISTA: MI ARCHIVO PEDAGÓGICO (GESTIÓN COMPLETA: EVIDENCIAS + PLANES + NOTAS)
     # -------------------------------------------------------------------------
     elif opcion == "📂 Mi Archivo Pedagógico":
         
-        # --- FUNCIÓN AUXILIAR (TARJETA DE EVIDENCIA) ---
+        # --- FUNCIÓN AUXILIAR PARA TARJETAS DE EVIDENCIA (Regla de Oro: Tus columnas reales) ---
         def renderizar_tarjeta(row_act, df_evals):
             """Muestra la tarjeta de evidencia cruzando con ANECDOTA y EVALUACION_IA."""
             fecha = row_act['FECHA']
@@ -1916,12 +1916,14 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                 if resumen and resumen != "None":
                     st.markdown(f"**📝 Bitácora:** {resumen}")
 
-                # Evaluaciones (Cruce)
+                # Evaluaciones (Cruce con tus datos reales)
                 if not df_evals.empty:
                     evals_dia = df_evals[df_evals['FECHA'] == fecha]
                     if not evals_dia.empty:
                         st.divider()
                         st.markdown("📊 **Resultados:**")
+                        
+                        # Buscamos en la columna correcta: EVALUACION_IA
                         col_juicio = 'EVALUACION_IA' if 'EVALUACION_IA' in evals_dia.columns else None
                         
                         if col_juicio:
@@ -1937,6 +1939,7 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                             m4.metric("Iniciado", int(ini))
                         
                         with st.expander("Ver detalles estudiantes"):
+                            # Mostramos solo las columnas que existen en tu Excel
                             cols_posibles = ['ESTUDIANTE', 'ALUMNO', 'ANECDOTA', 'OBSERVACION', 'EVALUACION_IA']
                             cols_finales = [c for c in cols_posibles if c in evals_dia.columns]
                             st.dataframe(evals_dia[cols_finales] if cols_finales else evals_dia, hide_index=True)
@@ -1944,44 +1947,43 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
         # --- INICIO DEL MÓDULO ---
         st.header("📂 Mi Archivo Pedagógico")
         
-        # 1. CARGA DE DATOS GENERAL (PARA TODAS LAS PESTAÑAS)
+        # 1. CARGA DE DATOS GENERAL
         try:
-            # Bitácora
+            # A. Bitácoras (Hoja EJECUCION)
             df_ejecucion = conn.read(spreadsheet=URL_HOJA, worksheet="EJECUCION", ttl=0)
             mis_clases = df_ejecucion[df_ejecucion['USUARIO'] == st.session_state.u['NOMBRE']]
             
-            # Evaluaciones
+            # B. Evaluaciones (Hoja EVALUACIONES)
             try:
                 df_evaluaciones = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
                 mis_evaluaciones = df_evaluaciones[df_evaluaciones['USUARIO'] == st.session_state.u['NOMBRE']]
             except: mis_evaluaciones = pd.DataFrame()
 
-            # Planificaciones Guardadas (Hoja1)
+            # C. Planificaciones Guardadas (Hoja1)
             try:
                 df_planes = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
                 mis_planes = df_planes[df_planes['USUARIO'] == st.session_state.u['NOMBRE']]
             except: mis_planes = pd.DataFrame()
 
-            # Pensums (Para nombres de bloques)
+            # D. Pensums (Para nombres de bloques)
             try:
                 df_pensums = conn.read(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", ttl=0)
                 mis_pensums = df_pensums[(df_pensums['USUARIO'] == st.session_state.u['NOMBRE']) & (df_pensums['ESTADO'] == "ACTIVO")]
             except: mis_pensums = pd.DataFrame()
 
         except Exception as e:
-            st.error(f"Error cargando datos: {e}")
+            st.error(f"Error cargando base de datos: {e}")
             st.stop()
 
-        # 2. CREACIÓN DE LAS PESTAÑAS (AQUÍ ESTÁ LO QUE FALTABA)
+        # 2. SISTEMA DE PESTAÑAS
         tab_bitacora, tab_planes, tab_evals = st.tabs(["📸 Bitácora de Evidencias", "🗓️ Planificaciones Guardadas", "📊 Registro de Evaluaciones"])
 
         # =====================================================================
-        # PESTAÑA 1: BITÁCORA (LO QUE YA TENÍAMOS CONFIGURADO)
+        # PESTAÑA 1: BITÁCORA (VISUALIZADOR DE CLASES)
         # =====================================================================
         with tab_bitacora:
             st.subheader("📸 Bitácora de Clases Ejecutadas")
             
-            # Selector de Portafolio
             opciones = ["📘 Portafolio General (P.A. / P.S.P.)"]
             mapa_pensums = {}
             for i, row in mis_pensums.iterrows():
@@ -1992,7 +1994,6 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
             seleccion = st.selectbox("Filtrar por Portafolio:", opciones)
             st.divider()
 
-            # Lógica de visualización (General vs Pensum)
             if "General" in seleccion:
                 clases_general = mis_clases[
                     (mis_clases['ID_BLOQUE'].isna()) | 
@@ -2038,41 +2039,96 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                         else:
                             st.caption("Sin registros.")
                 
-                if not hay_datos: st.warning("No hay bitácoras vinculadas a bloques de este Pensum.")
+                if not hay_datos: st.warning("No hay bitácoras vinculadas a este Pensum.")
 
         # =====================================================================
-        # PESTAÑA 2: PLANIFICACIONES GUARDADAS (LO QUE BUSCABAS)
+        # PESTAÑA 2: PLANIFICACIONES (GESTIÓN DEL CEREBRO ACTIVO)
         # =====================================================================
         with tab_planes:
             st.subheader("🗓️ Historial de Planificaciones")
-            st.caption("Aquí están los textos generados por el Planificador Inteligente (Guardados en Hoja1).")
+            st.caption("Gestiona tu cerebro pedagógico. La planificación 'ACTIVA' alimenta al Aula Virtual.")
             
             if mis_planes.empty:
-                st.info("No has guardado ninguna planificación todavía.")
+                st.info("No hay planificaciones guardadas.")
             else:
-                # Ordenar por fecha reciente
-                mis_planes = mis_planes.sort_index(ascending=False)
+                # Ordenar recientes primero
+                mis_planes_sorted = mis_planes.sort_index(ascending=False)
                 
-                for i, row in mis_planes.iterrows():
+                for i, row in mis_planes_sorted.iterrows():
                     fecha_p = row['FECHA']
                     tema_p = row['TEMA']
                     contenido_p = row['CONTENIDO']
+                    estado_p = str(row['ESTADO']).strip().upper() if 'ESTADO' in row else "GUARDADO"
                     
-                    with st.expander(f"📝 {fecha_p} | {tema_p}"):
-                        st.text_area("Planificación:", value=contenido_p, height=300, key=f"plan_txt_{i}")
-                        st.download_button("📥 Descargar", data=contenido_p, file_name=f"Planificacion_{fecha_p.replace('/','-')}.txt", key=f"down_{i}")
+                    es_activa = (estado_p == "ACTIVO")
+                    icono = "🟢" if es_activa else "📄"
+                    titulo_exp = f"{icono} {fecha_p} | {tema_p} {'(ACTIVA)' if es_activa else ''}"
+                    
+                    with st.expander(titulo_exp, expanded=es_activa):
+                        
+                        if es_activa:
+                            st.success("✅ PLANIFICACIÓN ACTIVA: El Aula Virtual usará este contenido.")
+                        
+                        st.text_area("Contenido:", value=contenido_p, height=250, key=f"txt_p_{i}", disabled=True)
+                        
+                        # BARRA DE HERRAMIENTAS
+                        c_act, c_down, c_del = st.columns([2, 1, 1])
+                        
+                        # 1. BOTÓN ACTIVAR (Exclusivo)
+                        with c_act:
+                            if not es_activa:
+                                if st.button("⚡ ACTIVAR AHORA", key=f"btn_act_{i}", type="primary", use_container_width=True):
+                                    try:
+                                        with st.spinner("Actualizando sistema..."):
+                                            # Leer Hoja1 maestra
+                                            df_master = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+                                            
+                                            # Desactivar todo lo de este usuario
+                                            df_master.loc[df_master['USUARIO'] == st.session_state.u['NOMBRE'], 'ESTADO'] = "GUARDADO"
+                                            
+                                            # Activar solo esta
+                                            df_master.at[i, 'ESTADO'] = "ACTIVO"
+                                            
+                                            conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_master)
+                                            st.toast("⚡ ¡Activada! El cerebro del aula se ha actualizado.")
+                                            time.sleep(1)
+                                            st.rerun()
+                                    except Exception as e: st.error(f"Error: {e}")
+                            else:
+                                st.button("✅ ACTIVA", key=f"btn_dum_{i}", disabled=True, use_container_width=True)
+
+                        # 2. BOTÓN DESCARGAR
+                        with c_down:
+                            st.download_button(
+                                "📥 Txt", 
+                                data=contenido_p, 
+                                file_name=f"Plan_{fecha_p.replace('/','-')}.txt", 
+                                key=f"down_{i}",
+                                use_container_width=True
+                            )
+                        
+                        # 3. BOTÓN ELIMINAR
+                        with c_del:
+                            if st.button("🗑️", key=f"del_{i}", type="secondary", use_container_width=True, help="Eliminar permanentemente"):
+                                try:
+                                    df_master = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+                                    df_master = df_master.drop(index=i)
+                                    conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_master)
+                                    st.toast("Planificación eliminada.")
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e: st.error(f"Error: {e}")
 
         # =====================================================================
-        # PESTAÑA 3: REGISTRO DE EVALUACIONES (DATA CRUDA)
+        # PESTAÑA 3: REGISTRO DE EVALUACIONES (TABLA CRUDA)
         # =====================================================================
         with tab_evals:
             st.subheader("📊 Base de Datos de Evaluaciones")
-            st.caption("Vista directa de tu hoja de Excel 'EVALUACIONES'.")
+            st.caption("Vista directa de las notas registradas en Excel.")
             
             if mis_evaluaciones.empty:
                 st.info("No hay evaluaciones registradas.")
             else:
-                # Filtros básicos
                 estudiantes = mis_evaluaciones['ESTUDIANTE'].unique() if 'ESTUDIANTE' in mis_evaluaciones.columns else []
                 filtro_alum = st.multiselect("Filtrar por Estudiante:", estudiantes)
                 
