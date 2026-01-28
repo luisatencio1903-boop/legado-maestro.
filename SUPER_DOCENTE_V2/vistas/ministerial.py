@@ -1,81 +1,105 @@
+# =============================================================================
+# VISTA: PLANIFICADOR MINISTERIAL (MIGRADO DE V1 A MODULAR V2)
+# Función: Adapta lineamientos del MPPE a la modalidad de Educación Especial.
+# =============================================================================
+
 import streamlit as st
+import pandas as pd
+import time
+from utils.comunes import ahora_ve
 from cerebros.nucleo import generar_respuesta
 
-def render_ministerial(conn):
-    st.title("📜 Planificador Formato Ministerial")
-    st.markdown("### Generador de Planificación Diaria Estandarizada (MPPE)")
-    st.info("Esta herramienta redacta la planificación siguiendo estrictamente la estructura formal para libros de planificación y entregas a coordinación.")
+def mostrar_vista(conn, URL_HOJA):
+    st.markdown("### 📜 Adaptación de Lineamientos Ministeriales")
+    st.info("Pega el texto del Ministerio (WhatsApp/PDF) para adaptarlo y organizarlo bajo el Currículo Bolivariano.")
+    
+    # 1. RECOLECCIÓN DE DATOS (Interfaz V1)
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+        modalidad_min = st.selectbox("Adaptar para la Modalidad:", [
+            "Taller de Educación Laboral (T.E.L.)",
+            "Instituto de Educación Especial (I.E.E.B.)",
+            "C.A.I.P.A.",
+            "Aula Integrada",
+            "U.P.E.",
+            "Educación Inicial"
+        ], key="min_mod_v2")
+    with col_m2:
+        aula_min = st.text_input("Área / Aula específica:", placeholder="Ej: Carpintería, Sala 1...", key="min_aula_v2")
+    
+    texto_ministerio = st.text_area("Texto Ministerial Original:", height=250, placeholder="Pega aquí el mensaje recibido...")
+    
+    # 2. LÓGICA DE PROCESAMIENTO (ADN V1)
+    if st.button("🪄 Adaptar y Organizar Planificación", type="primary", use_container_width=True):
+        if texto_ministerio:
+            with st.spinner('Super Docente 2.0 analizando y adaptando contenidos...'):
+                # Guardamos el título temporal para el archivo
+                st.session_state.temp_tema = f"Adaptación Ministerial - {modalidad_min}"
+                
+                # Reconstrucción del Prompt Maestro del V1
+                prompt_min = f"""
+                ERES UN EXPERTO EN DISEÑO CURRICULAR VENEZOLANO. 
+                TAREA: Adapta el siguiente texto ministerial para la modalidad de {modalidad_min} {f'en el área de {aula_min}' if aula_min else ''}.
+                
+                TEXTO ORIGINAL DEL MINISTERIO:
+                "{texto_ministerio}"
+                
+                REGLAS DE ORO DE ADAPTACIÓN (ESTRICTAS):
+                1. Traduce cualquier actividad abstracta (investigar, leer, escribir en cuaderno) a actividades VIVENCIALES (limpiar, armar, cocinar, modelar, tocar).
+                2. Los objetivos deben convertirse en COMPETENCIAS TÉCNICAS (VERBO INFINTIVO + OBJETO + CONDICIÓN).
+                3. Usa un lenguaje motivador y profesional.
+                4. Ignora que hoy es sábado/domingo; la planificación debe cubrir de Lunes a Viernes.
 
-    # --- 1. DATOS DE ENCABEZADO (LO QUE PIDE EL FORMATO) ---
-    with st.expander("🛠️ Datos del Formato Oficial", expanded=True):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            nombre_pa = st.text_input("Nombre del P.A. / P.E.I.C.:", placeholder="Ej: Manos a la Siembra...")
-            eje_integrador = st.text_input("Eje Integrador / Tema Indispensable:", placeholder="Ej: Independencia y Soberanía...")
-        
-        with col2:
-            fecha_clase = st.date_input("Fecha de Ejecución:")
-            referente = st.text_input("Referente Teórico-Práctico:", placeholder="Ej: Las plantas y sus partes...")
-
-        intencionalidad = st.text_area("Intencionalidad Pedagógica (Propósito):", placeholder="¿Qué queremos lograr hoy?")
-        
-        recursos = st.text_input("Recursos y Materiales:", placeholder="Humanos, Canaima, Material de provecho...")
-
-    st.divider()
-
-    # --- 2. MOTOR DE REDACCIÓN ---
-    if st.button("✍️ REDACTAR EN FORMATO OFICIAL", type="primary", use_container_width=True):
-        if not nombre_pa or not intencionalidad:
-            st.error("⚠️ Faltan datos obligatorios (P.A. o Intencionalidad) para el formato oficial.")
-        else:
-            with st.spinner("Redactando con terminología técnica del Currículo Nacional..."):
+                ESTRUCTURA DE SALIDA (7 PUNTOS OBLIGATORIOS POR DÍA):
+                ### [DÍA Y FECHA]
                 
-                # PROMPT RIGUROSO (CEREBRO ADMINISTRATIVO)
-                prompt = f"""
-                ACTÚA COMO UN DOCENTE ESPECIALISTA EN PLANIFICACIÓN EDUCATIVA DE VENEZUELA.
-                GENERA UNA PLANIFICACIÓN DIARIA CON FORMATO MINISTERIAL ESTRICTO.
+                **1. TÍTULO LÚDICO:** (Nombre creativo)
                 
-                DATOS:
-                - P.A.: {nombre_pa}
-                - FECHA: {fecha_clase}
-                - EJE INTEGRADOR: {eje_integrador}
-                - REFERENTE TEÓRICO: {referente}
-                - INTENCIONALIDAD: {intencionalidad}
-                - RECURSOS: {recursos}
+                **2. COMPETENCIA TÉCNICA:** (Estructura Acción+Objeto+Condición)
                 
-                ESTRUCTURA DE RESPUESTA OBLIGATORIA (NO AGREGUES SALUDOS):
+                **3. EXPLORACIÓN (Inicio):** (Vivencia inicial)
                 
-                **FECHA:** {fecha_clase}
-                **PROYECTO DE APRENDIZAJE:** {nombre_pa}
+                **4. DESARROLLO (Proceso):** (Actividad práctica central)
                 
-                **INTENCIONALIDAD:** {intencionalidad}
+                **5. REFLEXIÓN (Cierre):** (Intercambio de saberes)
                 
-                **MOMENTOS DE LA CLASE (CLASE PARTICIPATIVA):**
-                1. **INICIO:** (Redacta una estrategia de inicio motivadora, saludo, revisión de conocimientos previos).
-                2. **DESARROLLO:** (Redacta la mediación docente y la actividad del estudiante. Usa verbos en primera persona del plural: "Realizamos", "Construimos").
-                3. **CIERRE:** (Redacta preguntas generadoras para la reflexión y socialización).
+                **6. ESTRATEGIAS:** (Solo mención de nombres técnicas)
                 
-                **INDICADORES DE EVALUACIÓN:**
-                - (Genera 3 indicadores cualitativos observables basados en la actividad).
+                **7. RECURSOS:** (Material concreto y de provecho)
                 
-                **PILARES DE LA EDUCACIÓN:**
-                - (Menciona qué pilares se tocan: Aprender a Crear, Convivir, Valorar o Reflexionar).
-                
-                REGLA: Usa lenguaje técnico, pedagógico y adaptado a Educación Especial.
+                ---------------------------------------------------
                 """
                 
-                # Llamada al núcleo
-                resultado = generar_respuesta([{"role":"user","content":prompt}], temperatura=0.7)
-                st.session_state.ministerial_res = resultado
+                # Llamada al cerebro modular
+                respuesta = generar_respuesta(prompt_min, temperatura=0.5)
+                st.session_state.plan_actual = respuesta
+                st.rerun()
+        else:
+            st.warning("⚠️ Por favor, pega el texto ministerial primero.")
 
-    # --- 3. VISUALIZACIÓN Y COPIADO ---
-    if 'ministerial_res' in st.session_state:
-        st.success("✅ Formato redactado.")
-        st.markdown("---")
+    # 3. VISUALIZACIÓN Y GUARDADO (ADN V1)
+    if st.session_state.plan_actual:
+        st.divider()
+        st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
         
-        st.markdown("#### 📄 Vista Previa")
-        # Usamos text_area grande para que sea fácil copiar todo de una vez
-        st.text_area("Copiar contenido:", value=st.session_state.ministerial_res, height=500)
-        
-        st.info("💡 Tip: Copia este texto y pégalo directamente en tu formato de Word o libro de planificación.")
+        if st.button("💾 Guardar Adaptación en Mi Archivo", use_container_width=True):
+            try:
+                with st.spinner("Guardando en la nube..."):
+                    # Leer la base de datos (Usamos ttl=60 para evitar error 429)
+                    df_archivo = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=60)
+                    
+                    nueva_fila = pd.DataFrame([{
+                        "FECHA": ahora_ve().strftime("%d/%m/%Y"),
+                        "USUARIO": st.session_state.u['NOMBRE'],
+                        "TEMA": st.session_state.temp_tema[:50],
+                        "CONTENIDO": st.session_state.plan_actual,
+                        "ESTADO": "GUARDADO"
+                    }])
+                    
+                    conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=pd.concat([df_archivo, nueva_fila], ignore_index=True))
+                    st.success("✅ ¡Guardado correctamente en tu archivo pedagógico!")
+                    time.sleep(2)
+                    st.session_state.plan_actual = ""
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error al guardar: {e}")
