@@ -120,12 +120,6 @@ else:
             st.rerun()
         archivo.render_archivo(conn)
         
-    elif pg == "📊 Registro de Evaluaciones":
-        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
-            st.session_state.pagina_actual = "HOME"
-            st.rerun()
-        st.info("💡 Tip: Puedes ver y gestionar las evaluaciones en 'Mi Archivo Pedagógico'.")
-        archivo.render_archivo(conn)
 
     # EXTRAS (Mensajes, Ideas, Consultas)
     elif pg in ["🌟 Mensaje Motivacional", "💡 Ideas de Actividades", "❓ Consultas Técnicas"]:
