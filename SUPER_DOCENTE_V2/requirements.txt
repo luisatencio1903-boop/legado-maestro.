@@ -6,5 +6,3 @@ requests
 Pillow
 pyotp
 qrcode
-google-api-python-client
-google-auth
