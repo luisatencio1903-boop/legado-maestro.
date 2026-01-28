@@ -1,16 +1,20 @@
 # =============================================================================
-# CEREBRO NÚCLEO - SUPER DOCENTE 2.0
-# Funcción: Dispatcher de Inteligencia y Selector de Contexto Dinámico
+# CEREBRO NÚCLEO - SUPER DOCENTE 2.0 (ACTUALIZADO)
+# Función: Dispatcher de Inteligencia y Selector de Contexto Dinámico
 # =============================================================================
 
 import streamlit as st
 from groq import Groq
+# Importación de los especialistas
 from cerebros import tel, caipa, ieeb, aula_integrada, upe, inicial
 
 # --- CLIENTE IA (GROQ) ---
 try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    MODELO = "llama-3.3-70b-versatile"
+    if "GROQ_API_KEY" in st.secrets:
+        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        MODELO = "llama-3.3-70b-versatile"
+    else:
+        client = None
 except:
     client = None
 
@@ -23,10 +27,33 @@ def obtener_instrucciones_globales():
     FORMATO: Usa negritas para títulos y doble espacio entre secciones.
     """
 
+def generar_respuesta(input_data, temperatura=0.6):
+    """
+    FUNCIÓN MAESTRA: Soporta tanto el Chat (Aula Virtual) como la Planificación.
+    input_data: Puede ser una lista de mensajes (chat) o un string (prompt único).
+    """
+    if not client: return "Error: Cliente IA no configurado en Secrets."
+    
+    try:
+        # Detectar si recibimos un historial de chat (lista) o un prompt directo (string)
+        if isinstance(input_data, list):
+            mensajes_finales = input_data
+        else:
+            mensajes_finales = [{"role": "system", "content": input_data}]
+
+        completion = client.chat.completions.create(
+            messages=mensajes_finales,
+            model=MODELO,
+            temperature=temperatura
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        return f"Error de conexión con el cerebro IA: {e}"
+
 def procesar_planificacion_v2(modalidad, dia_nombre, config_db, tema_usuario):
     """
     Motor lógico que selecciona el cerebro y el contexto (PA/PSP/Pensum)
-    config_db: Diccionario con {pa_texto, pa_dias, psp_texto, psp_dias, pensum_bloque, switches}
+    config_db: Diccionario con los datos de la base de datos.
     """
     
     # 1. IDENTIFICAR EL CEREBRO ESPECIALISTA
@@ -43,32 +70,28 @@ def procesar_planificacion_v2(modalidad, dia_nombre, config_db, tema_usuario):
     else:
         especialista = inicial
 
-    # 2. LÓGICA DE SELECCIÓN DE CONTEXTO (LA BATUTA DEL DIRECTOR)
+    # 2. LÓGICA DE SELECCIÓN DE CONTEXTO
     contexto_inyectado = ""
     tipo_actividad = ""
 
-    # Caso A: Docente de Taller (T.E.L.)
-    if especialista == tel:
-        if config_db['pa_switch'] and dia_nombre in config_db['pa_dias']:
-            contexto_inyectado = f"CONTEXTO PROYECTO DE AULA (TEORÍA): {config_db['pa_texto']}"
+    if "Taller" in modalidad or "T.E.L." in modalidad:
+        if config_db.get('pa_switch') and dia_nombre in config_db.get('pa_dias', []):
+            contexto_inyectado = f"CONTEXTO PROYECTO DE AULA (TEORÍA): {config_db.get('pa_texto')}"
             tipo_actividad = "Formación en Aula"
-        elif config_db['psp_switch'] and dia_nombre in config_db['psp_dias']:
-            contexto_inyectado = f"CONTEXTO PROYECTO SOCIO-PRODUCTIVO (PRÁCTICA): {config_db['psp_texto']}"
+        elif config_db.get('psp_switch') and dia_nombre in config_db.get('psp_dias', []):
+            contexto_inyectado = f"CONTEXTO PROYECTO SOCIO-PRODUCTIVO (PRÁCTICA): {config_db.get('psp_texto')}"
             tipo_actividad = "Ejecución de Taller (Enfoque Capataz/Supervisor)"
-        elif config_db['pensum_switch']:
-            contexto_inyectado = f"CONTEXTO PENSUM TÉCNICO DE OFICIO: {config_db['pensum_contenido']}"
+        elif config_db.get('pensum_switch'):
+            contexto_inyectado = f"CONTEXTO PENSUM TÉCNICO DE OFICIO: {config_db.get('pensum_contenido')}"
             tipo_actividad = "Formación Técnica de Oficio"
         else:
             contexto_inyectado = "Enfoque general de formación para el trabajo."
             tipo_actividad = "Habilidades Laborales"
-
-    # Caso B: Otros Servicios (I.E.E.B, CAIPA, etc.)
     else:
-        if config_db['pa_switch'] and dia_nombre in config_db['pa_dias']:
-            contexto_inyectado = f"CONTEXTO PROYECTO DE AULA: {config_db['pa_texto']}"
+        if config_db.get('pa_switch') and dia_nombre in config_db.get('pa_dias', []):
+            contexto_inyectado = f"CONTEXTO PROYECTO DE AULA: {config_db.get('pa_texto')}"
             tipo_actividad = "Actividad de Proyecto"
         else:
-            # Para IEEB/CAIPA, si no hay PA, se basa en su ADN (Vida diaria / Autonomía)
             contexto_inyectado = "Enfoque en Autovalimiento y Habilidades Adaptativas."
             tipo_actividad = "Actividad Curricular General"
 
@@ -89,19 +112,5 @@ def procesar_planificacion_v2(modalidad, dia_nombre, config_db, tema_usuario):
     RECUERDA: {especialista.REGLAS_DE_ORO}
     """
 
-    # 4. LLAMADA A LA IA
-    return llamar_ia_groq(prompt_maestro)
-
-def llamar_ia_groq(prompt_completo, temperatura=0.6):
-    """Ejecuta la petición a Groq Cloud"""
-    if not client: return "Error: Cliente IA no configurado."
-    
-    try:
-        completion = client.chat.completions.create(
-            messages=[{"role": "system", "content": prompt_completo}],
-            model=MODELO,
-            temperature=temperatura
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        return f"Error de conexión con el cerebro IA: {e}"
+    # 4. LLAMADA A LA IA USANDO LA FUNCIÓN UNIFICADA
+    return generar_respuesta(prompt_maestro)
