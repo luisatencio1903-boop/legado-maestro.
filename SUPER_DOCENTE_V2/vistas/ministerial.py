@@ -1,74 +1,90 @@
-# =============================================================================
-# VISTA: PLANIFICADOR MINISTERIAL (MODULAR V2)
-# =============================================================================
-
 import streamlit as st
 import pandas as pd
 import time
+import re
 from utils.comunes import ahora_ve
 from cerebros.nucleo import generar_respuesta
 
-def render_ministerial(conn): # <--- Nombre sincronizado con tu app.py
-    # Obtener la URL directamente desde los secrets para evitar errores de argumentos
+def render_ministerial(conn):
+    # --- 1. INICIALIZACIÓN DE VARIABLES DE ESTADO (Blindaje V2.0) ---
+    if 'plan_actual' not in st.session_state:
+        st.session_state.plan_actual = ""
+    if 'temp_tema' not in st.session_state:
+        st.session_state.temp_tema = ""
+    
     URL_HOJA = st.secrets["GSHEETS_URL"]
+
+    # --- 2. INTERFAZ (Tu diseño original preservado) ---
+    st.markdown("### 📜 PLANIFICADOR MINISTERIAL")
+    st.markdown("*Adaptación de Lineamientos*")
+    st.info("Pega el texto del Ministerio. SUPER DOCENTE 2.0 lo adaptará y formateará.")
     
-    st.markdown("### 📜 Adaptación de Lineamientos Ministeriales")
-    st.info("Pega el texto del Ministerio para adaptarlo bajo el Currículo Bolivariano.")
+    aula_min = st.text_input("Aula/Taller:", value="Mantenimiento y Servicios", key="aula_min_v2")
+    texto_ministerio = st.text_area("Texto (WhatsApp):", height=250, key="txt_min_v2")
     
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        modalidad_min = st.selectbox("Adaptar para la Modalidad:", [
-            "Taller de Educación Laboral (T.E.L.)",
-            "Instituto de Educación Especial (I.E.E.B.)",
-            "C.A.I.P.A.",
-            "Aula Integrada",
-            "U.P.E.",
-            "Educación Inicial"
-        ], key="min_mod_v2")
-    with col_m2:
-        aula_min = st.text_input("Área / Aula específica:", placeholder="Ej: Carpintería, Sala 1...", key="min_aula_v2")
-    
-    texto_ministerio = st.text_area("Texto Ministerial Original:", height=250, placeholder="Pega aquí el mensaje recibido...")
-    
-    if st.button("🪄 Adaptar y Organizar Planificación", type="primary", use_container_width=True):
+    # --- 3. LÓGICA DE PROCESAMIENTO (Fiel al V1) ---
+    if st.button("🪄 Adaptar y Organizar", type="primary", use_container_width=True):
         if texto_ministerio:
-            with st.spinner('Super Docente 2.0 analizando contenidos...'):
-                st.session_state.temp_tema = f"Adaptación Ministerial - {modalidad_min}"
+            with st.spinner('Adaptando y humanizando actividades...'):
+                # Intentar detectar fecha con tu lógica de Regex original
+                fechas_enc = re.findall(r'\d{1,2}[/-]\d{1,2}', texto_ministerio)
+                rango_det = f"Semana {fechas_enc[0]}" if fechas_enc else "Semana Ministerial"
                 
-                prompt_min = f"""
-                ERES UN EXPERTO EN DISEÑO CURRICULAR VENEZOLANO. 
-                TAREA: Adapta el siguiente texto ministerial para la modalidad de {modalidad_min} {f'en el área de {aula_min}' if aula_min else ''}.
-                TEXTO: "{texto_ministerio}"
-                REGLAS: Actividades VIVENCIALES, Competencias Técnicas (VERBO+OBJETO+CONDICIÓN).
-                FORMATO: 7 puntos (Título, Competencia, Inicio, Desarrollo, Cierre, Estrategias, Recursos).
+                st.session_state.temp_tema = f"Plan Ministerial Adaptado - {rango_det}"
+                
+                # Tu Prompt Original (El que ya sabes que funciona)
+                prompt = f"""
+                ERES EXPERTO EN CURRÍCULO. ADAPTA ESTO PARA EDUCACIÓN ESPECIAL / TALLER LABORAL:
+                "{texto_ministerio}"
+                AULA: {aula_min}.
+                
+                REGLAS:
+                1. ENCABEZADO OBLIGATORIO: "📝 **Planificación del Ministerio (Adaptada)**".
+                2. Si hay actividades abstractas, cámbialas a concretas y VIVENCIALES.
+                3. Usa competencias técnicas completas (Acción+Objeto+Condición).
+                4. FORMATO: Lista vertical con doble espacio entre puntos (1 al 7).
                 """
                 
-                # Llamada al cerebro modular
-                respuesta = generar_respuesta(prompt_min, temperatura=0.5)
+                # Llamada al núcleo modular
+                # Nota: Pasamos el prompt directamente como un string
+                respuesta = generar_respuesta(prompt, temperatura=0.6)
                 st.session_state.plan_actual = respuesta
                 st.rerun()
         else:
-            st.warning("⚠️ Por favor, pega el texto primero.")
+            st.warning("⚠️ Pega el texto primero.")
 
+    # --- 4. BLOQUE DE VISUALIZACIÓN Y GUARDADO (Tu lógica original V1) ---
     if st.session_state.plan_actual:
-        st.divider()
+        st.markdown("---")
+        # El cuadro con tu estilo CSS 'plan-box'
         st.markdown(f'<div class="plan-box">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
         
         if st.button("💾 Guardar en Mi Archivo", use_container_width=True):
             try:
-                with st.spinner("Guardando..."):
+                with st.spinner("Guardando en la nube..."):
+                    # Leemos la base de datos (ttl=60 para estabilidad)
                     df_archivo = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=60)
+                    tema_guardar = st.session_state.get('temp_tema', 'Planificación Ministerial')
+                    
+                    # Estructura de fila original
                     nueva_fila = pd.DataFrame([{
                         "FECHA": ahora_ve().strftime("%d/%m/%Y"),
                         "USUARIO": st.session_state.u['NOMBRE'],
-                        "TEMA": st.session_state.temp_tema[:50],
+                        "TEMA": tema_guardar[:50], 
                         "CONTENIDO": st.session_state.plan_actual,
-                        "ESTADO": "GUARDADO"
+                        "ESTADO": "GUARDADO",
+                        "HORA_INICIO": "--", 
+                        "HORA_FIN": "--"
                     }])
-                    conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=pd.concat([df_archivo, nueva_fila], ignore_index=True))
-                    st.success("✅ ¡Guardado!")
-                    time.sleep(1)
-                    st.session_state.plan_actual = ""
+                    
+                    # Actualización en Google Sheets
+                    df_final = pd.concat([df_archivo, nueva_fila], ignore_index=True)
+                    conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=df_final)
+                    
+                    st.success("✅ Guardado correctamente en tu archivo pedagógico.")
+                    time.sleep(2)
+                    st.session_state.plan_actual = "" # Limpiamos memoria
+                    st.session_state.pagina_actual = "📂 Mi Archivo Pedagógico" # Redirección
                     st.rerun()
             except Exception as e:
                 st.error(f"Error al guardar: {e}")
