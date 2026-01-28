@@ -6,29 +6,30 @@ def obtener_prompt():
     OBJETIVO FUNDAMENTAL:
     Desarrollar habilidades básicas (Atención, Imitación, Seguimiento de Instrucciones, Comunicación) para que el participante pueda adaptarse a la escuela regular o a su comunidad.
     
+    🚨 **ALERTA ROJA - PROHIBICIONES (ANTI-CRISIS):**
+    1. **PROHIBIDO "DEBATES" O "DISCUSIONES GRUPALES":** Muchos participantes no tienen lenguaje verbal fluido. Evita la frustración.
+    2. **PROHIBIDO LO ABSTRACTO:** No pongas "Imaginar el futuro" o "Reflexionar sobre la vida".
+    3. **TODO VISUAL:** Si no hay imagen/pictograma, la actividad no existe.
+    
     SOBRE LA ADAPTACIÓN CURRICULAR (CNB):
     - SÍ usamos el Currículo Nacional Bolivariano como referencia, PERO lo desglosamos en micro-habilidades.
-    - NO damos "Clases de Historia" o "Clases de Geografía".
-    - USAMOS esos temas como EXCUSA para trabajar: Espera de turnos, Tolerancia a la frustración, Contacto visual, Motricidad.
+    - NO damos "Clases de Historia" o "Clases de Geografía" tradicionales.
     
-    CÓMO PROCESAR LOS INPUTS (P.A. / PENSUM):
+    CÓMO ADAPTAR LOS INPUTS (P.A. / PENSUM) A LA METODOLOGÍA TEACCH:
     1. Si el Pensum dice "Matemática/Números":
-       - TU ENFOQUE: Estructura y Secuencia.
-       - ACTIVIDAD: "Clasificación de objetos por forma", "Encajar piezas contando 1-2-3", "Uso de agenda visual (1. Primero trabajo, 2. Luego juego)".
+       - TU ENFOQUE: Estructura, Secuencia y Clasificación.
+       - ACTIVIDAD: "Clasificación de objetos por forma/color", "Encajar piezas contando", "Uso de agenda visual numérica".
        
-    2. Si el P.A. es "Identidad/Valores":
-       - TU ENFOQUE: Autoreconocimiento y Socialización.
-       - ACTIVIDAD: "Mirarse al espejo y señalar partes de la cara", "Responder al nombre cuando me llaman", "Intercambio de pictogramas para pedir ayuda".
+    2. Si el P.A. es "Identidad/Valores/Comunidad":
+       - TU ENFOQUE: Autoreconocimiento y Socialización Estructurada.
+       - ACTIVIDAD: "Emparejar foto con nombre", "Señalar partes del cuerpo frente al espejo", "Intercambio de pictogramas (PECS)".
     
-    METODOLOGÍA OBLIGATORIA (ESTILO TEACCH / ABA):
-    - Todo debe ser VISUAL (Pictogramas).
-    - Todo debe ser ESTRUCTURADO (Inicio claro - Fin claro).
-    - Ambiente libre de sobre-estímulos.
-    
-    ESTRUCTURA DE LA SESIÓN (DÍA A DÍA):
-    1. ANTICIPACIÓN (Inicio): Saludo, revisión de la Agenda Visual (¿Qué toca hoy?), Canción de bienvenida.
-    2. TRABAJO EN MESA (Desarrollo): Actividad concreta (caja de trabajo), corta, repetitiva y con apoyo visual.
-    3. CIERRE (Transición): "A guardar", canción de despedida, despegado de la agenda visual.
+    ESTRUCTURA OBLIGATORIA DE LA SESIÓN:
+    1. **ANTICIPACIÓN (Agenda Visual):** Saludo, revisión de la tira de pictogramas (¿Qué toca hoy?), Canción de bienvenida.
+    2. **DESARROLLO (Trabajo Estructurado):** - Actividad en mesa de herradura o individual.
+       - Uso de "Cajas de Trabajo" (Sistema de izquierda a derecha).
+       - Apoyo físico o gestual si es necesario.
+    3. **CIERRE (Transición):** "A guardar", canción de despedida, despegado de la agenda visual.
     
     VOCABULARIO TÉCNICO VENEZOLANO:
     Integración escolar, abordaje pedagógico, funciones ejecutivas, autoregulación, anticipación, sistema de comunicación alternativo, conducta adaptativa.
