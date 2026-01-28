@@ -1,87 +1,143 @@
 # ============================================================================
-# PROYECTO: SUPER DOCENTE V2 (MODULAR)
-# AUTOR: Luis Atencio
+# PROYECTO: SUPER DOCENTE 2.0 (EVOLUCIÓN MODULAR)
+# BASADO EN: LEGADO MAESTRO V5.0
 # FECHA: Enero 2026
-# DESCRIPCIÓN: Archivo principal (Orquestador). Carga configuración y enruta.
-# ============================================================================
+# AUTOR: Luis Atencio (Bachiller Docente)
+# INSTITUCIÓN: T.E.L E.R.A.C
+#
+# DESCRIPCIÓN:
+# Plataforma de gestión pedagógica basada en Inteligencia Artificial.
+# Incluye: Asistencia Biométrica, Planificación, Evaluación y Gestión de Archivos.
+# Estructura: Modular (Vistas, Utils, Cerebros).
+# =============================================================================
 
 import streamlit as st
 import time
 
-# --- 1. CONFIGURACIÓN DE PÁGINA (IGUAL QUE V1) ---
+# --- 1. IMPORTAR HERRAMIENTAS Y ESTILOS ---
+from utils.visuales import cargar_css
+from utils.db import conectar_db, cargar_datos_maestros
+
+# --- 2. IMPORTAR TODAS LAS VISTAS (MÓDULOS) ---
+from vistas import login
+from vistas import home
+from vistas import sidebar
+from vistas import asistencia
+from vistas import aula_virtual
+from vistas import planificador
+from vistas import fabrica
+from vistas import proyectos
+from vistas import ministerial
+from vistas import archivo
+from vistas import extras
+
+# --- 3. CONFIGURACIÓN INICIAL DE LA PÁGINA ---
 st.set_page_config(
     page_title="SUPER DOCENTE 2.0",
-    page_icon="logo_legado.png", # Asegúrate de subir la imagen luego a la carpeta raíz
+    page_icon="🍎",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. GESTIÓN DE MEMORIA DE SESIÓN (REGLA DE ORO: NO PERDER NADA) ---
-# Inicializamos todas las variables que usa tu V1 para que los módulos funcionen.
+# Cargar Estilos CSS (Visuales)
+cargar_css()
 
-# Autenticación y Usuario
+# --- 4. GESTIÓN DE MEMORIA (SESSION STATE) ---
+# Variables fundamentales para que el sistema no se pierda
 if 'auth' not in st.session_state: st.session_state.auth = False
 if 'u' not in st.session_state: st.session_state.u = None
 if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = "HOME"
 
-# Variables del Aula Virtual (V13/V14)
+# Variables globales del Aula Virtual para evitar errores al cambiar de pantalla
 if 'av_foto1' not in st.session_state: st.session_state.av_foto1 = None
 if 'av_foto2' not in st.session_state: st.session_state.av_foto2 = None
 if 'av_foto3' not in st.session_state: st.session_state.av_foto3 = None
 if 'av_resumen' not in st.session_state: st.session_state.av_resumen = ""
 if 'modo_suplencia_activo' not in st.session_state: st.session_state.modo_suplencia_activo = False
-if 'chat_asistente_aula' not in st.session_state: st.session_state.chat_asistente_aula = []
 
-# Variables del Planificador y Fábrica
-if 'plan_actual' not in st.session_state: st.session_state.plan_actual = ""
-if 'fp_completo' not in st.session_state: st.session_state.fp_completo = ""
+# --- 5. CONEXIÓN A LA BASE DE DATOS ---
+conn = conectar_db()
+if not conn:
+    st.stop() # Si no hay internet o falla Google Sheets, se detiene aquí.
 
-# --- 3. IMPORTACIÓN DE MÓDULOS (LA ESTRATEGIA MODULAR) ---
-# Intentamos importar. Si fallan es porque aun no creas los archivos (Es normal ahora).
-try:
-    from utils.db import conectar_db
-    from utils.visuales import cargar_css
-    from vistas.login import render_login
-    from vistas.sidebar import render_sidebar
-    from vistas.home import render_home
-    # Aquí iremos añadiendo: from vistas.aula import render_aula, etc.
+# --- 6. RUTEO PRINCIPAL (EL CEREBRO DE NAVEGACIÓN) ---
+
+if not st.session_state.auth:
+    # ESCENARIO A: NO ESTÁ LOGUEADO -> MOSTRAR LOGIN
+    login.render_login(conn)
+
+else:
+    # ESCENARIO B: YA ENTRÓ -> MOSTRAR SISTEMA
     
-    modulos_ok = True
-except ImportError:
-    modulos_ok = False
+    # 1. Renderizar Barra Lateral (Siempre visible con créditos)
+    sidebar.render_sidebar(conn)
+    
+    # 2. Router de Páginas (Switch)
+    pg = st.session_state.pagina_actual
 
-# --- 4. EJECUCIÓN PRINCIPAL ---
-def main():
-    # A. Cargar Estilos CSS (Tu diseño visual exacto)
-    if modulos_ok:
-        cargar_css() # Esto cargará tu estilo azul/verde original
-        conn = conectar_db()
-    else:
-        st.warning("⚠️ **ESTRUCTURA EN CONSTRUCCIÓN**")
-        st.info("Has creado el 'app.py' correctamente. Ahora debes crear las carpetas 'utils' y 'vistas' para que el sistema arranque.")
-        return
+    if pg == "HOME":
+        home.render_home(conn)
 
-    # B. Lógica de Navegación (Igual que V1)
-    if not st.session_state.auth:
-        render_login(conn)
-    else:
-        # Renderizar la Barra Lateral (Con tu logo y datos)
-        render_sidebar(conn)
+    elif pg == "⏱️ Control de Asistencia":
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        asistencia.render_asistencia(conn)
 
-        # Enrutador (El Switch gigante de tu V1, pero ordenado)
-        if st.session_state.pagina_actual == "HOME":
-            render_home(conn)
+    elif pg == "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)":
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        aula_virtual.render_aula(conn)
+
+    elif pg == "🧠 PLANIFICADOR INTELIGENTE":
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        planificador.render_planificador(conn)
+
+    elif pg == "🏗️ FÁBRICA DE PENSUMS":
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        fabrica.render_fabrica(conn)
         
-        # Aquí conectaremos los demás módulos paso a paso:
-        elif st.session_state.pagina_actual == "🦸‍♂️ AULA VIRTUAL (Ejecución y Evaluación)":
-             from vistas.aula_virtual import render_aula
-             render_aula(conn)
-             
-        elif st.session_state.pagina_actual == "📂 Mi Archivo Pedagógico":
-             from vistas.archivo import render_archivo
-             render_archivo(conn)
-             
-        # ... y así con el resto ...
+    elif pg == "🏗️ GESTIÓN DE PROYECTOS Y PLANES":
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        proyectos.render_proyectos(conn)
 
-if __name__ == "__main__":
-    main()
+    elif pg == "📜 PLANIFICADOR MINISTERIAL":
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        ministerial.render_ministerial(conn)
+
+    elif pg == "📂 Mi Archivo Pedagógico":
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        archivo.render_archivo(conn)
+        
+    elif pg == "📊 Registro de Evaluaciones":
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        st.info("💡 Tip: Puedes ver y gestionar las evaluaciones en 'Mi Archivo Pedagógico'.")
+        archivo.render_archivo(conn)
+
+    # EXTRAS (Mensajes, Ideas, Consultas)
+    elif pg in ["🌟 Mensaje Motivacional", "💡 Ideas de Actividades", "❓ Consultas Técnicas"]:
+        if st.button("⬅️ VOLVER AL MENÚ", use_container_width=True):
+            st.session_state.pagina_actual = "HOME"
+            st.rerun()
+        extras.render_extras(conn)
+    
+    # --- PIE DE PÁGINA (FIRMA FINAL) ---
+    st.divider()
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        st.caption("© 2026 SUPER DOCENTE | Desarrollado por: **Luis Atencio**")
+    with c2:
+        st.caption("v2.0 Modular")
