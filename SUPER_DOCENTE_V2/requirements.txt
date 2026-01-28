@@ -1,7 +1,7 @@
 streamlit
 pandas
 groq
-streamlit-gsheets
+st-gsheets-connection
 requests
 Pillow
 pyotp
