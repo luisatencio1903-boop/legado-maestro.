@@ -1,110 +1,170 @@
 import streamlit as st
 import pandas as pd
 import time
-from datetime import datetime
 from utils.comunes import ahora_ve
-from cerebros.nucleo import generar_respuesta
+from cerebros.nucleo import generar_respuesta, seleccionar_cerebro_modalidad
 
 def render_planificador(conn):
-    st.title("🧠 Planificador Inteligente")
-    st.info("Genera tu planificación semanal o de proyecto y actívala para el Aula Virtual.")
+    try:
+        URL_HOJA = st.secrets["GSHEETS_URL"]
+    except:
+        st.error("Error de configuración.")
+        return
 
-    # --- 1. CONFIGURACIÓN DEL PLAN ---
-    with st.expander("🛠️ Configuración de la Planificación", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            tipo_plan = st.selectbox("Tipo de Plan:", ["Proyecto de Aprendizaje (P.A.)", "Plan Semanal", "P.E.I. (Individual)"])
-            nivel = st.selectbox("Nivel / Modalidad:", ["Educación Especial (General)", "Taller Laboral (T.E.L.)", "Inicial", "Caipa / Autismo"])
-        with col2:
-            fecha_ini = st.date_input("Fecha Inicio:")
-            fecha_fin = st.date_input("Fecha Cierre:")
+    st.markdown("**Generación de Planificación Pedagógica Especializada**")
     
-    st.divider()
+    # 1. INTERFAZ DE USUARIO
+    col1, col2 = st.columns(2)
+    with col1:
+        rango = st.text_input("Lapso (Fechas):", placeholder="Ej: 26 al 30 de Enero")
+    with col2:
+        modalidad = st.selectbox("Modalidad / Servicio:", [
+            "Taller de Educación Laboral (T.E.L.)",
+            "Instituto de Educación Especial (I.E.E.B.)",
+            "Centro de Atención Integral para Personas con Autismo (C.A.I.P.A.)",
+            "Aula Integrada (Escuela Regular)",
+            "Unidad Psico-Educativa (U.P.E.)",
+            "Educación Inicial (Preescolar)"
+        ])
     
-    # --- 2. DATOS ESPECÍFICOS ---
-    nombre_proyecto = st.text_input("Nombre del Proyecto o Tema Generador:", placeholder="Ej: Las plantas medicinales de mi comunidad...")
+    aula_especifica = ""
+    if "Taller" in modalidad:
+        aula_especifica = st.text_input("Especifique el Taller / Aula:", placeholder="Ej: Carpintería, Cocina...")
     
-    col_a, col_b = st.columns(2)
-    with col_a:
-        areas = st.multiselect("Áreas de Aprendizaje:", ["Lenguaje y Comunicación", "Matemática", "Ciencias Naturales", "Identidad y Soberanía", "Educación Física"])
-    with col_b:
-        estrategias_extra = st.text_input("Estrategias o Recursos específicos (Opcional):", placeholder="Ej: Uso de canaimitas, Huerto escolar...")
+    is_pei = st.checkbox("🎯 ¿Planificación Individualizada (P.E.I.)?")
+    perfil_alumno = ""
+    if is_pei:
+        perfil_alumno = st.text_area("Perfil del Alumno (Potencialidades y Necesidades):", placeholder="Describa al estudiante...")
+    
+    notas = st.text_area("Tema Generador / Referente Ético / Notas:", height=100)
 
-    # --- 3. GENERACIÓN CON IA ---
-    if st.button("✨ GENERAR PLANIFICACIÓN (IA)", type="primary", use_container_width=True):
-        if not nombre_proyecto:
-            st.error("⚠️ Debes escribir un nombre para el proyecto.")
+    # 2. BOTÓN DE GENERACIÓN
+    if st.button("🚀 Generar Planificación Estructurada", type="primary"):
+        if not rango or not notas:
+            st.error("⚠️ Por favor ingrese el Lapso y el Tema.")
         else:
-            with st.spinner("⏳ La IA está redactando tu plan paso a paso..."):
-                # Construcción del Prompt Modular
-                prompt = f"""
-                ACTÚA COMO UN EXPERTO DOCENTE. REDACTA UNA PLANIFICACIÓN TIPO: {tipo_plan}.
-                PARA LA MODALIDAD: {nivel}.
-                TEMA/PROYECTO: {nombre_proyecto}.
-                ÁREAS: {', '.join(areas)}.
-                EXTRAS: {estrategias_extra}.
-                FECHAS: Del {fecha_ini} al {fecha_fin}.
+            with st.spinner('Super Docente 1.0 alineando estrategias y léxico...'):
                 
-                ESTRUCTURA OBLIGATORIA DE LA RESPUESTA:
-                1. IDENTIFICACIÓN Y DIAGNÓSTICO (Breve).
-                2. PROPÓSITO GENERAL.
-                3. ESTRATEGIAS POR DÍA (LUNES A VIERNES) CON INICIO, DESARROLLO Y CIERRE.
-                4. INDICADORES DE EVALUACIÓN.
+                # --- A. RECOLECCIÓN DE CONTEXTO (PENSUM Y PROYECTOS) ---
                 
-                REGLA DE ORO: Usa terminología venezolana (Participantes, P.A., Material de provecho).
+                # 1. Buscar Proyectos (P.A. / P.S.P.)
+                texto_proyectos = "Usa el Tema Generador como eje central."
+                try:
+                    df_p = conn.read(spreadsheet=URL_HOJA, worksheet="CONFIG_PROYECTO", ttl=0)
+                    user_p = df_p[df_p['USUARIO'] == st.session_state.u['NOMBRE']]
+                    if not user_p.empty:
+                        fila = user_p.iloc[0]
+                        if fila['ESTADO'] == 'ACTIVO':
+                            pa = fila.get('TITULO_PA', 'Valores')
+                            psp = fila.get('TITULO_PSP', 'Productivo')
+                            dias_pa = str(fila.get('DIAS_PA', ''))
+                            dias_psp = str(fila.get('DIAS_PSP', ''))
+                            texto_proyectos = f"""
+                            CONTEXTO DE PROYECTOS ACTIVOS:
+                            1. P.A. (Aula/Teoría): "{pa}" (Días sugeridos: {dias_pa}).
+                            2. P.S.P. (Taller/Práctica): "{psp}" (Días sugeridos: {dias_psp}).
+                            """
+                except: pass
+
+                # 2. Buscar Pensum Activo (Bloque Temático)
+                texto_pensum = ""
+                nombre_bloque = ""
+                try:
+                    df_bib = conn.read(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", ttl=0)
+                    pensum_act = df_bib[(df_bib['USUARIO'] == st.session_state.u['NOMBRE']) & (df_bib['ESTADO'] == "ACTIVO")]
+                    if not pensum_act.empty:
+                        fila_pen = pensum_act.iloc[0]
+                        nombre_bloque = fila_pen.get('BLOQUE_ACTUAL', "Contenido General")
+                        full_txt = fila_pen['CONTENIDO_FULL']
+                        # Extraer solo el bloque actual
+                        inicio = full_txt.find(nombre_bloque)
+                        if inicio != -1:
+                            fin = full_txt.find("BLOQUE:", inicio + 20)
+                            texto_pensum = full_txt[inicio:fin] if fin != -1 else full_txt[inicio:]
+                        else:
+                            texto_pensum = full_txt[:2000] # Fallback
+                        
+                        texto_pensum = f"""
+                        💎 **INSUMO TÉCNICO (PENSUM ACTIVO):**
+                        BLOQUE: "{nombre_bloque}"
+                        CONTENIDO: {texto_pensum}
+                        (Usa este contenido técnico para las actividades).
+                        """
+                except: pass
+
+                # --- B. LLAMADA AL CEREBRO MODULAR ---
+                
+                # Obtenemos el System Prompt del especialista (TEL, CAIPA, etc.)
+                instrucciones_sistema = seleccionar_cerebro_modalidad(modalidad)
+                
+                # Construimos el Prompt del Usuario con toda la data recolectada
+                prompt_usuario = f"""
+                CONTEXTO: {modalidad} {aula_especifica}.
+                LAPSO: {rango}.
+                TEMA: {notas}.
+                ALUMNO: {perfil_alumno if is_pei else "Grupo General"}.
+                
+                {texto_proyectos}
+                
+                {texto_pensum}
+                
+                GENERA UNA PLANIFICACIÓN SEMANAL (Lunes a Viernes).
+                
+                REGLAS DE REDACCIÓN OBLIGATORIAS:
+                1. COMPETENCIA TÉCNICA: Verbo (Infinitivo) + Objeto + Condición.
+                2. ESTRATEGIAS: Solo menciona el nombre (Ej: Lluvia de ideas). NO expliques.
+                3. INICIOS: No repitas el mismo verbo dos días seguidos.
+                4. FORMATO: Usa Negritas y saltos de línea.
+                
+                ESTRUCTURA DE SALIDA (Repetir para cada día):
+                ### [DÍA]
+                **1. TÍTULO:** (Corto)
+                **2. COMPETENCIA TÉCNICA:**
+                **3. EXPLORACIÓN (Inicio):**
+                **4. DESARROLLO (Proceso):**
+                **5. REFLEXIÓN (Cierre):**
+                **6. ESTRATEGIAS:**
+                **7. RECURSOS:**
+                _______________________
                 """
                 
-                # Llamada al núcleo (cerebro)
-                respuesta_ia = generar_respuesta([{"role": "user", "content": prompt}], temperatura=0.7)
+                respuesta_raw = generar_respuesta([
+                    {"role": "system", "content": instrucciones_sistema},
+                    {"role": "user", "content": prompt_usuario}
+                ], 0.7)
                 
-                # Guardamos en sesión para no perderlo si la pantalla recarga
-                st.session_state.plan_generado_temp = respuesta_ia
-                st.success("✅ Planificación generada.")
+                # Limpieza visual básica
+                st.session_state.plan_actual = respuesta_raw.replace("**1.", "\n\n**1.").replace("### ", "\n\n### ")
+                st.rerun()
 
-    # --- 4. VISUALIZACIÓN Y GUARDADO ---
-    if 'plan_generado_temp' in st.session_state:
-        st.markdown("### 📝 Revisa y Edita tu Plan")
-        plan_final = st.text_area("Contenido del Plan:", value=st.session_state.plan_generado_temp, height=400)
+    # 3. VISUALIZACIÓN Y GUARDADO (Mantiene lógica original)
+    if 'plan_actual' in st.session_state and st.session_state.plan_actual:
+        st.divider()
+        st.success("✅ **Planificación Generada Exitosamente**")
+        st.markdown(f'<div style="border:1px solid #ddd; padding:20px; border-radius:10px;">{st.session_state.plan_actual}</div>', unsafe_allow_html=True)
         
-        col_g1, col_g2 = st.columns([1, 2])
-        
-        with col_g1:
-            if st.button("💾 GUARDAR Y ACTIVAR", type="primary"):
+        st.divider()
+        c1, c2 = st.columns([1,1])
+        with c1:
+            if st.button("💾 Guardar en Mi Archivo"):
                 try:
-                    # 1. Desactivar planes anteriores del usuario (Para que no se crucen)
-                    # NOTA: Esto es lógica V1 simplificada. Idealmente haríamos un update masivo.
-                    
-                    # 2. Guardar el nuevo
-                    nuevo_plan = pd.DataFrame([{
-                        "FECHA": f"{fecha_ini} al {fecha_fin}",
-                        "USUARIO": st.session_state.u['NOMBRE'],
-                        "TIPO": tipo_plan,
-                        "TITULO": nombre_proyecto,
-                        "CONTENIDO": plan_final,
-                        "ESTADO": "ACTIVO", # Importante para que el Aula Virtual lo vea
-                        "CREADO_EL": ahora_ve().strftime("%d/%m/%Y %H:%M")
-                    }])
-                    
-                    url = st.secrets["GSHEETS_URL"]
-                    # Leemos hoja actual
-                    df_actual = conn.read(spreadsheet=url, worksheet="Hoja1", ttl=0)
-                    
-                    # Marcamos como INACTIVO todo lo anterior de este usuario (Pandas logic)
-                    if not df_actual.empty:
-                        df_actual.loc[df_actual['USUARIO'] == st.session_state.u['NOMBRE'], 'ESTADO'] = "INACTIVO"
-                    
-                    # Concatenamos
-                    df_final = pd.concat([df_actual, nuevo_plan], ignore_index=True)
-                    
-                    # Subimos a Google Sheets
-                    conn.update(spreadsheet=url, worksheet="Hoja1", data=df_final)
-                    
-                    st.balloons()
-                    st.success("✅ ¡Planificación Activada! Ya aparecerá en tu Aula Virtual.")
-                    # Limpiamos temporal
-                    del st.session_state.plan_generado_temp
-                    time.sleep(2)
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"Error guardando: {e}")
+                    with st.spinner("Guardando..."):
+                        df = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=0)
+                        nuevo = pd.DataFrame([{
+                            "FECHA": ahora_ve().strftime("%d/%m/%Y"),
+                            "USUARIO": st.session_state.u['NOMBRE'],
+                            "TEMA": f"{modalidad} - {notas}"[:50],
+                            "CONTENIDO": st.session_state.plan_actual,
+                            "ESTADO": "GUARDADO"
+                        }])
+                        conn.update(spreadsheet=URL_HOJA, worksheet="Hoja1", data=pd.concat([df, nuevo], ignore_index=True))
+                        st.success("¡Guardado!")
+                        time.sleep(1)
+                        st.session_state.plan_actual = ""
+                        st.rerun()
+                except Exception as e: st.error(f"Error: {e}")
+        
+        with c2:
+            if st.button("🗑️ Descartar"):
+                st.session_state.plan_actual = ""
+                st.rerun()
