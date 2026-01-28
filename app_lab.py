@@ -2278,6 +2278,85 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                         
                         st.divider()
                         st.dataframe(df_alumno[['FECHA', 'ACTIVIDAD', 'ANECDOTA', 'EVALUACION_IA']], hide_index=True, use_container_width=True)
+# -------------------------------------------------------------------------
+    # VISTAS: RECURSOS EXTRA (MÓDULOS DE APOYO DOCENTE)
+    # -------------------------------------------------------------------------
+    
+    # 1. MENSAJE MOTIVACIONAL
+    elif opcion == "🌟 Mensaje Motivacional":
+        st.header("🌟 Dosis de Inspiración Docente")
+        st.markdown("Un espacio para recargar energías. La labor docente en Venezuela es heroica.")
+        
+        if st.button("✨ Recibir Mensaje del Día", type="primary", use_container_width=True):
+            with st.spinner("Conectando con la mística pedagógica..."):
+                prompt_mot = """
+                ACTÚA COMO UN MENTOR PEDAGÓGICO VENEZOLANO SABIO Y EMPÁTICO.
+                DAME UN MENSAJE CORTO (MÁXIMO 3 FRASES) PARA MOTIVAR A UN DOCENTE DE EDUCACIÓN ESPECIAL EN ZULIA.
+                USA METÁFORAS DE LA RESILIENCIA, EL AMOR PEDAGÓGICO Y LA SIEMBRA DE FUTURO.
+                NO USES FRASES CLICHÉ DE AUTOAYUDA GENÉRICA. TIENE QUE TENER "ALMA" VENEZOLANA.
+                """
+                mensaje = generar_respuesta([{"role":"user", "content":prompt_mot}], 0.8)
+                
+                st.markdown(f"""
+                <div style="background-color: #fff3cd; padding: 30px; border-radius: 15px; border-left: 10px solid #ffc107; font-size: 1.3rem; text-align: center; color: #856404;">
+                    "{mensaje}"
+                </div>
+                """, unsafe_allow_html=True)
+                st.balloons()
+
+    # 2. BANCO DE IDEAS
+    elif opcion == "💡 Ideas de Actividades":
+        st.header("💡 Lluvia de Ideas Pedagógicas")
+        st.markdown("¿Bloqueo creativo? Super Docente te ayuda a diseñar dinámicas rápidas.")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            tema_idea = st.text_input("¿Qué tema quieres trabajar?", placeholder="Ej: Los Sentidos, Reciclaje, Navidad...")
+        with c2:
+            recurso_idea = st.selectbox("Recurso disponible:", ["Material de Provecho", "Canaima/Tecnología", "Espacio al Aire Libre", "Solo Pizarra y Marcador"])
+            
+        if st.button("🎲 Generar 3 Ideas Rápidas", use_container_width=True):
+            if tema_idea:
+                with st.spinner("Diseñando estrategias vivenciales..."):
+                    prompt_idea = f"""
+                    ERES UN EXPERTO EN DINÁMICAS DE GRUPO PARA EDUCACIÓN ESPECIAL.
+                    TEMA: {tema_idea}.
+                    RECURSO: {recurso_idea}.
+                    CONTEXTO: Taller Laboral / Escuela Especial en Venezuela.
+                    
+                    DAME 3 IDEAS DE ACTIVIDADES CORTAS (INICIO, DESARROLLO O CIERRE).
+                    FORMATO:
+                    1. [Nombre Creativo]: [Descripción breve].
+                    2. [Nombre Creativo]: [Descripción breve].
+                    3. [Nombre Creativo]: [Descripción breve].
+                    """
+                    ideas = generar_respuesta([{"role":"user", "content":prompt_idea}], 0.7)
+                    st.info(ideas)
+            else:
+                st.warning("Escribe un tema primero.")
+
+    # 3. CONSULTAS TÉCNICAS
+    elif opcion == "❓ Consultas Técnicas":
+        st.header("❓ Asesoría Técnica y Legal")
+        st.markdown("Consulta dudas sobre la LOE, Currículo Bolivariano o Conceptualización de Educación Especial.")
+        
+        pregunta_tec = st.text_area("Escribe tu duda pedagógica o legal:", height=100, placeholder="Ej: ¿Cuáles son las funciones del docente de aula integrada según la ley?")
+        
+        if st.button("Consultar a Super Docente", type="primary"):
+            if pregunta_tec:
+                with st.spinner("Consultando marco jurídico y conceptual..."):
+                    prompt_tec = f"""
+                    ACTÚA COMO UN ABOGADO Y PEDAGOGO EXPERTO EN EL SISTEMA EDUCATIVO VENEZOLANO.
+                    BASATE EN: La Constitución (CRBV), Ley Orgánica de Educación (LOE) y la Conceptualización y Política de Educación Especial.
+                    
+                    PREGUNTA DEL USUARIO: "{pregunta_tec}"
+                    
+                    RESPUESTA TÉCNICA, PRECISA Y PROFESIONAL. CITA ARTÍCULOS SI ES NECESARIO PERO EXPLÍCALOS SENCILLO.
+                    """
+                    respuesta_tec = generar_respuesta([{"role":"system", "content":INSTRUCCIONES_TECNICAS}, {"role":"user", "content":prompt_tec}], 0.5)
+                    st.write(respuesta_tec)
+            else:
+                st.error("Escribe tu pregunta.")
 # =============================================================================
 # PIE DE PÁGINA OFICIAL (v1.0)
 # =============================================================================
