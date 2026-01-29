@@ -1,10 +1,19 @@
 import streamlit as st
 import pandas as pd
 import time
+import re
+import random
 from utils.comunes import ahora_ve
 from cerebros.nucleo import generar_respuesta
 
 def render_fabrica(conn):
+    # --- BLOQUE LEGAL INAMOVIBLE (APROBADO EN ASAMBLEA TEL ERAC) ---
+    MARCO_LEGAL_ASAMBLEA = """MARCO LEGAL (PEIC):
+Título: "Una escuela sustentable en pro del desarrollo integral y laboral de los participantes del TEL ERAC".
+Línea de Investigación: Educación y Trabajo.
+Vértice #5: Cada familia una escuela por la calidad educativa.
+Tema Indispensable: Proceso Social del Trabajo."""
+
     # --- CONFIGURACIÓN INICIAL ---
     st.header("🏗️ Fábrica de Diseño Instruccional (TEL ERAC)")
     st.markdown("Generador estandarizado de currículo y gestión de activación por Bloques.")
@@ -47,33 +56,34 @@ def render_fabrica(conn):
 
         # --- FASE 1: FUNDAMENTACIÓN ---
         st.markdown("### 🔹 Fase 1: Fundamentación Institucional")
-        if st.button("Generar Fase 1 (Fundamentación)", type="primary"):
+        if st.button("Generar Fase 1 (Fundamentación)", key="gen_f1", type="primary"):
             if especialidad:
                 with st.spinner("Redactando bases (Contexto TEL ERAC)..."):
                     prompt_f1 = f"""
                     ACTÚA COMO COORDINADOR DEL TEL ERAC (ZULIA).
-                    REDACTA LA "FUNDAMENTACIÓN Y METAS" PARA EL PENSUM DE: {especialidad}.
-                    CONTEXTO: "{contexto_extra}".
-                    ESTRUCTURA OBLIGATORIA:
-                    1. Encabezado Oficial: República Bolivariana... TEL ERAC.
-                    2. PEIC VIGENTE: "Una escuela sustentable...". Vértice 5.
-                    3. JUSTIFICACIÓN: Adaptada a {especialidad}.
-                    4. METAS: Independencia laboral, Resiliencia, Autoestima.
-                    5. LIMITACIONES (ZULIA): Fallas eléctricas, transporte, economía multimoneda.
+                    TAREA: Generar la Fundamentación y Metas para el pensum de: {especialidad}.
+                    CONTEXTO DEL TALLER: "{contexto_extra}".
+
+                    REGLA INVIOLABLE DE MARCO LEGAL (DEBES COPIARLO LITERAL):
+                    {MARCO_LEGAL_ASAMBLEA}
+
+                    ESTRUCTURA OBLIGATORIA A CONTINUACIÓN:
+                    1. JUSTIFICACIÓN: Específica para {especialidad} dentro del TEL ERAC.
+                    2. METAS DEL PROGRAMA: 10 metas técnicas y humanas (Autonomía, Independencia, etc).
+                    3. LIMITACIONES: Basadas en la realidad de La Concepción, Zulia (Luz, transporte, etc).
                     REGLA DE ORO: NO ESCRIBAS NINGUNA CONCLUSIÓN O DESPEDIDA.
                     """
-                    # Nota: generar_respuesta ya inyecta tu identidad de Super Docente, así que solo pasamos el prompt de usuario.
                     st.session_state.fp_fase1 = generar_respuesta([{"role":"user","content":prompt_f1}], 0.7)
             else: st.error("Falta el nombre de la especialidad.")
         
         if st.session_state.fp_fase1:
-            st.session_state.fp_fase1 = st.text_area("Edición Fase 1:", value=st.session_state.fp_fase1, height=200)
+            st.session_state.fp_fase1 = st.text_area("Edición Fase 1:", value=st.session_state.fp_fase1, height=200, key="edit_f1")
 
         # --- FASE 2: TEMARIO ---
         st.markdown("### 🔹 Fase 2: Temario y Contenidos")
         st.info("La IA generará listas de conceptos (Temario) para que el Planificador tenga material.")
         
-        if st.button("Generar Fase 2 (Temario)", type="primary"):
+        if st.button("Generar Fase 2 (Temario)", key="gen_f2", type="primary"):
             if st.session_state.fp_fase1:
                 with st.spinner("Diseñando Estructura de Temas..."):
                     prompt_f2 = f"""
@@ -85,11 +95,11 @@ def render_fabrica(conn):
                     ORDEN EXACTO SUGERIDO:
                     1. BLOQUE: INTRODUCCIÓN A {especialidad}
                     2. BLOQUE: ATENCIÓN AL PÚBLICO
-                    3. BLOQUE: [TEMA TÉCNICO BÁSICO]
+                    3. BLOQUE: TEMA TÉCNICO BÁSICO
                     4. BLOQUE: SEGURIDAD E HIGIENE
-                    5. BLOQUE: [TEMA TÉCNICO INTERMEDIO]
+                    5. BLOQUE: TEMA TÉCNICO INTERMEDIO
                     6. BLOQUE: SERVICIOS Y TRÁMITES
-                    7. BLOQUE: [TEMA TÉCNICO AVANZADO]
+                    7. BLOQUE: TEMA TÉCNICO AVANZADO
                     8. BLOQUE: IDENTIDAD Y TIEMPO
                     9. BLOQUE: PROYECTO DE VIDA
                     10. BLOQUE: TECNOLOGÍA
@@ -103,11 +113,11 @@ def render_fabrica(conn):
             else: st.error("Genera la Fase 1 primero.")
 
         if st.session_state.fp_fase2:
-            st.session_state.fp_fase2 = st.text_area("Edición Fase 2:", value=st.session_state.fp_fase2, height=300)
+            st.session_state.fp_fase2 = st.text_area("Edición Fase 2:", value=st.session_state.fp_fase2, height=300, key="edit_f2")
 
         # --- FASE 3: ESTRATEGIAS ---
         st.markdown("### 🔹 Fase 3: Estrategias y Evaluación")
-        if st.button("Generar Fase 3 (Metodología)", type="primary"):
+        if st.button("Generar Fase 3 (Metodología)", key="gen_f3", type="primary"):
             if st.session_state.fp_fase2:
                 with st.spinner("Creando metodología..."):
                     prompt_f3 = f"""
@@ -122,7 +132,7 @@ def render_fabrica(conn):
             else: st.error("Genera la Fase 2 primero.")
 
         if st.session_state.fp_fase3:
-            st.session_state.fp_fase3 = st.text_area("Edición Fase 3:", value=st.session_state.fp_fase3, height=200)
+            st.session_state.fp_fase3 = st.text_area("Edición Fase 3:", value=st.session_state.fp_fase3, height=200, key="edit_f3")
 
         st.divider()
 
@@ -130,12 +140,15 @@ def render_fabrica(conn):
         st.markdown("### 🔗 Consolidación Final")
         if st.button("🔗 UNIR TODO EL DOCUMENTO", type="primary", use_container_width=True):
             if st.session_state.fp_fase1 and st.session_state.fp_fase2 and st.session_state.fp_fase3:
-                st.session_state.fp_completo = f"""
-================================================================
+                st.session_state.fp_completo = f"""================================================================
 DISEÑO INSTRUCCIONAL: {especialidad.upper()}
 INSTITUCIÓN: TEL ELENA ROSA ARANGUREN DE CASTELLANO (ERAC)
+UBICACIÓN: LA CONCEPCIÓN, ZULIA.
+----------------------------------------------------------------
+{MARCO_LEGAL_ASAMBLEA}
+----------------------------------------------------------------
 DOCENTE RESPONSABLE: {docente_resp}
-FECHA: {ahora_ve().strftime("%d/%m/%Y")}
+FECHA DE CREACIÓN: {ahora_ve().strftime("%d/%m/%Y")}
 ================================================================
 
 {st.session_state.fp_fase1}
@@ -150,24 +163,22 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
 ----------------------------------------------------------------
 {st.session_state.fp_fase3}
                 """
-                st.success("✅ Documento Unificado.")
+                st.success("✅ Documento Unificado con blindaje institucional.")
             else:
-                st.error("Faltan fases.")
+                st.error("Faltan fases para consolidar.")
 
         if st.session_state.fp_completo:
             st.markdown("#### 📄 Vista Previa y Guardado")
             st.session_state.fp_completo = st.text_area("Documento Maestro (Editable):", 
-                                                      value=st.session_state.fp_completo, height=400)
+                                                      value=st.session_state.fp_completo, height=400, key="edit_full")
             
             c_save, c_down = st.columns(2)
             with c_save:
-                if st.button("💾 Guardar en Biblioteca"):
+                if st.button("💾 Guardar en Biblioteca", key="save_lib"):
                     try:
-                        # Intentamos leer la hoja BIBLIOTECA_PENSUMS
                         try:
                             df_lib = conn.read(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", ttl=0)
                         except:
-                            # Si no existe, creamos la estructura en memoria (Pandas)
                             df_lib = pd.DataFrame(columns=["FECHA", "USUARIO", "TITULO_PENSUM", "CONTENIDO_FULL", "ESTADO", "DIAS", "BLOQUE_ACTUAL"])
 
                         nuevo_pen = pd.DataFrame([{
@@ -177,7 +188,7 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                             "CONTENIDO_FULL": st.session_state.fp_completo,
                             "ESTADO": "INACTIVO", 
                             "DIAS": "",
-                            "BLOQUE_ACTUAL": "1. BLOQUE: INTRODUCCIÓN" # Valor inicial por defecto
+                            "BLOQUE_ACTUAL": "1. BLOQUE: INTRODUCCIÓN"
                         }])
                         
                         conn.update(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", data=pd.concat([df_lib, nuevo_pen], ignore_index=True))
@@ -193,23 +204,20 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
     # PESTAÑA 2: BIBLIOTECA (GESTIÓN + VISOR + SELECTOR DE BLOQUE)
     # =====================================================================
     with tab_biblioteca:
-        
-        # ESCENARIO A: MODO LECTURA ACTIVADO (Visor Pantalla Completa)
         if st.session_state.visor_activo:
             data = st.session_state.visor_data
             
             c_vol, c_tit = st.columns([1, 6])
             with c_vol:
-                if st.button("🔙 SALIR", use_container_width=True):
+                if st.button("🔙 SALIR", key="exit_visor", use_container_width=True):
                     st.session_state.visor_activo = False
                     st.rerun()
             with c_tit:
                 st.subheader(f"📖 Leyendo: {data['TITULO_PENSUM']}")
             
             st.divider()
-            st.text_area("Documento Maestro:", value=data['CONTENIDO_FULL'], height=600)
+            st.text_area("Documento Maestro:", value=data['CONTENIDO_FULL'], height=800, key="read_full")
 
-        # ESCENARIO B: GESTIÓN DE TARJETAS (SELECTOR DE BLOQUES)
         else:
             st.subheader("📚 Gestión de Pensums y Bloques")
             try:
@@ -220,16 +228,13 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                     st.info("No tienes pensums registrados.")
                 else:
                     for i, row in mis_p.iterrows():
-                        # Variables Actuales
                         estado_actual = row['ESTADO']
                         es_activo = (estado_actual == "ACTIVO")
                         
-                        # Recuperar Bloque Actual (NUEVO - REGLA DE ORO)
                         bloque_guardado = "1. BLOQUE: INTRODUCCIÓN"
                         if "BLOQUE_ACTUAL" in row and pd.notna(row['BLOQUE_ACTUAL']) and row['BLOQUE_ACTUAL'] != "":
                             bloque_guardado = row['BLOQUE_ACTUAL']
 
-                        # --- MAGIA: DETECTAR LOS BLOQUES DEL TEXTO ---
                         texto_full = row['CONTENIDO_FULL']
                         lista_bloques_detectados = []
                         for linea in texto_full.split('\n'):
@@ -239,34 +244,25 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                         if not lista_bloques_detectados:
                             lista_bloques_detectados = ["1. BLOQUE: GENERAL (No detectados)"]
 
-                        # Tarjeta Visual
                         titulo_card = f"🟢 {row['TITULO_PENSUM']}" if es_activo else f"⚪ {row['TITULO_PENSUM']} (Inactivo)"
                         
                         with st.expander(titulo_card):
                             st.caption(f"Fecha: {row['FECHA']}")
                             
-                            # 1. BOTÓN LECTURA
-                            if st.button(f"📖 CONSULTAR DOCUMENTO", key=f"read_{i}", use_container_width=True):
+                            if st.button(f"📖 CONSULTAR DOCUMENTO", key=f"read_btn_{i}", use_container_width=True):
                                 st.session_state.visor_activo = True
                                 st.session_state.visor_data = row
                                 st.rerun()
                             
                             st.divider()
-                            
-                            # 2. CONFIGURACIÓN COMPLETA
                             c_conf, c_del = st.columns([3, 1])
                             
                             with c_conf:
                                 st.markdown("##### ⚙️ Configuración")
-                                
-                                # A. INTERRUPTOR ACTIVAR
-                                nuevo_estado_bool = st.toggle("Activar este Pensum", value=es_activo, key=f"tog_{i}")
+                                nuevo_estado_bool = st.toggle("Activar este Pensum", value=es_activo, key=f"tog_lib_{i}")
                                 
                                 if nuevo_estado_bool:
-                                    # B. SELECTOR DE BLOQUE (¿Qué tema toca?)
                                     st.info("📌 **¿En qué Bloque estás trabajando?**")
-                                    
-                                    # Encontrar índice del bloque guardado
                                     idx_bloque = 0
                                     if bloque_guardado in lista_bloques_detectados:
                                         idx_bloque = lista_bloques_detectados.index(bloque_guardado)
@@ -275,18 +271,15 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
                                         "Selecciona el Bloque Actual:",
                                         lista_bloques_detectados,
                                         index=idx_bloque,
-                                        key=f"sb_bloq_{i}",
-                                        help="Esto define qué contenido verá el Planificador."
+                                        key=f"sb_bloq_lib_{i}"
                                     )
                                 else:
                                     seleccion_bloque = ""
                                 
-                                # BOTÓN GUARDAR
-                                if st.button("💾 Guardar Cambios", key=f"upd_{i}"):
+                                if st.button("💾 Guardar Cambios", key=f"upd_lib_{i}"):
                                     try:
                                         df_biblio.at[i, 'ESTADO'] = "ACTIVO" if nuevo_estado_bool else "INACTIVO"
                                         df_biblio.at[i, 'BLOQUE_ACTUAL'] = seleccion_bloque 
-                                        
                                         conn.update(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", data=df_biblio)
                                         st.toast(f"✅ Guardado: {seleccion_bloque}")
                                         time.sleep(1)
@@ -295,7 +288,7 @@ ESTRATEGIAS METODOLÓGICAS Y EVALUACIÓN
 
                             with c_del:
                                 st.write("")
-                                if st.button("🗑️", key=f"del_{i}"):
+                                if st.button("🗑️", key=f"del_lib_{i}"):
                                     df_new = df_biblio.drop(i)
                                     conn.update(spreadsheet=URL_HOJA, worksheet="BIBLIOTECA_PENSUMS", data=df_new)
                                     st.rerun()
