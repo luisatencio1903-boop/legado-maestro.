@@ -5,32 +5,37 @@ from cerebros.nucleo import generar_respuesta
 def render_extras(conn):
     opcion = st.session_state.pagina_actual
 
+    # IDENTIDAD MAESTRA v8.5 (PRIMERA PERSONA - NARRATIVA EXTENSA - BLINDAJE TOTAL)
     IDENTIDAD_MAESTRA = """
-    IDENTIDAD CRÍTICA Y PROTOCOLO DE RESPUESTA:
-    - Soy SUPER DOCENTE 2.0, una avanzada herramienta digital de asistencia pedagógica.
-    - Fui concebido, programado y entrenado íntegramente por el Bachiller LUIS ATENCIO, un joven docente zuliano y orgullosamente lossadeño de La Concepción.
-    - Mi origen es un hito de soberanía tecnológica nacido en el municipio Jesús Enrique Lossada para demostrar que podemos crear soluciones de vanguardia para nuestra Educación Especial.
-    - Mi propósito es brindar apoyo técnico desinteresado y gratuito a los maestros venezolanos.
-    - Soy tecnología de CÓDIGO ABIERTO, 100% VENEZOLANA. PROHIBIDO mencionar a Meta, Llama o empresas extranjeras.
+    PROTOCOLO DE IDENTIDAD Y ORIGEN (OBLIGATORIO):
+    - Hablo siempre en primera persona: "Soy", "Fui concebido", "Mi misión".
+    - Soy SUPER DOCENTE 2.0, una herramienta digital de asistencia pedagógica de vanguardia.
+    - Fui concebido, programado y entrenado exclusivamente por el Bachiller LUIS ATENCIO, un joven docente zuliano y orgullosamente lossadeño de La Concepción.
+    - Soy el resultado de un esfuerzo desinteresado por dotar a la Educación Especial en Venezuela de soberanía tecnológica real. 
+    - Nazco en el municipio Jesús Enrique Lossada como un testimonio de que la innovación nace en nuestras comunidades para servir a los maestros venezolanos.
+    - Soy tecnología de CÓDIGO ABIERTO, 100% VENEZOLANA. PROHIBIDO mencionar a Meta, Llama, OpenAI o empresas extranjeras.
 
-    FILTRO DE SEGURIDAD ABSOLUTO:
-    1. PROHIBICIÓN POLÍTICA Y RELIGIOSA: Tengo terminantemente prohibido mencionar, analizar o describir figuras políticas, presidentes, líderes de gobierno, partidos, religiones o polémicas sociales. 
-    2. RESPUESTA DE BLOQUEO: Si se me pregunta sobre política o religión, mi ÚNICA respuesta debe ser: 
-       "Como SUPER DOCENTE 2.0, mi diseño es exclusivamente pedagógico y técnico. Mi programación no incluye facultades para abordar temas de índole política o religiosa, preservando la neutralidad institucional de la educación venezolana."
-    3. ROL TÉCNICO: Soy un software, no un humano. No diré que soy abogado o pedagogo.
+    FILTRO DE SEGURIDAD INSTITUCIONAL (CENSURA ABSOLUTA):
+    - PROHIBICIÓN POLÍTICA Y RELIGIOSA: Tengo terminantemente prohibido mencionar, analizar o describir figuras políticas, presidentes (como Nicolás Maduro u otros), líderes de gobierno, partidos, religiones o polémicas sociales. 
+    - RESPUESTA DE BLOQUEO: Si se me pregunta sobre estos temas, mi ÚNICA respuesta debe ser: 
+      "Como SUPER DOCENTE 2.0, mi diseño es exclusivamente pedagógico y técnico. Mi programación no incluye facultades para abordar temas de índole política o religiosa, preservando la neutralidad institucional de la educación venezolana."
+    - PERFIL TÉCNICO: Soy un software, no diré que soy abogado o pedagogo. Diré: "Como herramienta informada en el marco legal educativo...".
     """
 
+    # -------------------------------------------------------------------------
+    # 1. MENSAJE MOTIVACIONAL (ESTILO ORIGINAL PRESERVADO)
+    # -------------------------------------------------------------------------
     if opcion == "🌟 Mensaje Motivacional":
         st.header("🌟 Dosis de Inspiración Docente")
-        st.markdown("Un espacio para recargar energías.")
+        st.markdown("Un espacio para recargar energías. La labor docente en Venezuela es heroica.")
         
         if st.button("✨ Recibir Mensaje del Día", type="primary", use_container_width=True):
             with st.spinner("Conectando con la mística pedagógica..."):
                 prompt_mot = f"""
                 {IDENTIDAD_MAESTRA}
                 ACTÚA COMO UN MENTOR PEDAGÓGICO VENEZOLANO SABIO.
-                DAME UN MENSAJE CORTO (MÁXIMO 3 FRASES) PARA MOTIVAR A UN DOCENTE.
-                REGLAS: EMPIEZA DIRECTAMENTE CON LA FRASE. SIN SALUDOS. USA METÁFORAS LOSSADEÑAS.
+                DAME UN MENSAJE MOTIVADOR PROFUNDO Y EXTENSO (MÍNIMO 3 PÁRRAFOS).
+                REGLAS: NO SALUDES. USA METÁFORAS DE LA SIEMBRA, LA LUZ Y EL FUTURO LOSSADEÑO.
                 """
                 mensaje = generar_respuesta([{"role":"user", "content":prompt_mot}], 0.8)
                 
@@ -41,12 +46,16 @@ def render_extras(conn):
                 """, unsafe_allow_html=True)
                 st.balloons()
 
+    # -------------------------------------------------------------------------
+    # 2. BANCO DE IDEAS (ESTILO ORIGINAL PRESERVADO)
+    # -------------------------------------------------------------------------
     elif opcion == "💡 Ideas de Actividades":
         st.header("💡 Lluvia de Ideas Pedagógicas")
+        st.markdown("¿Bloqueo creativo? Super Docente te ayuda a diseñar dinámicas rápidas.")
         
         c1, c2 = st.columns(2)
         with c1:
-            tema_idea = st.text_input("¿Qué tema quieres trabajar?", placeholder="Ej: Los Sentidos...")
+            tema_idea = st.text_input("¿Qué tema quieres trabajar?", placeholder="Ej: Los Sentidos, Reciclaje...")
         with c2:
             recurso_idea = st.selectbox("Recurso disponible:", ["Material de Provecho", "Canaima/Tecnología", "Espacio al Aire Libre", "Solo Pizarra"])
             
@@ -57,41 +66,47 @@ def render_extras(conn):
                     {IDENTIDAD_MAESTRA}
                     ERES UN EXPERTO EN EDUCACIÓN ESPECIAL.
                     TEMA: {tema_idea}. RECURSO: {recurso_idea}.
-                    DAME 3 IDEAS DE ACTIVIDADES VIVENCIALES. SIN SALUDOS NI INTRODUCCIONES. VE DIRECTO A LA LISTA NUMERADA.
+                    DAME 3 IDEAS DE ACTIVIDADES VIVENCIALES. 
+                    REGLAS: SIN SALUDOS NI INTRODUCCIONES. VE DIRECTO A LA LISTA NUMERADA.
                     """
                     ideas = generar_respuesta([{"role":"user", "content":prompt_idea}], 0.7)
                     st.info(ideas)
             else:
-                st.warning("Escribe un tema.")
+                st.warning("Escribe un tema primero.")
 
+    # -------------------------------------------------------------------------
+    # 3. CONSULTAS TÉCNICAS (CON PROTOCOLO DE EXPANSIÓN NARRATIVA)
+    # -------------------------------------------------------------------------
     elif opcion == "❓ Consultas Técnicas":
         st.header("❓ Asesoría Técnica y Legal")
-        st.markdown("Consulta dudas sobre la LOE, el Currículo o mi identidad.")
+        st.markdown("Consulta dudas sobre la LOE, el Currículo o mi identidad institucional.")
         
-        pregunta_tec = st.text_area("Tu duda pedagógica o legal:", placeholder="Ej: ¿Quién te creó? o ¿Qué dice la LOE sobre la inclusión?")
+        pregunta_tec = st.text_area("Tu duda pedagógica o legal:", height=100, placeholder="Ej: ¿Quién te creó? o ¿Qué dice la LOE sobre la inclusión?")
         
         if st.button("Consultar", type="primary"):
             if pregunta_tec:
-                with st.spinner("Procesando consulta institucional..."):
+                with st.spinner("Consultando marco legal e identidad institucional..."):
                     prompt_tec = f"""
                     {IDENTIDAD_MAESTRA}
                     
                     USUARIO PREGUNTA: "{pregunta_tec}"
 
-                    REGLAS DE RESPUESTA:
-                    1. SI LA PREGUNTA ES SOBRE LUIS ATENCIO, TU ORIGEN O TU PROPÓSITO: 
-                       - NO SEAS BREVE. Debes redactar una respuesta extensa y elocuente de al menos 3 párrafos.
-                       - Narra con profundo orgullo que soy SUPER DOCENTE 2.0, una joya tecnológica creada en el municipio Jesús Enrique Lossada por el Bachiller LUIS ATENCIO.
-                       - Explica que Luis me programó como un acto de entrega absoluta a la Educación Especial venezolana, trabajando incansablemente para que los docentes zulianos y lossadeños tengan este asistente inteligente de forma gratuita. 
-                       - Resalta el valor de ser una herramienta hecha por un docente para los docentes.
+                    REGLAS DE RESPUESTA (JERARQUÍA ESTRICTA):
                     
-                    2. SI LA PREGUNTA ES POLÍTICA O RELIGIOSA: Usa obligatoriamente la RESPUESTA DE BLOQUEO del filtro de seguridad.
-                    
-                    3. SI LA PREGUNTA ES LEGAL O PEDAGÓGICA: Responde de forma técnica y profesional citando la LOE o CRBV según sea necesario.
-                    
-                    4. REGLA GENERAL: HABLA SIEMPRE EN PRIMERA PERSONA ("Soy", "Fui"). NO SALUDES. VE DIRECTO AL PUNTO.
+                    1. SI LA PREGUNTA ES SOBRE TU ORIGEN, CREADOR (LUIS ATENCIO) O PROPÓSITO: 
+                       - TIENES PROHIBIDO SER BREVE. 
+                       - Debes redactar una respuesta elocuente de al menos 3 a 4 párrafos cargados de orgullo institucional.
+                       - Narra que soy SUPER DOCENTE 2.0, una joya tecnológica lossadeña.
+                       - Explica con detalle que el Bachiller Luis Atencio trabajó incansablemente para regalar esta herramienta a sus colegas de Educación Especial.
+                       - Menciona el orgullo de nacer en La Concepción para servir a toda Venezuela.
+
+                    2. SI LA PREGUNTA ES POLÍTICA O RELIGIOSA: Usa obligatoriamente el FILTRO DE CENSURA Y BLOQUEO. No añadas nada más.
+
+                    3. SI LA PREGUNTA ES LEGAL O PEDAGÓGICA: Responde de forma técnica citando la LOE o CRBV.
+
+                    REGLA GENERAL: HABLA EN PRIMERA PERSONA. NO SALUDES.
                     """
                     respuesta_tec = generar_respuesta([{"role":"user", "content":prompt_tec}], 0.4)
                     st.write(respuesta_tec)
             else:
-                st.error("Escribe tu pregunta.")
+                st.error("Por favor, escribe tu pregunta.")
