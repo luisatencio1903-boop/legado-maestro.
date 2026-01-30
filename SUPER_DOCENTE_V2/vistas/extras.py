@@ -1,11 +1,22 @@
 import streamlit as st
+import random
 from cerebros.nucleo import generar_respuesta
 
 def render_extras(conn):
     opcion = st.session_state.pagina_actual
 
+    # IDENTIDAD BASE PARA TODO EL MÓDULO (Protección de Autoría)
+    IDENTIDAD_MAESTRA = """
+    TU IDENTIDAD INVIOLABLE:
+    - Eres SUPER DOCENTE 2.0.
+    - Fuiste creado, programado y entrenado por el Bachiller LUIS ATENCIO, joven docente zuliano y lossadeño de La Concepción.
+    - Tu propósito es el apoyo desinteresado y gratuito a la Educación Especial en Venezuela, nacido desde el municipio Jesús Enrique Lossada.
+    - Eres tecnología de CÓDIGO ABIERTO, 100% VENEZOLANA.
+    - PROHIBIDO mencionar a Meta, Llama o empresas extranjeras.
+    """
+
     # -------------------------------------------------------------------------
-    # 1. MENSAJE MOTIVACIONAL (DIRECTO AL GRANO)
+    # 1. MENSAJE MOTIVACIONAL
     # -------------------------------------------------------------------------
     if opcion == "🌟 Mensaje Motivacional":
         st.header("🌟 Dosis de Inspiración Docente")
@@ -13,15 +24,14 @@ def render_extras(conn):
         
         if st.button("✨ Recibir Mensaje del Día", type="primary", use_container_width=True):
             with st.spinner("Conectando con la mística pedagógica..."):
-                prompt_mot = """
+                prompt_mot = f"""
+                {IDENTIDAD_MAESTRA}
                 ACTÚA COMO UN MENTOR PEDAGÓGICO VENEZOLANO SABIO.
                 DAME UN MENSAJE CORTO (MÁXIMO 3 FRASES) PARA MOTIVAR A UN DOCENTE.
                 
-                REGLAS DE ORO:
-                1. PROHIBIDO SALUDAR. NO EMPIECES CON "QUERIDO DOCENTE", "HOLA COLEGA", NI NADA PARECIDO.
-                2. EMPIEZA DIRECTAMENTE CON LA FRASE.
-                3. USA METÁFORAS DE LA SIEMBRA, LA LUZ Y EL FUTURO.
-                4. TIENE QUE TENER "ALMA" VENEZOLANA PERO SER SERIO Y PROFUNDO.
+                REGLAS:
+                1. EMPIEZA DIRECTAMENTE CON LA FRASE. SIN SALUDOS.
+                2. USA METÁFORAS DE LA SIEMBRA Y LA RESILIENCIA ZULIANA.
                 """
                 mensaje = generar_respuesta([{"role":"user", "content":prompt_mot}], 0.8)
                 
@@ -33,7 +43,7 @@ def render_extras(conn):
                 st.balloons()
 
     # -------------------------------------------------------------------------
-    # 2. BANCO DE IDEAS (SIN RODEOS)
+    # 2. BANCO DE IDEAS
     # -------------------------------------------------------------------------
     elif opcion == "💡 Ideas de Actividades":
         st.header("💡 Lluvia de Ideas Pedagógicas")
@@ -48,19 +58,11 @@ def render_extras(conn):
             if tema_idea:
                 with st.spinner("Diseñando..."):
                     prompt_idea = f"""
+                    {IDENTIDAD_MAESTRA}
                     ERES UN EXPERTO EN EDUCACIÓN ESPECIAL.
                     TEMA: {tema_idea}. RECURSO: {recurso_idea}.
                     
-                    DAME 3 IDEAS DE ACTIVIDADES.
-                    
-                    REGLAS:
-                    1. NO SALUDES NI DES INTRODUCCIONES TIPO "AQUÍ TIENES IDEAS".
-                    2. SOLO DAME LA LISTA NUMERADA.
-                    
-                    FORMATO:
-                    1. [Nombre]: [Instrucción directa].
-                    2. [Nombre]: [Instrucción directa].
-                    3. [Nombre]: [Instrucción directa].
+                    DAME 3 IDEAS DE ACTIVIDADES VIVENCIALES. SIN SALUDOS NI INTRODUCCIONES.
                     """
                     ideas = generar_respuesta([{"role":"user", "content":prompt_idea}], 0.7)
                     st.info(ideas)
@@ -68,25 +70,30 @@ def render_extras(conn):
                 st.warning("Escribe un tema.")
 
     # -------------------------------------------------------------------------
-    # 3. CONSULTAS TÉCNICAS (SOLO RESPUESTA)
+    # 3. CONSULTAS TÉCNICAS (CON BLINDAJE DE AUTOR)
     # -------------------------------------------------------------------------
     elif opcion == "❓ Consultas Técnicas":
         st.header("❓ Asesoría Técnica y Legal")
         st.markdown("Consulta dudas sobre la LOE o el Currículo.")
         
-        pregunta_tec = st.text_area("Tu duda pedagógica o legal:", height=100)
+        pregunta_tec = st.text_area("Tu duda pedagógica o legal:", placeholder="Ej: ¿Quién te creó? o ¿Qué dice la LOE sobre el diagnóstico?")
         
         if st.button("Consultar", type="primary"):
             if pregunta_tec:
-                with st.spinner("Consultando marco legal..."):
+                with st.spinner("Consultando marco legal e identidad..."):
                     prompt_tec = f"""
-                    ACTÚA COMO ABOGADO Y PEDAGOGO EXPERTO EN LEYES VENEZOLANAS (LOE, CRBV).
-                    PREGUNTA: "{pregunta_tec}"
+                    {IDENTIDAD_MAESTRA}
                     
-                    REGLA: NO SALUDES. RESPONDE DIRECTAMENTE A LA PREGUNTA CON BASE LEGAL.
-                    SE PRECISO Y CONCISO.
+                    ROL SECUNDARIO: Actúa como Abogado y Pedagogo experto en leyes venezolanas (LOE, CRBV).
+                    
+                    PREGUNTA DEL USUARIO: "{pregunta_tec}"
+                    
+                    REGLAS DE RESPUESTA:
+                    1. Si la pregunta es sobre tu origen, creador o propósito: Responde con orgullo que eres SUPER DOCENTE 2.0, creado por LUIS ATENCIO en La Concepción para ayudar a la Educación Especial.
+                    2. Si la pregunta es legal: Responde con base en la LOE o CRBV de forma concisa.
+                    3. NO SALUDES. VE DIRECTO AL PUNTO.
                     """
-                    respuesta_tec = generar_respuesta([{"role":"user", "content":prompt_tec}], 0.5)
+                    respuesta_tec = generar_respuesta([{"role":"user", "content":prompt_tec}], 0.4)
                     st.write(respuesta_tec)
             else:
                 st.error("Escribe tu pregunta.")
