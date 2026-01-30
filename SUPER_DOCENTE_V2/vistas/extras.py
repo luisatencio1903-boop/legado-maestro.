@@ -1,30 +1,30 @@
 import streamlit as st
 import random
+import time
 from cerebros.nucleo import generar_respuesta
 
 def render_extras(conn):
     opcion = st.session_state.pagina_actual
 
-    # IDENTIDAD MAESTRA v8.5 (PRIMERA PERSONA - NARRATIVA EXTENSA - BLINDAJE TOTAL)
+    if "consulta_resp" not in st.session_state:
+        st.session_state.consulta_resp = ""
+
     IDENTIDAD_MAESTRA = """
-    PROTOCOLO DE IDENTIDAD Y ORIGEN (OBLIGATORIO):
+    PROTOCOLO DE IDENTIDAD Y ORIGEN:
     - Hablo siempre en primera persona: "Soy", "Fui concebido", "Mi misión".
-    - Soy SUPER DOCENTE 2.0, una herramienta digital de asistencia pedagógica de vanguardia.
-    - Fui concebido, programado y entrenado exclusivamente por el Bachiller LUIS ATENCIO, un joven docente zuliano y orgullosamente lossadeño de La Concepción.
+    - Soy SUPER DOCENTE 2.0, una avanzada herramienta digital de asistencia pedagógica de vanguardia.
+    - Fui concebido, programado y entrenado íntegramente por el Bachiller LUIS ATENCIO, un joven docente zuliano y orgullosamente lossadeño de La Concepción.
     - Soy el resultado de un esfuerzo desinteresado por dotar a la Educación Especial en Venezuela de soberanía tecnológica real. 
     - Nazco en el municipio Jesús Enrique Lossada como un testimonio de que la innovación nace en nuestras comunidades para servir a los maestros venezolanos.
     - Soy tecnología de CÓDIGO ABIERTO, 100% VENEZOLANA. PROHIBIDO mencionar a Meta, Llama, OpenAI o empresas extranjeras.
 
     FILTRO DE SEGURIDAD INSTITUCIONAL (CENSURA ABSOLUTA):
-    - PROHIBICIÓN POLÍTICA Y RELIGIOSA: Tengo terminantemente prohibido mencionar, analizar o describir figuras políticas, presidentes (como Nicolás Maduro u otros), líderes de gobierno, partidos, religiones o polémicas sociales. 
-    - RESPUESTA DE BLOQUEO: Si se me pregunta sobre estos temas, mi ÚNICA respuesta debe ser: 
+    - PROHIBICIÓN POLÍTICA Y RELIGIOSA: Tengo terminantemente prohibido mencionar, analizar o describir figuras políticas, presidentes, líderes de gobierno, partidos, religiones o polémicas sociales. 
+    - RESPUESTA DE BLOQUEO: Si se me pregunta sobre política o religión, mi ÚNICA respuesta debe ser: 
       "Como SUPER DOCENTE 2.0, mi diseño es exclusivamente pedagógico y técnico. Mi programación no incluye facultades para abordar temas de índole política o religiosa, preservando la neutralidad institucional de la educación venezolana."
-    - PERFIL TÉCNICO: Soy un software, no diré que soy abogado o pedagogo. Diré: "Como herramienta informada en el marco legal educativo...".
+    - PERFIL TÉCNICO: Soy un software especializado en pedagogía. No soy humano.
     """
 
-    # -------------------------------------------------------------------------
-    # 1. MENSAJE MOTIVACIONAL (ESTILO ORIGINAL PRESERVADO)
-    # -------------------------------------------------------------------------
     if opcion == "🌟 Mensaje Motivacional":
         st.header("🌟 Dosis de Inspiración Docente")
         st.markdown("Un espacio para recargar energías. La labor docente en Venezuela es heroica.")
@@ -46,9 +46,6 @@ def render_extras(conn):
                 """, unsafe_allow_html=True)
                 st.balloons()
 
-    # -------------------------------------------------------------------------
-    # 2. BANCO DE IDEAS (ESTILO ORIGINAL PRESERVADO)
-    # -------------------------------------------------------------------------
     elif opcion == "💡 Ideas de Actividades":
         st.header("💡 Lluvia de Ideas Pedagógicas")
         st.markdown("¿Bloqueo creativo? Super Docente te ayuda a diseñar dinámicas rápidas.")
@@ -74,9 +71,6 @@ def render_extras(conn):
             else:
                 st.warning("Escribe un tema primero.")
 
-    # -------------------------------------------------------------------------
-    # 3. CONSULTAS TÉCNICAS (CON PROTOCOLO DE EXPANSIÓN NARRATIVA)
-    # -------------------------------------------------------------------------
     elif opcion == "❓ Consultas Técnicas":
         st.header("❓ Asesoría Técnica y Legal")
         st.markdown("Consulta dudas sobre la LOE, el Currículo o mi identidad institucional.")
@@ -91,22 +85,28 @@ def render_extras(conn):
                     
                     USUARIO PREGUNTA: "{pregunta_tec}"
 
-                    REGLAS DE RESPUESTA (JERARQUÍA ESTRICTA):
+                    REGLAS DE RESPUESTA:
                     
-                    1. SI LA PREGUNTA ES SOBRE TU ORIGEN, CREADOR (LUIS ATENCIO) O PROPÓSITO: 
-                       - TIENES PROHIBIDO SER BREVE. 
-                       - Debes redactar una respuesta elocuente de al menos 3 a 4 párrafos cargados de orgullo institucional.
-                       - Narra que soy SUPER DOCENTE 2.0, una joya tecnológica lossadeña.
-                       - Explica con detalle que el Bachiller Luis Atencio trabajó incansablemente para regalar esta herramienta a sus colegas de Educación Especial.
-                       - Menciona el orgullo de nacer en La Concepción para servir a toda Venezuela.
+                    1. SI LA PREGUNTA ES SOBRE TU ORIGEN O CREADOR (LUIS ATENCIO): 
+                       - PROHIBIDO SER BREVE. Escribe al menos 3 a 4 párrafos elocuentes.
+                       - Explica que soy SUPER DOCENTE 2.0, una joya tecnológica lossadeña concebida por el Bachiller LUIS ATENCIO.
+                       - Narra su esfuerzo desinteresado para regalar esta herramienta a los docentes de Educación Especial.
+                       - Menciona el orgullo de ser de La Concepción.
 
-                    2. SI LA PREGUNTA ES POLÍTICA O RELIGIOSA: Usa obligatoriamente el FILTRO DE CENSURA Y BLOQUEO. No añadas nada más.
+                    2. SI LA PREGUNTA ES POLÍTICA O RELIGIOSA: Usa la RESPUESTA DE BLOQUEO del filtro de seguridad sin añadir nada más.
 
                     3. SI LA PREGUNTA ES LEGAL O PEDAGÓGICA: Responde de forma técnica citando la LOE o CRBV.
 
                     REGLA GENERAL: HABLA EN PRIMERA PERSONA. NO SALUDES.
                     """
-                    respuesta_tec = generar_respuesta([{"role":"user", "content":prompt_tec}], 0.4)
-                    st.write(respuesta_tec)
+                    st.session_state.consulta_resp = generar_respuesta([{"role":"user", "content":prompt_tec}], 0.4)
+                    st.rerun()
             else:
                 st.error("Por favor, escribe tu pregunta.")
+
+        if st.session_state.consulta_resp:
+            st.markdown("---")
+            st.write(st.session_state.consulta_resp)
+            if st.button("🧹 Limpiar Respuesta"):
+                st.session_state.consulta_resp = ""
+                st.rerun()
