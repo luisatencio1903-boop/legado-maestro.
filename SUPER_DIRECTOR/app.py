@@ -162,4 +162,5 @@ else:
         validar_evidencias.render_validacion(conn, URL_HOJA, universo)
     elif st.session_state.vista_actual == "🏆 Ranking de Méritos":
         from vistas import ranking_meritos
-        ranking_meritos.render_ranking(universo)
+        # AQUÍ ESTÁ LA ACTUALIZACIÓN FINAL: Se pasan los 3 argumentos
+        ranking_meritos.render_ranking(conn, URL_HOJA, universo)
