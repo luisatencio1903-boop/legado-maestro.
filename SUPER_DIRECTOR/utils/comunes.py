@@ -7,7 +7,9 @@ def ahora_ve():
 
 def limpiar_id(v):
     if v is None: return ""
-    return str(v).strip().upper().replace(',', '').replace('.', '').replace('V-', '').replace('E-', '').replace(' ', '')
+    v_str = str(v).strip().upper()
+    v_limpio = v_str.split('.')[0]
+    return v_limpio.replace(',', '').replace('V-', '').replace('E-', '').replace(' ', '')
 
 @st.cache_data(ttl=300)
 def cargar_universo_datos(_conn, url):
