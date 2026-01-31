@@ -3,6 +3,7 @@ import pandas as pd
 import time
 from datetime import datetime, timedelta
 from streamlit_gsheets import GSheetsConnection
+from utils.comunes import ahora_ve, limpiar_id, cargar_universo_datos
 
 st.set_page_config(
     page_title="SUPER DIRECTOR 1.0",
@@ -10,13 +11,6 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed"
 )
-
-def ahora_ve():
-    return datetime.utcnow() - timedelta(hours=4)
-
-def limpiar_id(v):
-    if v is None: return ""
-    return str(v).strip().upper().replace(',', '').replace('.', '').replace('V-', '').replace('E-', '').replace(' ', '')
 
 st.markdown("""
 <style>
@@ -84,13 +78,22 @@ if not st.session_state.auth_dir:
                 st.error("No autorizado.")
     st.stop()
 
-if st.session_state.vista_actual == "HOME":
-    col_u, col_l = st.columns([3, 1])
-    col_u.markdown(f"**Director:** {st.session_state.u_dir['NOMBRE']}")
-    if col_l.button("🔒 SALIR"):
+col_sync, col_logout = st.columns([1, 1])
+with col_sync:
+    if st.button("♻️ ACTUALIZAR"):
+        st.cache_data.clear()
+        st.toast("Sincronizando universo de datos...")
+        time.sleep(1)
+        st.rerun()
+with col_logout:
+    if st.button("🔒 SALIR"):
         st.session_state.auth_dir = False
         st.rerun()
 
+universo = cargar_universo_datos(conn, URL_HOJA)
+
+if st.session_state.vista_actual == "HOME":
+    st.write(f"**Director:** {st.session_state.u_dir['NOMBRE']}")
     st.title("🛡️ Panel de Control")
     st.divider()
 
@@ -111,22 +114,22 @@ if st.session_state.vista_actual == "HOME":
         st.rerun()
 
 else:
-    c1, c2 = st.columns([1, 4])
-    if c1.button("⬅️ VOLVER"):
+    if st.button("⬅️ VOLVER AL MENÚ"):
         st.session_state.vista_actual = "HOME"
         st.rerun()
-    c2.subheader(st.session_state.vista_actual)
+    
+    st.subheader(st.session_state.vista_actual)
     st.divider()
 
     if st.session_state.vista_actual == "📊 Informe Diario Gestión":
         from vistas import informe_diario
-        informe_diario.render_informe(conn, URL_HOJA)
+        informe_diario.render_informe(universo)
     elif st.session_state.vista_actual == "📩 Revisión de Planes":
         from vistas import revision_planes
-        revision_planes.render_revision(conn, URL_HOJA)
+        revision_planes.render_revision(conn, URL_HOJA, universo)
     elif st.session_state.vista_actual == "📸 Validar Evidencias":
         from vistas import validar_evidencias
-        validar_evidencias.render_validacion(conn, URL_HOJA)
+        validar_evidencias.render_validacion(conn, URL_HOJA, universo)
     elif st.session_state.vista_actual == "🏆 Ranking de Méritos":
         from vistas import ranking_meritos
-        ranking_meritos.render_ranking(conn, URL_HOJA)
+        ranking_meritos.render_ranking(universo)
