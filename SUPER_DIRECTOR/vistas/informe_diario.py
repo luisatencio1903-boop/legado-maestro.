@@ -5,16 +5,19 @@ from datetime import datetime, timedelta
 def ahora_ve():
     return datetime.utcnow() - timedelta(hours=4)
 
-def render_informe(conn, URL_HOJA):
+def render_informe(universo):
     hoy = ahora_ve().strftime("%d/%m/%Y")
     
     try:
-        df_as = conn.read(spreadsheet=URL_HOJA, worksheet="ASISTENCIA", ttl=0)
-        df_ev = conn.read(spreadsheet=URL_HOJA, worksheet="EVALUACIONES", ttl=0)
-        df_ej = conn.read(spreadsheet=URL_HOJA, worksheet="EJECUCION", ttl=0)
-        df_mat = conn.read(spreadsheet=URL_HOJA, worksheet="MATRICULA_GLOBAL", ttl=0)
+        df_as = universo['ASISTENCIA']
+        df_ev = universo['EVALUACIONES']
+        df_ej = universo['EJECUCION']
+        df_mat = universo['MATRICULA_GLOBAL']
+    except KeyError as e:
+        st.error(f"Error: No se encuentra la hoja {e} en el universo de datos. Verifica los nombres en el Excel.")
+        return
     except Exception as e:
-        st.error(f"Error técnico: {e}")
+        st.error(f"Error técnico al cargar datos: {e}")
         return
 
     st.subheader(f"📊 Informe de Gestión Diaria: {hoy}")
