@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import time
+import os
 from datetime import datetime, timedelta
 from streamlit_gsheets import GSheetsConnection
 from utils.comunes import ahora_ve, limpiar_id, cargar_universo_datos
@@ -33,38 +34,62 @@ except:
     st.error("Error de conexión.")
     st.stop()
 
-if 'auth_dir' not in st.session_state:
-    st.session_state.auth_dir = False
-if 'vista_actual' not in st.session_state:
-    st.session_state.vista_actual = "HOME"
+if 'auth_dir' not in st.session_state: st.session_state.auth_dir = False
+if 'u_dir' not in st.session_state: st.session_state.u_dir = None
+if 'vista_actual' not in st.session_state: st.session_state.vista_actual = "HOME"
+
+query_params = st.query_params
+usuario_en_url = query_params.get("u", None)
+
+if not st.session_state.auth_dir and usuario_en_url:
+    try:
+        df_u = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=0)
+        df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
+        usuario_limpio = limpiar_id(usuario_en_url)
+        match = df_u[(df_u['C_L'] == usuario_limpio) & (df_u['ROL'] == "DIRECTOR")]
+        if not match.empty:
+            st.session_state.auth_dir = True
+            st.session_state.u_dir = match.iloc[0].to_dict()
+        else:
+            st.query_params.clear()
+    except: pass
 
 if not st.session_state.auth_dir:
     st.title("🛡️ Acceso: SUPER DIRECTOR")
+    st.caption("Panel de Control - T.E.L. E.R.A.C.")
     with st.form("login_dir"):
-        cedula = st.text_input("Cédula:")
-        clave = st.text_input("Contraseña:", type="password")
-        if st.form_submit_button("INGRESAR"):
-            df_u = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=0)
-            df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
-            match = df_u[(df_u['C_L'] == limpiar_id(cedula)) & (df_u['CLAVE'] == clave)]
-            if not match.empty and match.iloc[0]['ROL'] == "DIRECTOR":
-                st.session_state.auth_dir = True
-                st.session_state.u_dir = match.iloc[0].to_dict()
-                st.rerun()
-            else:
-                st.error("No autorizado.")
+        cedula_input = st.text_input("Cédula de Identidad:")
+        clave_input = st.text_input("Contraseña:", type="password")
+        if st.form_submit_button("AUTORIZAR INGRESO", use_container_width=True):
+            try:
+                df_u = conn.read(spreadsheet=URL_HOJA, worksheet="USUARIOS", ttl=0)
+                df_u['C_L'] = df_u['CEDULA'].apply(limpiar_id)
+                cedula_limpia = limpiar_id(cedula_input)
+                match = df_u[(df_u['C_L'] == cedula_limpia) & (df_u['CLAVE'] == clave_input)]
+                
+                if not match.empty:
+                    if match.iloc[0]['ROL'] == "DIRECTOR":
+                        st.session_state.auth_dir = True
+                        st.session_state.u_dir = match.iloc[0].to_dict()
+                        st.query_params["u"] = cedula_limpia
+                        st.rerun()
+                    else: st.error("Acceso Denegado: Rol insuficiente.")
+                else: st.error("Credenciales incorrectas.")
+            except Exception as e: st.error(f"Error de base de datos: {e}")
     st.stop()
 
 col_sync, col_logout = st.columns([1, 1])
 with col_sync:
     if st.button("♻️ ACTUALIZAR"):
         st.cache_data.clear()
-        st.toast("Sincronizando universo de datos...")
+        st.toast("Sincronizando con Google Sheets...")
         time.sleep(1)
         st.rerun()
 with col_logout:
     if st.button("🔒 SALIR"):
         st.session_state.auth_dir = False
+        st.session_state.u_dir = None
+        st.query_params.clear()
         st.rerun()
 
 universo = cargar_universo_datos(conn, URL_HOJA)
@@ -93,41 +118,22 @@ if st.session_state.vista_actual == "HOME":
     st.divider()
 
     st.markdown("### ⚠️ ALERTAS DE INCUMPLIMIENTO")
-    
     docs_con_salida = data_hoy[(data_hoy['TIPO'] == "ASISTENCIA") & (data_hoy['HORA_SALIDA'] != "-")]
     sin_foto_s = docs_con_salida[docs_con_salida['FOTO_SALIDA'] == "-"]
-    
     if not sin_foto_s.empty:
         for _, fila in sin_foto_s.iterrows():
-            st.markdown(f"""<div class='alert-box'>📸 <b>{fila['USUARIO']}</b> marcó salida a las {fila['HORA_SALIDA']} pero <b>NO tomó la foto de evidencia</b>.</div>""", unsafe_allow_html=True)
+            st.markdown(f"<div class='alert-box'>📸 <b>{fila['USUARIO']}</b> marcó salida sin foto de evidencia.</div>", unsafe_allow_html=True)
 
     docs_presentes = data_hoy[data_hoy['TIPO'] == "ASISTENCIA"]['USUARIO'].tolist()
     docs_ejecutaron = df_ej[df_ej['FECHA'] == hoy]['USUARIO'].tolist()
-    faltan_ejecucion = [d for d in docs_presentes if d not in docs_ejecutaron]
-
-    if faltan_ejecucion:
-        for d in faltan_ejecucion:
-            st.markdown(f"""<div class='alert-box' style='background-color: #fff3e0; border-left-color: #fb8c00; color: #e65100;'>🏫 <b>{d}</b> está presente pero aún no ha culminado su actividad en el Aula Virtual.</div>""", unsafe_allow_html=True)
-
-    if sin_foto_s.empty and not faltan_ejecucion and pres > 0:
-        st.success("✅ Todo el personal presente está cumpliendo con los protocolos de registro.")
-    elif pres == 0:
-        st.info("Esperando los primeros registros de asistencia...")
+    faltan_ej = [d for d in docs_presentes if d not in docs_ejecutaron]
+    if faltan_ej:
+        for d in faltan_ej:
+            st.markdown(f"<div class='alert-box' style='background-color:#fff3e0;border-left-color:#fb8c00;color:#e65100;'>🏫 <b>{d}</b> no ha culminado actividad en Aula Virtual.</div>", unsafe_allow_html=True)
 
     st.divider()
-
     st.markdown("### 🛠️ GESTIÓN ESTRATÉGICA")
-    sel = st.selectbox(
-        "Seleccione una herramienta:",
-        [
-            "(Seleccionar)",
-            "📊 Informe Diario Gestión",
-            "📩 Revisión de Planes",
-            "📸 Validar Evidencias",
-            "🏆 Ranking de Méritos"
-        ]
-    )
-
+    sel = st.selectbox("Herramienta:", ["(Seleccionar)", "📊 Informe Diario Gestión", "📩 Revisión de Planes", "📸 Validar Evidencias", "🏆 Ranking de Méritos"])
     if sel != "(Seleccionar)":
         st.session_state.vista_actual = sel
         st.rerun()
@@ -136,7 +142,6 @@ else:
     if st.button("⬅️ VOLVER AL MENÚ"):
         st.session_state.vista_actual = "HOME"
         st.rerun()
-    
     st.subheader(st.session_state.vista_actual)
     st.divider()
 
