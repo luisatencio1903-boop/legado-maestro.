@@ -1,6 +1,10 @@
 import streamlit as st
 
 def cargar_css():
+    """
+    Carga todos los estilos visuales de SUPER DOCENTE 2.0.
+    Mantiene el diseño de cajas pedagógicas y optimización móvil.
+    """
     hide_streamlit_style = """
     <style>
         /* Ocultar elementos nativos de Streamlit */
