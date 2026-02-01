@@ -2,46 +2,56 @@
 <html>
 <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>SUPER DOCENTE 2.0 - SISTEMA AUTÓNOMO</title>
-    <!-- Cargador de Stlite: Trae el motor de Python al navegador -->
     <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.31.0/build/stlite.js"></script>
 </head>
 <body>
     <div id="root"></div>
     <script>
     stlite.mount({
-        // 1. LIBRERÍAS NECESARIAS: Se descargan una sola vez al celular
+        // 1. LIBRERÍAS DE SUPER DOCENTE (Descarga inicial)
         requirements: ["pandas", "pillow", "requests"], 
-        entrypoint: "app_offline.py",
+        entrypoint: "app.py",
         files: {
-            "app_offline.py": `
+            # --- AQUÍ INYECTAREMOS TUS MÓDULOS EN EL SIGUIENTE PASO ---
+            "app.py": `
 import streamlit as st
-import pandas as pd
+import json
+# Importamos la magia para hablar con el disco duro del navegador
+from js import localStorage 
 
-# CONFIGURACIÓN VISUAL RÁPIDA
-st.set_page_config(page_title="Modo Autónomo", page_icon="🛡️")
+st.set_page_config(page_title="SUPER DOCENTE 1.0", page_icon="🍎")
+
+# --- MOTOR DE RECUPERACIÓN (Blindaje contra el reseteo del móvil) ---
+def leer_del_disco_local(llave):
+    try:
+        dato = localStorage.getItem(llave)
+        return json.loads(dato) if dato else None
+    except: return None
+
+def guardar_en_disco_local(llave, valor):
+    try: localStorage.setItem(llave, json.dumps(valor))
+    except: pass
 
 st.title("🦸‍♂️ SUPER DOCENTE 2.0")
-st.success("✅ MOTOR DE PYTHON CARGADO EN ESTE CELULAR")
+st.success("✅ SISTEMA CARGADO EN EL PROCESADOR DEL CELULAR")
 
-st.info("🕒 PRUEBA TÉCNICA: Pon tu móvil en MODO AVIÓN ahora mismo.")
+# Recuperamos la sesión si el navegador se cerró
+if 'auth' not in st.session_state:
+    sesion = leer_del_disco_local("sesion_activa")
+    if sesion:
+        st.session_state.auth = True
+        st.session_state.u = sesion
+        st.toast("🔄 Sesión restaurada automáticamente")
 
-menu = st.selectbox("HERRAMIENTA:", ["Inicio", "Prueba de Asistencia", "Prueba de Evaluación"])
-
-if menu == "Prueba de Asistencia":
-    st.subheader("⏱️ Registro Offline")
-    st.write("El sistema está procesando datos en el celular, no en internet.")
-    st.button("📸 Capturar Evidencia (Simulado)")
-    st.warning("Si puedes ver este mensaje SIN INTERNET, la arquitectura es un ÉXITO.")
-
-if menu == "Prueba de Evaluación":
-    st.subheader("📝 Evaluación Estudiantil")
-    nombre = st.text_input("Nombre del Alumno:")
-    obs = st.text_area("Observación:")
-    if st.button("Guardar en el Teléfono"):
-        st.success(f"Dato de {nombre} guardado en el disco duro del navegador.")
+if not st.session_state.get('auth', False):
+    st.info("Conéctate a internet una vez para iniciar sesión.")
+    # Aquí irá tu lógica de Login modular
+else:
+    st.write(f"Bienvenido, Super Docente **{st.session_state.u['NOMBRE']}**")
+    st.warning("📡 MODO AVIÓN ACTIVO: Puedes trabajar sin internet.")
+    # Aquí llamaremos a tus VISTAS modulares
             `
         }
     }, document.getElementById("root"))
