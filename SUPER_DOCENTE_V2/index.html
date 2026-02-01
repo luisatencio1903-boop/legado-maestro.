@@ -4,24 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>SUPER DOCENTE 2.0</title>
-    <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.31.0/build/stlite.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.39.0/build/stlite.js"></script>
 </head>
 <body>
     <div id="root"></div>
     <script>
     stlite.mount({
-        // 1. SOLO LIBRERÍAS COMPATIBLES Y LIGERAS
+        // Solo descargamos lo que el celular puede procesar offline
         requirements: ["pandas", "pillow", "requests"], 
         entrypoint: "app.py",
         files: {
             "app.py": { url: "app.py" },
-            // Carpeta UTILS
             "utils/maletin.py": { url: "utils/maletin.py" },
             "utils/traductor.py": { url: "utils/traductor.py" },
             "utils/visuales.py": { url: "utils/visuales.py" },
             "utils/db.py": { url: "utils/db.py" },
             "utils/sync_engine.py": { url: "utils/sync_engine.py" },
-            // Carpeta VISTAS
             "vistas/home.py": { url: "vistas/home.py" },
             "vistas/asistencia.py": { url: "vistas/asistencia.py" },
             "vistas/aula_virtual.py": { url: "vistas/aula_virtual.py" },
@@ -34,7 +32,6 @@
             "vistas/login.py": { url: "vistas/login.py" },
             "vistas/sidebar.py": { url: "vistas/sidebar.py" },
             "vistas/sincronizar.py": { url: "vistas/sincronizar.py" },
-            // Carpeta CEREBROS
             "cerebros/__init__.py": { content: "" },
             "cerebros/nucleo.py": { url: "cerebros/nucleo.py" },
             "cerebros/tel.py": { url: "cerebros/tel.py" },
