@@ -1,11 +1,11 @@
 import streamlit as st
 import time
+from utils.maletin import recuperar_del_dispositivo
 
 def render_home(conn):
     # --- 1. BOTONERA SUPERIOR (ACCIONES RÁPIDAS V1) ---
     col_update, col_clean, col_logout = st.columns([1.2, 1, 1])
     
-    # Botón Actualizar
     with col_update:
         if st.button("♻️ ACTUALIZAR", help="Descargar datos frescos de Google"):
             st.cache_data.clear()
@@ -13,7 +13,6 @@ def render_home(conn):
             time.sleep(1)
             st.rerun()
 
-    # Botón Limpiar
     with col_clean:
         if st.button("🧹 LIMPIAR"):
             st.session_state.plan_actual = ""
@@ -22,7 +21,6 @@ def render_home(conn):
             time.sleep(0.5)
             st.rerun()
             
-    # Botón Salir
     with col_logout:
         if st.button("🔒 SALIR", type="primary"):
             st.session_state.auth = False
@@ -30,6 +28,17 @@ def render_home(conn):
             st.rerun()
 
     st.divider()
+
+    # --- NUEVO: DETECTOR DE TRABAJO PENDIENTE (RESILIENCIA v2.0) ---
+    asis_p = recuperar_del_dispositivo("maletin_asistencia")
+    clase_p = recuperar_del_dispositivo("maletin_super_docente")
+    
+    if asis_p or (clase_p and (clase_p.get("av_foto1") or clase_p.get("av_resumen") != "")):
+        st.warning("📢 **¡Atención!** Tienes registros guardados en este dispositivo que aún no han sido subidos a la nube.")
+        if st.button("🚀 IR A SINCRONIZAR AHORA", use_container_width=True):
+            st.session_state.pagina_actual = "🚀 Sincronizar Jornada"
+            st.rerun()
+        st.divider()
     
     # --- 2. BIENVENIDA ---
     st.title("🍎 Asistente Educativo - Zulia")
@@ -45,7 +54,7 @@ def render_home(conn):
         st.session_state.pagina_actual = "⏱️ Control de Asistencia"
         st.rerun()
     
-    # B. Gestión Docente (AQUÍ QUITAMOS LA OPCIÓN REPETIDA)
+    # B. Gestión Docente
     st.markdown("### 🛠️ GESTIÓN DOCENTE")
     opciones_gestion = [
         "(Seleccionar)",
