@@ -4,26 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>SUPER DOCENTE 2.0</title>
-    <!-- Motor estable de Stlite -->
-    <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.39.0/build/stlite.js"></script>
+    <!-- Motor Stlite v0.63.1: Alta estabilidad para el Zulia -->
+    <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.63.1/build/stlite.js"></script>
 </head>
 <body>
     <div id="root"></div>
     <script>
     stlite.mount({
-        // Librerías compatibles con el celular
         requirements: ["pandas", "pillow", "requests"], 
         entrypoint: "app.py",
         files: {
             "app.py": { url: "app.py" },
-            // Carpeta UTILS
+            
             "utils/maletin.py": { url: "utils/maletin.py" },
             "utils/traductor.py": { url: "utils/traductor.py" },
             "utils/visuales.py": { url: "utils/visuales.py" },
             "utils/db.py": { url: "utils/db.py" },
             "utils/sync_engine.py": { url: "utils/sync_engine.py" },
-            "utils/__init__.py": { url: "utils/__init__.py" },
-            // Carpeta VISTAS
+            "utils/__init__.py": "",
+
             "vistas/home.py": { url: "vistas/home.py" },
             "vistas/asistencia.py": { url: "vistas/asistencia.py" },
             "vistas/aula_virtual.py": { url: "vistas/aula_virtual.py" },
@@ -36,8 +35,8 @@
             "vistas/login.py": { url: "vistas/login.py" },
             "vistas/sidebar.py": { url: "vistas/sidebar.py" },
             "vistas/sincronizar.py": { url: "vistas/sincronizar.py" },
-            "vistas/__init__.py": { url: "vistas/__init__.py" },
-            // Carpeta CEREBROS
+            "vistas/__init__.py": "",
+
             "cerebros/nucleo.py": { url: "cerebros/nucleo.py" },
             "cerebros/tel.py": { url: "cerebros/tel.py" },
             "cerebros/caipa.py": { url: "cerebros/caipa.py" },
@@ -45,7 +44,7 @@
             "cerebros/aula_integrada.py": { url: "cerebros/aula_integrada.py" },
             "cerebros/upe.py": { url: "cerebros/upe.py" },
             "cerebros/inicial.py": { url: "cerebros/inicial.py" },
-            "cerebros/__init__.py": { url: "cerebros/__init__.py" }
+            "cerebros/__init__.py": ""
         }
     }, document.getElementById("root"))
     </script>
